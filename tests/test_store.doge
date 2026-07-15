@@ -3,19 +3,16 @@ so dson
 so strings
 so "../app/store/store.doge"
 
-# Geen so-constante: doge test initialiseert top-level constanten (nog) niet — doge#65.
-such tmpmap:
-    return "tmp_test_data"
-wow
+so TMPMAP = "tmp_test_data"
 
 such schoon:
-    if fetch.exists(tmpmap()):
-        fetch.remove_dir(tmpmap())
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
 wow
 
 such test_bewaar_en_laad:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     such waarde = {"naam": "kabosu", "aantal": 42, "actief": true, "niks": none, "lijst": [1, 2, 3], "bedrag_ex": "1250.00"}
     s.bewaar("proef", waarde)
     such terug = s.laad("proef", none)
@@ -30,7 +27,7 @@ wow
 
 such test_laad_ontbrekend_geeft_standaard:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     such terug = s.laad("bestaat_niet", [])
     amaze len(terug) == 0
     schoon()
@@ -38,7 +35,7 @@ wow
 
 such test_overschrijven:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     s.bewaar("proef", [1])
     s.bewaar("proef", [1, 2])
     such terug = s.laad("proef", none)
@@ -48,7 +45,7 @@ wow
 
 such test_nieuw_id_doorlopend:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     amaze s.nieuw_id("b") == "b-1"
     amaze s.nieuw_id("b") == "b-2"
     amaze s.nieuw_id("f") == "f-1"
@@ -58,10 +55,10 @@ wow
 
 such test_audit_append_only:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     s.audit("aangemaakt", "boeking", "b-1", {"bedrag_ex": "100"})
     s.audit("gestorneerd", "boeking", "b-1", {"storno_van": "b-1"})
-    such inhoud = fetch.read(fetch.join(tmpmap(), "audit.dsonl"))
+    such inhoud = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
     such regels = strings.split(strings.trim(inhoud), "\n")
     amaze len(regels) == 2
     such eerste = dson.parse(regels[0])
@@ -74,9 +71,9 @@ wow
 
 such test_geen_tmp_restant:
     schoon()
-    such s = store.Store(tmpmap())
+    such s = store.Store(TMPMAP)
     s.bewaar("proef", [1, 2])
-    amaze not fetch.exists(fetch.join(tmpmap(), "proef.dson.tmp"))
+    amaze not fetch.exists(fetch.join(TMPMAP, "proef.dson.tmp"))
     schoon()
 wow
 wow

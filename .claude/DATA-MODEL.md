@@ -13,15 +13,16 @@ Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads wh
 
 ## 1. Entities
 
-All ids are `"{prefix}-{oplopend Int}"` (`b-1`, `f-1`, …), issued by the store. All dates `"YYYY-MM-DD"`, timestamps ISO-8601 UTC (`nap.stamp`). All amounts Decimal-as-string (ARCHITECTURE.md §4).
+All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …), issued by the store. All dates `"YYYY-MM-DD"`, timestamps ISO-8601 UTC (`nap.stamp`). All amounts Decimal-as-string (ARCHITECTURE.md §4).
 
 ```text
 ─── instellingen.dson (singleton Dict) ───────────────────────
   bedrijfsnaam, adres, kvk_nummer, btw_id, iban
   aangiftefrequentie   "kwartaal" (default; "maand"/"jaar" possible)
   kor                  Bool — Kleineondernemersregeling actief (→ §4.6)
-  factuur_prefix       e.g. "" or "GB" — nummer wordt "{prefix}{jaar}-{####}"
-  standaard_btw_code   default voor nieuwe journaalregels/factuurregels
+  standaard_btw_code   default btw_code voor nieuwe journaalregels
+  mollie_laatste_sync  "YYYY-MM-DD" — hoogwatermerk voor de Mollie-import (§4.2)
+                       (de Mollie API-key is een secret → .env, nooit hier)
 
 ─── rekeningen.dson (List) — rekeningschema (chart of accounts) ───
   Rekening — grootboekrekening; geseed met een standaard-schema voor een
@@ -40,42 +41,33 @@ All ids are `"{prefix}-{oplopend Int}"` (`b-1`, `f-1`, …), issued by the store
                              per regel is debet óf credit gevuld (Decimal-as-string);
                              btw_code alleen op regels met fiscale betekenis
                              (omzet-/kostenregels = grondslag)
+    bron                     "mollie" | "terugkerend" | "handmatig" | "bank" | "memoriaal"
+    mollie_payment_id        gezet bij bron "mollie" — idempotentie-sleutel (§4.2)
+    terugkerend_id           gezet bij bron "terugkerend" — welk kostensjabloon
     bijlage_ids              [bijlage-id, …]
-    factuur_id               gezet als de post uit een eigen factuur komt
     storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §4.4)
     created_at
   INVARIANT: som(debet) == som(credit) — een post die niet balanceert
-  wordt nooit opgeslagen (§4.0). De UI biedt sjabloonflows (verkoopfactuur,
-  inkoopfactuur, bank/privé) die gebalanceerde posten genereren; een vrije
-  memoriaalpost kan ook.
+  wordt nooit opgeslagen (§4.0). Posten ontstaan automatisch (Mollie-import =
+  omzet; terugkerend = maandkosten) of via een sjabloonflow (inkoop, bank/privé)
+  of een vrije memoriaalpost.
 
 ─── bijlagen.dson (List) ─────────────────────────────────────
-  Bijlage — geüpload of geïmporteerd bewijsstuk; nooit verwijderd (Hard Rule 3)
+  Bijlage — geüpload of geïmporteerd inkoopbewijs; nooit verwijderd (Hard Rule 3)
     id, journaalpost_id      none = staat in de import-inbox, vandaaruit boeken
-    bron                     "upload" | "import" (uit data/import/) | "factuur" (eigen gegenereerde)
+    bron                     "upload" | "import" (uit data/import/)
     bestandsnaam_origineel   metadata only — nooit een pad (Hard Rule 7)
     pad                      "uploads/{jaar}/{id}{ext}"
     mime, grootte_bytes, geupload_op
 
-─── facturen.dson (List) ─────────────────────────────────────
-  Factuur — eigen verkoopfactuur
-    id, nummer               none bij concept; "{prefix}{jaar}-{####}" bij definitief (§4.2)
-    datum, vervaldatum
-    klant                    {naam, adres, btw_id (optioneel, verplicht bij EU-levering)}
-    regels                   [{omschrijving, aantal, prijs_ex, btw_code}]
-    totaal_ex, btw_totaal, totaal_incl        (berekend, per btw_code gesplitst opgeslagen)
-    status                   "concept" → "definitief" → "verzonden" → "betaald"
-    journaalpost_id          gezet bij definitief (journaalpost debiteuren/omzet/btw aangemaakt)
-    terugkerend_id           gezet als gegenereerd uit een sjabloon
-    created_at
-
 ─── terugkerend.dson (List) ──────────────────────────────────
-  TerugkerendSjabloon — maandelijkse factuur-generator
+  KostenSjabloon — maandelijkse kosten-generator (Resend, Claude, OpenAI, …)
     id, actief (Bool)
-    klant, regels            zelfde vorm als Factuur
+    leverancier              "Anthropic", "OpenAI", "Resend", …
+    regels                   [{rekening, bedrag_ex, btw_code}] — kostenregels;
+                             de service leidt de btw-regel + tegenboeking af
     dag_van_maand            1–28 (clamp — geen 29/30/31-gedoe)
     volgende_run             "YYYY-MM-DD" — na een run: +1 maand (lib/datum.doge)
-    auto_definitief          Bool — direct nummeren + boeken, of als concept klaarzetten
 
 ─── aangiften.dson (List) ────────────────────────────────────
   Aangifte — één ingediend (of open berekend) tijdvak
@@ -93,7 +85,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`b-1`, `f-1`, …), issued by the store
 
 ## 2. btw-codes → aangifte-rubrieken
 
-**The fiscal heart.** Every journaalregel with fiscale betekenis (omzet- en kostenregels) carries exactly one `btw_code`; every code maps to exactly one rubriek-behaviour. The regel's bedrag is the grondslag (bedrag_ex); the corresponding btw-regel lands on the btw-rekening (af te dragen / voorbelasting). Implemented solely in `app/services/btw.doge` (Hard Rule 5); this table is its specification. (Verkoop-codes appear on omzet-regels, inkoop-codes on kosten-/activa-regels.)
+**The fiscal heart.** Every journaalregel with fiscale betekenis (omzet- en kostenregels) carries exactly one `btw_code`; every code maps to exactly one rubriek-behaviour. The regel's bedrag is the grondslag (bedrag_ex); the corresponding btw-regel lands on the btw-rekening (af te dragen / voorbelasting). Implemented solely in `app/services/btw.doge` (Hard Rule 5); this table is its specification. (Verkoop-codes komen op de omzet-regels van de Mollie-import; inkoop-codes op kosten-/activa-regels van terugkerende + handmatige inkoop — Resend/Claude/OpenAI zijn diensten van buiten de EU → `import_buiten_eu`, rubriek 4a + 5b.)
 
 ### Verkoop (type = "verkoop")
 
@@ -124,7 +116,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`b-1`, `f-1`, …), issued by the store
 - **5b** = som voorbelasting.
 - **saldo** = 5a − 5b — positief: te betalen; negatief: terug te vragen.
 - **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal).
-- Btw per journaalregel/factuurregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
+- Btw per journaalregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
 
 ---
 
@@ -143,10 +135,9 @@ Enforced in services, elk met een test (Hard Rule 9):
 
 0. **Elke journaalpost balanceert:** som(debet) == som(credit), op de cent (Decimal). Een niet-balancerende post wordt geweigerd, nooit "rechtgetrokken".
 1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in.
-2. **Factuurnummers doorlopend per jaar, zonder gaten** — uitgifte alleen bij `concept → definitief`, in audit vastgelegd; een definitieve factuur kan nooit terug naar concept (wel: creditfactuur).
-3. Een `definitief`-factuur heeft altijd exact één gekoppelde journaalpost (debiteuren/omzet/btw) met identieke bedragen.
-4. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit).
-5. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren).
-6. **KOR actief** (`instellingen.kor`): facturen zonder btw ("vrijgesteld van OB o.g.v. artikel 25 Wet OB"), geen rubrieken, geen aangiften; de app bewaakt de €20.000-omzetgrens per kalenderjaar en waarschuwt vanaf 80%.
-7. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
-8. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.
+2. **Import is idempotent, elke bron precies één keer geboekt:** een Mollie-payment wordt hoogstens één journaalpost (uniek `mollie_payment_id`), een kostensjabloon hoogstens één post per maand (uniek `terugkerend_id` + maand). Dubbel draaien van de sync/scheduler boekt nooit dubbel; elke import is een audit-event (Hard Rule 2).
+3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking.
+4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren).
+5. **KOR actief** (`instellingen.kor`): geen rubrieken, geen aangiften; de app bewaakt de €20.000-omzetgrens per kalenderjaar en waarschuwt vanaf 80%.
+6. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
+7. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.

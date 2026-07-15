@@ -1,6 +1,6 @@
 # Boekhond 🐕
 
-Self-hosted boekhoudapp voor een Nederlandse eenmanszaak, volledig geschreven in [Doge](https://github.com/DogeLanguage/doge). Boekhond bereidt de btw-aangifte (omzetbelasting) per kwartaal volledig voor: boekingen met btw-codes die één-op-één op de aangifte-rubrieken mappen, factuur-uploads met 7 jaar bewaarplicht, eigen verkoopfacturen met doorlopende nummering, en een import-inbox voor terugkerende facturen. Indienen doe je zelf via Mijn Belastingdienst Zakelijk — de app levert de exacte rubriekbedragen.
+Self-hosted boekhoudapp voor een Nederlandse eenmanszaak, volledig geschreven met de doge stack. Boekhond bereidt de btw-aangifte (omzetbelasting) per kwartaal volledig voor: dubbel boekhouden met btw-codes die één-op-één op de aangifte-rubrieken mappen, automatische inkomsten-import uit Mollie, terugkerende en handmatige kostenboekingen, en inkoopbewijs-uploads met 7 jaar bewaarplicht. Indienen doe je zelf via Mijn Belastingdienst Zakelijk — de app levert de exacte rubriekbedragen.
 
 ## Stack
 
@@ -31,9 +31,9 @@ tests/           # doge test — table-driven tests voor alles wat de wet raakt
 ```sh
 cargo install dogelang            # toolchain
 doge bark                         # run (project entry)
-doge check "$PWD/lib/datum.doge"  # snelle syntax check — absolute paths (doge#64)
-doge test "$PWD/tests"            # volledige suite
-doge fmt "$PWD/<file>"            # canonical formatting
+doge check lib/datum.doge         # snelle syntax check
+doge test tests                   # volledige suite
+doge fmt <file>                   # canonical formatting
 ```
 
 ## Deployment
@@ -47,4 +47,4 @@ Back-up = het `data/`-pad extern veiligstellen (volledige administratie, bewaarp
 
 ## Status
 
-Fase 0 (fundament: datum, geld, btw-rubrieken, store — 24 tests) is af; fase 1 (webframework) is de volgende stap. Roadmap en taal-blockers: [.claude/PLAN.md](./.claude/PLAN.md).
+Fase 0 (fundament: datum, geld, btw-rubrieken, store — 24 tests) is af; fase 1 (webframework) is de volgende stap. Roadmap: [.claude/PLAN.md](./.claude/PLAN.md).

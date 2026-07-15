@@ -48,8 +48,12 @@ first-class and mutates `xs` when called.
 
 ## Bytes methods
 
-`hex()` → lowercase hex Str · `decode()` → UTF-8 Str (invalid UTF-8 is a `ValueError`).
+`hex()` → lowercase hex Str · `b64()` → standard base64 Str (RFC 4648, padded) · `decode()` → UTF-8 Str (invalid UTF-8 is a `ValueError`).
 `b[i]` is an Int 0–255; `len(b)` counts bytes; slicing yields Bytes.
+
+## Str methods (decode back to Bytes)
+
+`from_hex()` → Bytes (upper/lowercase hex) · `from_b64()` → Bytes (standard base64). Malformed input is a catchable `ValueError`. Round-trips with the Bytes encoders: `"aGk=".from_b64() == bytes("hi")`.
 
 ## Modules (import with `so <name>`)
 
@@ -77,9 +81,17 @@ OS failures are `IOError`; `join`/`basename`/`ext` are pure string ops.
 
 ### `howl` — TCP sockets + HTTP client
 `listen(host, port)`→Socket (port 0 = OS-chosen) · `connect(host, port)`→Socket ·
-`accept(listener)`→Socket · `port(sock)`→Int · `send(conn, text)` · `recv(conn, max)`→Str|none ·
-`recv_line(conn)`→Str|none · `close(sock)` · `get(url)`→`{status, body}` · `post(url, body)`→`{status, body}`.
-Network failures are `IOError`; a non-2xx HTTP response is a normal `{status, body}` Dict, not an error.
+`accept(listener)`→Socket · `port(sock)`→Int · `send(conn, text)` · `send_bytes(conn, bytes)` ·
+`recv(conn, max)`→Str|none · `recv_bytes(conn, max)`→Bytes|none (binary-safe, byte-accurate) ·
+`recv_line(conn)`→Str|none · `close(sock)` · `get(url)`→`{status, body, headers}` ·
+`post(url, body)`→`{status, body, headers}` ·
+`request(method, url[, opts])`→`{status, body, headers}` — `opts` Dict: `headers` (Str→Str), `body` (Str or Bytes).
+Response `headers` keys are lowercased. Network/TLS failures are `IOError`; any HTTP status is data, not an error.
+
+### `crypto` — hashing, HMAC, secure randomness
+`sha256(data)`→Bytes (32-byte digest of a Str or Bytes) · `hmac_sha256(key, data)`→Bytes ·
+`token(n)`→Bytes (`n` CSPRNG random bytes) · `same(a, b)`→Bool (constant-time equality of Str/Bytes).
+Render a digest with `.hex()`. Wrong types → `TypeError`; `token(n)` with non-positive `n` → `ValueError`.
 
 ### `pack` — threads (pups) and channels (bowls)
 `zoom(f, args)`→Pup (runs `f(args…)` on a new thread) · `fetch(pup)`→result (blocks; re-raises the pup's error) ·
