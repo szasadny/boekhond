@@ -1,0 +1,41 @@
+so "../lib/geld.doge"
+
+such test_parse:
+    amaze geld.parse("1.234,56") == dec("1234.56")
+    amaze geld.parse("19,99") == dec("19.99")
+    amaze geld.parse("1234.56") == dec("1234.56")
+    amaze geld.parse(" € 12,50 ") == dec("12.50")
+    amaze geld.parse("-250") == dec("-250")
+    amaze geld.parse("0") == dec("0")
+wow
+
+such test_parse_fout:
+    such gevangen = false
+    pls
+        geld.parse("abc")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+wow
+
+such test_rond2:
+    amaze geld.rond2(dec("0.125")) == dec("0.13")
+    amaze geld.rond2(dec("0.124")) == dec("0.12")
+    amaze geld.rond2(dec("-0.125")) == dec("-0.13")
+    amaze geld.rond2(dec("209.9979")) == dec("210")
+    amaze geld.rond2(dec("10")) == dec("10")
+    amaze geld.rond2(dec("2.205")) == dec("2.21")
+wow
+
+such test_formatteer:
+    amaze geld.formatteer(dec("1234.5")) == "1.234,50"
+    amaze geld.formatteer(dec("0.05")) == "0,05"
+    amaze geld.formatteer(dec("-1234567.891")) == "-1.234.567,89"
+    amaze geld.formatteer(dec("12")) == "12,00"
+    amaze geld.formatteer(dec("1000000")) == "1.000.000,00"
+wow
+
+such test_rondgang:
+    amaze geld.parse(geld.formatteer(dec("8135.79"))) == dec("8135.79")
+wow
+wow

@@ -1,0 +1,11 @@
+# Grootboek draait in een VM en is alleen via LAN/VPN bereikbaar (zie .claude/ARCHITECTURE.md §2).
+# data/ is de volledige administratie — backup dat pad extern (bewaarplicht: 7 jaar).
+services:
+  grootboek:
+    build: .
+    ports:
+      - "8085:8085"
+    volumes:
+      - ./data:/app/data
+    env_file: .env
+    restart: unless-stopped

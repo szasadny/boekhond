@@ -1,0 +1,78 @@
+so "../app/services/btw.doge"
+
+such maak much d, code, ex:
+    such bb = btw.btw_bedrag(dec(ex), code)
+    return {"datum": d, "btw_code": code, "bedrag_ex": ex, "btw_bedrag": str(bb)}
+wow
+
+such test_btw_bedrag:
+    amaze btw.btw_bedrag(dec("100"), "hoog_21") == dec("21")
+    amaze btw.btw_bedrag(dec("100"), "laag_9") == dec("9")
+    amaze btw.btw_bedrag(dec("100"), "export_buiten_eu") == dec("0")
+    amaze btw.btw_bedrag(dec("999.99"), "hoog_21") == dec("210.00")
+    amaze btw.btw_bedrag(dec("0.01"), "hoog_21") == dec("0")
+    amaze btw.btw_bedrag(dec("100"), "verlegd_naar_mij") == dec("21")
+wow
+
+such test_bedrag_incl:
+    amaze btw.bedrag_incl(dec("100"), "hoog_21") == dec("121")
+    amaze btw.bedrag_incl(dec("100"), "voorbelasting_hoog") == dec("121")
+    amaze btw.bedrag_incl(dec("100"), "verlegd_naar_mij") == dec("100")
+    amaze btw.bedrag_incl(dec("100"), "import_buiten_eu") == dec("100")
+    amaze btw.bedrag_incl(dec("100"), "vrijgesteld") == dec("100")
+wow
+
+such test_onbekende_code:
+    such gevangen = false
+    pls
+        btw.btw_bedrag(dec("1"), "bestaat_niet")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze btw.bestaat("hoog_21")
+    amaze not btw.bestaat("bestaat_niet")
+wow
+
+such test_rubrieken_kwartaal:
+    such boekingen = []
+    boekingen.append(maak("2026-07-01", "hoog_21", "1000"))
+    boekingen.append(maak("2026-08-15", "laag_9", "500"))
+    boekingen.append(maak("2026-09-30", "voorbelasting_hoog", "200"))
+    boekingen.append(maak("2026-07-20", "verlegd_naar_mij", "100"))
+    boekingen.append(maak("2026-07-05", "export_buiten_eu", "750"))
+    boekingen.append(maak("2026-06-30", "hoog_21", "9999"))
+    such r = btw.rubrieken(boekingen, 2026, 3)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 1000
+    amaze r["rubrieken"]["1a"]["btw"] == 210
+    amaze r["rubrieken"]["1b"]["bedrag"] == 500
+    amaze r["rubrieken"]["1b"]["btw"] == 45
+    amaze r["rubrieken"]["2a"]["bedrag"] == 100
+    amaze r["rubrieken"]["2a"]["btw"] == 21
+    amaze r["rubrieken"]["3a"]["bedrag"] == 750
+    amaze r["rubrieken"]["3b"]["bedrag"] == 0
+    amaze r["5a"] == 276
+    amaze r["5b"] == 63
+    amaze r["saldo"] == 213
+wow
+
+such test_afronding_voordelig:
+    such boekingen = []
+    boekingen.append(maak("2026-01-10", "hoog_21", "10.50"))
+    boekingen.append(maak("2026-02-10", "voorbelasting_hoog", "10.50"))
+    such r = btw.rubrieken(boekingen, 2026, 1)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 10
+    amaze r["rubrieken"]["1a"]["btw"] == 2
+    amaze r["5b"] == 3
+    amaze r["saldo"] == -1
+wow
+
+such test_storno_telt_negatief:
+    such boekingen = []
+    boekingen.append(maak("2026-04-01", "hoog_21", "1000"))
+    boekingen.append(maak("2026-05-01", "hoog_21", "-1000"))
+    such r = btw.rubrieken(boekingen, 2026, 2)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 0
+    amaze r["rubrieken"]["1a"]["btw"] == 0
+    amaze r["saldo"] == 0
+wow
+wow

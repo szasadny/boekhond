@@ -1,0 +1,49 @@
+so dson
+so fetch
+so nap
+
+# Enige toegang tot data/ (Hard Rule 4): atomic writes + audit-append.
+# Bedragen komen hier altijd als Str binnen — dson.emit van een Decimal is een TypeError.
+many Store:
+    such init much data_dir:
+        self.dir = data_dir
+        fetch.make_dir(data_dir)
+    wow
+
+    such pad much naam:
+        return fetch.join(self.dir, naam + ".dson")
+    wow
+
+    such laad much naam, standaard:
+        such p = self.pad(naam)
+        if not fetch.exists(p):
+            return standaard
+        return dson.parse(fetch.read(p))
+    wow
+
+    # Atomic: eerst .tmp schrijven, dan rename — een crash laat nooit een half bestand achter.
+    such bewaar much naam, waarde:
+        such p = self.pad(naam)
+        such tmp = p + ".tmp"
+        fetch.write(tmp, dson.emit(waarde))
+        fetch.rename(tmp, p)
+    wow
+
+    # Append-only, vóór elke bewaar-aanroep door de caller (bewaarplicht).
+    such audit much actie, entiteit, id, data:
+        such regel = dson.emit({"ts": nap.stamp(nap.now()), "actie": actie, "entiteit": entiteit, "id": id, "data": data})
+        fetch.append(fetch.join(self.dir, "audit.dsonl"), regel + "\n")
+    wow
+
+    # Doorlopende id-uitgifte per prefix: "b-1", "b-2", … (nooit hergebruikt).
+    such nieuw_id much prefix:
+        such tellers = self.laad("tellers", {})
+        such n = 1
+        if tellers.has(prefix):
+            very n = tellers[prefix] + 1
+        tellers[prefix] = n
+        self.bewaar("tellers", tellers)
+        return "{prefix}-{n}"
+    wow
+wow
+wow

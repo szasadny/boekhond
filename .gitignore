@@ -1,0 +1,14 @@
+# runtime state — de hele administratie leeft hier (volume in Docker)
+/data/
+
+# secrets
+.env
+
+# build-output
+/grootboek
+/node_modules/
+/static/js/
+
+# testrestanten
+tmp_test_data/
+*.dson.tmp

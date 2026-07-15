@@ -1,0 +1,60 @@
+so "../lib/datum.doge"
+
+such test_geldigheid:
+    amaze datum.is_geldig("2026-07-15")
+    amaze datum.is_geldig("2024-02-29")
+    amaze not datum.is_geldig("2023-02-29")
+    amaze not datum.is_geldig("2026-13-01")
+    amaze not datum.is_geldig("2026-00-10")
+    amaze not datum.is_geldig("2026-04-31")
+    amaze not datum.is_geldig("15-07-2026")
+    amaze not datum.is_geldig("2026-7-15")
+    amaze not datum.is_geldig("")
+wow
+
+such test_onderdelen:
+    amaze datum.jaar("2026-07-15") == 2026
+    amaze datum.maand("2026-07-15") == 7
+    amaze datum.dag("2026-07-15") == 15
+    amaze datum.kwartaal("2026-01-31") == 1
+    amaze datum.kwartaal("2026-03-31") == 1
+    amaze datum.kwartaal("2026-04-01") == 2
+    amaze datum.kwartaal("2026-07-15") == 3
+    amaze datum.kwartaal("2026-12-31") == 4
+wow
+
+such test_kwartaal_grenzen:
+    such g1 = datum.kwartaal_grenzen(2026, 1)
+    amaze g1[0] == "2026-01-01"
+    amaze g1[1] == "2026-03-31"
+    such g2 = datum.kwartaal_grenzen(2026, 2)
+    amaze g2[1] == "2026-06-30"
+    such g4 = datum.kwartaal_grenzen(2026, 4)
+    amaze g4[0] == "2026-10-01"
+    amaze g4[1] == "2026-12-31"
+wow
+
+such test_in_kwartaal:
+    amaze datum.in_kwartaal("2026-07-15", 2026, 3)
+    amaze not datum.in_kwartaal("2026-07-15", 2026, 2)
+    amaze not datum.in_kwartaal("2025-07-15", 2026, 3)
+wow
+
+such test_plus_maanden:
+    amaze datum.plus_maanden("2026-01-15", 1) == "2026-02-15"
+    amaze datum.plus_maanden("2026-01-31", 1) == "2026-02-28"
+    amaze datum.plus_maanden("2024-01-31", 1) == "2024-02-29"
+    amaze datum.plus_maanden("2026-12-15", 1) == "2027-01-15"
+    amaze datum.plus_maanden("2026-11-30", 3) == "2027-02-28"
+    amaze datum.plus_maanden("2026-05-31", 12) == "2027-05-31"
+wow
+
+such test_sleutel_chronologisch:
+    amaze datum.sleutel("2026-07-15") > datum.sleutel("2026-07-14")
+    amaze datum.sleutel("2026-01-01") > datum.sleutel("2025-12-31")
+wow
+
+such test_vandaag_vorm:
+    amaze datum.is_geldig(datum.vandaag())
+wow
+wow

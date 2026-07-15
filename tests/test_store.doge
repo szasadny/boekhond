@@ -1,0 +1,82 @@
+so fetch
+so dson
+so strings
+so "../app/store/store.doge"
+
+# Geen so-constante: doge test initialiseert top-level constanten (nog) niet — doge#65.
+such tmpmap:
+    return "tmp_test_data"
+wow
+
+such schoon:
+    if fetch.exists(tmpmap()):
+        fetch.remove_dir(tmpmap())
+wow
+
+such test_bewaar_en_laad:
+    schoon()
+    such s = store.Store(tmpmap())
+    such waarde = {"naam": "kabosu", "aantal": 42, "actief": true, "niks": none, "lijst": [1, 2, 3], "bedrag_ex": "1250.00"}
+    s.bewaar("proef", waarde)
+    such terug = s.laad("proef", none)
+    amaze terug["naam"] == "kabosu"
+    amaze terug["aantal"] == 42
+    amaze terug["actief"] == true
+    amaze terug["niks"] == none
+    amaze terug["lijst"][2] == 3
+    amaze dec(terug["bedrag_ex"]) == dec("1250.00")
+    schoon()
+wow
+
+such test_laad_ontbrekend_geeft_standaard:
+    schoon()
+    such s = store.Store(tmpmap())
+    such terug = s.laad("bestaat_niet", [])
+    amaze len(terug) == 0
+    schoon()
+wow
+
+such test_overschrijven:
+    schoon()
+    such s = store.Store(tmpmap())
+    s.bewaar("proef", [1])
+    s.bewaar("proef", [1, 2])
+    such terug = s.laad("proef", none)
+    amaze len(terug) == 2
+    schoon()
+wow
+
+such test_nieuw_id_doorlopend:
+    schoon()
+    such s = store.Store(tmpmap())
+    amaze s.nieuw_id("b") == "b-1"
+    amaze s.nieuw_id("b") == "b-2"
+    amaze s.nieuw_id("f") == "f-1"
+    amaze s.nieuw_id("b") == "b-3"
+    schoon()
+wow
+
+such test_audit_append_only:
+    schoon()
+    such s = store.Store(tmpmap())
+    s.audit("aangemaakt", "boeking", "b-1", {"bedrag_ex": "100"})
+    s.audit("gestorneerd", "boeking", "b-1", {"storno_van": "b-1"})
+    such inhoud = fetch.read(fetch.join(tmpmap(), "audit.dsonl"))
+    such regels = strings.split(strings.trim(inhoud), "\n")
+    amaze len(regels) == 2
+    such eerste = dson.parse(regels[0])
+    amaze eerste["actie"] == "aangemaakt"
+    amaze eerste["entiteit"] == "boeking"
+    amaze eerste["data"]["bedrag_ex"] == "100"
+    amaze len(eerste["ts"]) == 20
+    schoon()
+wow
+
+such test_geen_tmp_restant:
+    schoon()
+    such s = store.Store(tmpmap())
+    s.bewaar("proef", [1, 2])
+    amaze not fetch.exists(fetch.join(tmpmap(), "proef.dson.tmp"))
+    schoon()
+wow
+wow

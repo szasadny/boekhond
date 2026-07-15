@@ -1,0 +1,97 @@
+so "../../lib/geld.doge"
+so "../../lib/datum.doge"
+
+# De enige plek met fiscale rekenregels (Hard Rule 5).
+# Specificatie: .claude/DATA-MODEL.md §2 — elke code mapt op precies één rubriek-gedrag.
+#   grondslag: rubriek waar bedrag_ex in telt (none = geen)
+#   btw:       rubriek waar het btw-bedrag in telt (none = geen)
+#   aftrek:    btw telt ook als voorbelasting (5b)
+#   zelf:      btw wordt zelf aangegeven, niet aan de wederpartij betaald (incl = ex)
+so CODES = {
+    "hoog_21": {"soort": "verkoop", "pct": 21, "grondslag": "1a", "btw": "1a", "aftrek": false, "zelf": false},
+    "laag_9": {"soort": "verkoop", "pct": 9, "grondslag": "1b", "btw": "1b", "aftrek": false, "zelf": false},
+    "nul_binnenland": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false},
+    "verlegd_naar_afnemer": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false},
+    "vrijgesteld": {"soort": "verkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false},
+    "export_buiten_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3a", "btw": none, "aftrek": false, "zelf": false},
+    "levering_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3b", "btw": none, "aftrek": false, "zelf": false},
+    "voorbelasting_hoog": {"soort": "inkoop", "pct": 21, "grondslag": none, "btw": none, "aftrek": true, "zelf": false},
+    "voorbelasting_laag": {"soort": "inkoop", "pct": 9, "grondslag": none, "btw": none, "aftrek": true, "zelf": false},
+    "verlegd_naar_mij": {"soort": "inkoop", "pct": 21, "grondslag": "2a", "btw": "2a", "aftrek": true, "zelf": true},
+    "import_buiten_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4a", "btw": "4a", "aftrek": true, "zelf": true},
+    "verwerving_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4b", "btw": "4b", "aftrek": true, "zelf": true},
+    "geen_btw": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false},
+}
+
+so RUBRIEKEN = ["1a", "1b", "1e", "2a", "3a", "3b", "4a", "4b"]
+
+such info much code:
+    if not CODES.has(code):
+        bonk "onbekende btw-code: {code}"
+    return CODES[code]
+wow
+
+such bestaat much code:
+    return CODES.has(code)
+wow
+
+such btw_bedrag much bedrag_ex, code:
+    such c = info(code)
+    if c["pct"] == 0:
+        return dec("0")
+    return geld.rond2(bedrag_ex * c["pct"] / 100)
+wow
+
+# Wat er daadwerkelijk betaald wordt: bij zelf-aangeven-codes komt er
+# geen btw op de factuur van de wederpartij, dus incl == ex.
+such bedrag_incl much bedrag_ex, code:
+    such c = info(code)
+    if c["zelf"]:
+        return bedrag_ex
+    return bedrag_ex + btw_bedrag(bedrag_ex, code)
+wow
+
+# Aangifte in hele euro's; afronden in eigen voordeel is toegestaan:
+# verschuldigde btw naar beneden, voorbelasting naar boven.
+such euro_af much bedrag:
+    return int(bedrag)
+wow
+
+such euro_op much bedrag:
+    such hele = int(bedrag)
+    if bedrag > hele:
+        return hele + 1
+    return hele
+wow
+
+# Alle rubrieken voor één tijdvak, uit de volledige boekingenlijst.
+# Resultaat: {"rubrieken": {rubriek: {"bedrag", "btw"}}, "5a", "5b", "saldo"} — alles hele euro's (Int).
+such rubrieken much boekingen, j, kw:
+    such grondslag = {}
+    such btw_som = {}
+    for r in RUBRIEKEN:
+        grondslag[r] = dec("0")
+        btw_som[r] = dec("0")
+    such voorbelasting = dec("0")
+    for b in boekingen:
+        if not datum.in_kwartaal(b["datum"], j, kw):
+            continue
+        such c = info(b["btw_code"])
+        such ex = dec(b["bedrag_ex"])
+        such bb = dec(b["btw_bedrag"])
+        if c["grondslag"] != none:
+            grondslag[c["grondslag"]] += ex
+        if c["btw"] != none:
+            btw_som[c["btw"]] += bb
+        if c["aftrek"]:
+            voorbelasting += bb
+    such per_rubriek = {}
+    such r5a = 0
+    for r in RUBRIEKEN:
+        such b_afgerond = euro_af(btw_som[r])
+        per_rubriek[r] = {"bedrag": euro_af(grondslag[r]), "btw": b_afgerond}
+        r5a += b_afgerond
+    such r5b = euro_op(voorbelasting)
+    return {"rubrieken": per_rubriek, "5a": r5a, "5b": r5b, "saldo": r5a - r5b}
+wow
+wow

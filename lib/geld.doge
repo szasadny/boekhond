@@ -1,0 +1,56 @@
+so strings
+so hunt
+
+# Rekenkundig afronden (half-up, weg van nul) op 2 decimalen.
+such rond2 much bedrag:
+    such neg = bedrag < 0
+    such a = bedrag
+    if neg:
+        very a = 0 - bedrag
+    such centen = a * 100
+    such rest = centen % 1
+    such hele = centen - rest
+    if rest >= dec("0.5"):
+        very hele = hele + 1
+    such resultaat = hele / 100
+    if neg:
+        very resultaat = 0 - resultaat
+    return resultaat
+wow
+
+# NL-invoer naar Decimal: "1.234,56", "19,99", "1234.56", "€ 12,50".
+such parse much tekst:
+    such t = strings.trim(tekst)
+    very t = strings.replace(t, "€", "")
+    very t = strings.replace(t, " ", "")
+    if strings.contains(t, ","):
+        very t = strings.replace(t, ".", "")
+        very t = strings.replace(t, ",", ".")
+    if not hunt.test("^-?[0-9]+(\\.[0-9]+)?$", t):
+        bonk "ongeldig bedrag: {tekst}"
+    return dec(t)
+wow
+
+# Decimal naar NL-weergave met duizendtallen en altijd 2 decimalen: "1.234,50".
+such formatteer much bedrag:
+    such b = rond2(bedrag)
+    such neg = b < 0
+    if neg:
+        very b = 0 - b
+    such centen_totaal = int(b * 100)
+    such euros = str(centen_totaal // 100)
+    such centen = str(centen_totaal % 100)
+    if len(centen) < 2:
+        very centen = "0" + centen
+    such met_punten = ""
+    such n = len(euros)
+    such i = 0
+    while i < n:
+        if i > 0 and (n - i) % 3 == 0:
+            very met_punten = met_punten + "."
+        very met_punten = met_punten + euros[i]
+        i += 1
+    such teken = "-" if neg else ""
+    return "{teken}{met_punten},{centen}"
+wow
+wow

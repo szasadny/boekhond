@@ -1,0 +1,88 @@
+so strings
+so hunt
+so nap
+
+so MAAND_DAGEN = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+such pad2 much n:
+    if n < 10:
+        return "0{n}"
+    return str(n)
+wow
+
+such is_schrikkeljaar much j:
+    return (j % 4 == 0 and j % 100 != 0) or j % 400 == 0
+wow
+
+such dagen_in_maand much j, m:
+    if m == 2 and is_schrikkeljaar(j):
+        return 29
+    return MAAND_DAGEN[m - 1]
+wow
+
+such is_geldig much d:
+    if not hunt.test("^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$", d):
+        return false
+    such delen = strings.split(d, "-")
+    such j = int(delen[0])
+    such m = int(delen[1])
+    such dg = int(delen[2])
+    if m < 1 or m > 12:
+        return false
+    if dg < 1 or dg > dagen_in_maand(j, m):
+        return false
+    return true
+wow
+
+such jaar much d:
+    such delen = strings.split(d, "-")
+    return int(delen[0])
+wow
+
+such maand much d:
+    such delen = strings.split(d, "-")
+    return int(delen[1])
+wow
+
+such dag much d:
+    such delen = strings.split(d, "-")
+    return int(delen[2])
+wow
+
+such kwartaal much d:
+    return (maand(d) - 1) // 3 + 1
+wow
+
+such in_kwartaal much d, j, kw:
+    return jaar(d) == j and kwartaal(d) == kw
+wow
+
+such kwartaal_grenzen much j, kw:
+    such m1 = (kw - 1) * 3 + 1
+    such m3 = kw * 3
+    such start = "{j}-{pad2(m1)}-01"
+    such eind = "{j}-{pad2(m3)}-{pad2(dagen_in_maand(j, m3))}"
+    return [start, eind]
+wow
+
+such plus_maanden much d, n:
+    such dg = dag(d)
+    such totaal = jaar(d) * 12 + (maand(d) - 1) + n
+    such nj = totaal // 12
+    such nm = totaal % 12 + 1
+    such max_dag = dagen_in_maand(nj, nm)
+    if dg > max_dag:
+        very dg = max_dag
+    return "{nj}-{pad2(nm)}-{pad2(dg)}"
+wow
+
+# Int-sleutel voor chronologisch vergelijken/sorteren van datums.
+such sleutel much d:
+    return jaar(d) * 10000 + maand(d) * 100 + dag(d)
+wow
+
+such vandaag:
+    such stempel = nap.stamp(nap.now())
+    return stempel[0:10]
+wow
+wow
