@@ -1,4 +1,4 @@
-# Grootboek — Plan & Language Blockers
+# Boekhond — Plan & Language Blockers
 
 Opzet d.d. 2026-07-15. What we build, in which order, and what is blocked on the Doge language. Delete phases here as they complete; keep §3 in sync with ticket status (Hard Rule 10).
 
@@ -11,7 +11,7 @@ Opzet d.d. 2026-07-15. What we build, in which order, and what is blocked on the
 - **Frontend: server-rendered HTML + Dogescript** (https://github.com/dogescript/dogescript, compileert naar JS) voor client-side gedrag. **Geen issues aanmaken op dogescript** — "we have what we get"; gaten vullen met gewone JS.
 - **Facturen inladen, beide richtingen:** een open uploadveld + import-inbox voor (a) eigen facturen die al naar klanten zijn gestuurd en (b) facturen van abonnementen/diensten die de eigenaar gebruikt. Daarnaast blijft het genereren van eigen terugkerende maandfacturen in scope.
 - **IB-aangifte (inkomstenbelasting) is out of scope** — het jaaroverzicht (omzet/kosten per categorie) is het enige gebaar die kant op.
-- Naam "Grootboek" blijft de werknaam.
+- Naam "Boekhond" blijft de werknaam.
 
 ## 2. Phases
 

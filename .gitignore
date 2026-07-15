@@ -5,7 +5,7 @@
 .env
 
 # build-output
-/grootboek
+/boekhond
 /node_modules/
 /static/js/
 

@@ -1,4 +1,4 @@
-# Grootboek — Data Model
+# Boekhond — Data Model
 
 Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads when it is the task. **Every entity, field, or btw-code change updates this file in the same change.** Persistence rules (atomic writes, string-amounts, audit) are in ARCHITECTURE.md §4.
 

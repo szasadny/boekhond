@@ -1,4 +1,4 @@
-# Grootboek — Architecture
+# Boekhond — Architecture
 
 Authoritative reference for the system's shape. Jump to the section you need and **update it when you change what it describes**. The data model lives in [DATA-MODEL.md](./DATA-MODEL.md); phasing and language-blockers in [PLAN.md](./PLAN.md).
 
@@ -51,7 +51,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 ## 2. Topology & Request Lifecycle
 
 ```text
-Browser (LAN/VPN) ──HTTP──▶ VM ▸ Docker container ▸ grootboek binary
+Browser (LAN/VPN) ──HTTP──▶ VM ▸ Docker container ▸ boekhond binary
                                                               │
                                     ┌─────────────────────────┤
                                     ▼                         ▼

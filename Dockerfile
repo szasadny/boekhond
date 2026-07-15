@@ -11,8 +11,8 @@ RUN doge build
 
 FROM debian:stable-slim
 WORKDIR /app
-COPY --from=build /app/grootboek /usr/local/bin/grootboek
+COPY --from=build /app/boekhond /usr/local/bin/boekhond
 COPY static/ static/
 VOLUME /app/data
 EXPOSE 8085
-CMD ["grootboek"]
+CMD ["boekhond"]

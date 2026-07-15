@@ -1,7 +1,7 @@
-# Grootboek draait in een VM en is alleen via LAN/VPN bereikbaar (zie .claude/ARCHITECTURE.md §2).
+# Boekhond draait in een VM en is alleen via LAN/VPN bereikbaar (zie .claude/ARCHITECTURE.md §2).
 # data/ is de volledige administratie — backup dat pad extern (bewaarplicht: 7 jaar).
 services:
-  grootboek:
+  boekhond:
     build: .
     ports:
       - "8085:8085"

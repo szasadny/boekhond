@@ -1,6 +1,6 @@
-# Grootboek — Self-hosted boekhouding voor een Nederlandse eenmanszaak
+# Boekhond — Self-hosted boekhouding voor een Nederlandse eenmanszaak
 
-> Working name **Grootboek**; branding open. Written entirely in **Doge** (https://github.com/DogeLanguage/doge) — this is the language's first real application, so language gaps are expected: file them as tickets on DogeLanguage/doge instead of working around them silently (see [PLAN.md](./PLAN.md) §3 for open tickets).
+> **Boekhond** (boekhouden → boek·hond) — definitieve naam, gekozen 2026-07-15. Written entirely in **Doge** (https://github.com/DogeLanguage/doge) — this is the language's first real application, so language gaps are expected: file them as tickets on DogeLanguage/doge instead of working around them silently (see [PLAN.md](./PLAN.md) §3 for open tickets).
 
 ## Start Here — Task Routing
 
@@ -84,7 +84,7 @@ Dockerfile, docker-compose.yml   # deploy: container in VM, data/ als volume
 - **Doge style:** four-space indent, `doge fmt` clean, `doge check` before every run; module files hold only definitions; every function/object closes with `wow`.
 - **Layers:** handlers do HTTP (parse → service → render), services do behaviour, store does persistence. `web/` never imports from `app/`.
 - **Errors:** services `bonk` domain errors; the outer request loop catches everything and renders a 500 without leaking internals.
-- **Language:** code + identifiers in Dutch domain terms where the wet uses them (boeking, rubriek, tijdvak); user-facing copy in het Nederlands — kort en zakelijk, geen em-dashes of AI-marketingtoon.
+- **Language:** code + identifiers in Dutch domain terms where the wet uses them (boeking, rubriek, tijdvak); user-facing copy in het Nederlands — kort en zakelijk, geen em-dashes of AI-marketingtoon. **Technical terms and jargon always stay English** — never translate them into Dutch (no "opslag" for storage, no "persistentie", no "domeinvrij"); mixed Dutch prose with English jargon is the house style (owner preference).
 - **Dates:** `YYYY-MM-DD` strings everywhere; all date math via `lib/datum.doge` (Doge's `nap` has no date arithmetic).
 - **No magic values:** tarieven/limieten/paden → `app/services/btw.doge` (fiscaal) or config uit `.env`.
 

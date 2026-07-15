@@ -1,5 +1,5 @@
 [package]
-name = "grootboek"
+name = "boekhond"
 version = "0.1.0"
 entry = "main.doge"
 
