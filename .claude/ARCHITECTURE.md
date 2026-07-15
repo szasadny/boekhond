@@ -21,6 +21,8 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | --- | --- |
 | A business rule or behaviour | `app/services/<domein>.doge` — never in a handler |
 | Anything that computes btw (tarief, rubriek, afronding) | `app/services/btw.doge` — the only file that knows fiscal math (Hard Rule 5) |
+| Journaalpost-creation, balans-invariant, sjabloonflows (verkoop/inkoop/bank/privé/memoriaal) | `app/services/journaal.doge` — the only place that writes journaalposten |
+| Balans / winst & verlies aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
 | A new page or form endpoint | `app/handlers/<resource>.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. |
 | A route registration | `main.doge` route table — handlers never self-register |
 | A read/write of any `data/` file | `app/store/store.doge` (atomic write + audit append) — Hard Rule 4 |
@@ -84,7 +86,7 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 | Module | Owns |
 | --- | --- |
 | `http.doge` | request parse (`{method, path, query, headers, body, cookies}` Dict), response build, status/content-type constants |
-| `router.doge` | route table `[method, pattern, handler]`, path params (`/boekingen/{id}`), 404/405 |
+| `router.doge` | route table `[method, pattern, handler]`, path params (`/journaal/{id}`), 404/405 |
 | `forms.doge` | `application/x-www-form-urlencoded` decode (incl. percent + `+`), multi-value fields |
 | `html.doge` | `escape(s)` + page/layout/form/table builders; the **only** place HTML strings are assembled (Hard Rule 6) |
 | `session.doge` | cookie sessions: token issue/check/expiry. Token quality is blocked on doge#61 — see §5.1 |
@@ -96,7 +98,7 @@ Handlers receive the request Dict + the loaded state, return a response Dict; `m
 
 ## 4. Persistence
 
-- **One DSON file per collection** in `data/` (see [DATA-MODEL.md](./DATA-MODEL.md)): `instellingen.dson`, `boekingen.dson`, `facturen.dson`, `bijlagen.dson`, `terugkerend.dson`, `aangiften.dson`. DSON (`dson` stdlib, mirrors `json` member-for-member) is the eigenaarskeuze — on-theme, and ints round-trip fine (octal is only the surface syntax).
+- **One DSON file per collection** in `data/` (see [DATA-MODEL.md](./DATA-MODEL.md)): `instellingen.dson`, `rekeningen.dson`, `journaal.dson`, `facturen.dson`, `bijlagen.dson`, `terugkerend.dson`, `aangiften.dson`. DSON (`dson` stdlib, mirrors `json` member-for-member) is the eigenaarskeuze — on-theme, and ints round-trip fine (octal is only the surface syntax).
 - **Atomic write:** `store.bewaar(naam, waarde)` writes `data/<naam>.dson.tmp` then `fetch.rename` over the real file — a crash never half-writes state. `store.laad(naam, standaard)` returns the default when the file is absent (first boot).
 - **Audit log:** every mutation appends one DSON line to `data/audit.dsonl` — `{ts, actie, entiteit, id, data}` — *before* the collection save. Append-only, never rewritten, never rotated (bewaarplicht).
 - **Amounts are strings in DSON** (`"bedrag_ex" is "1250.00"`); `dec()` at load, `str()` at save. `dson.emit` of a Decimal is a catchable `TypeError` (DSON has no faithful Decimal form) — the store never sees a bare Decimal (Hard Rule 1).
@@ -114,7 +116,7 @@ Login form → wachtwoord check against `.env` → session token in an http-only
 
 ### 5.2 Scheduler (terugkerende facturen)
 
-A single pup (`pack.zoom`) at boot: loop { sleep until next 06:00 (`nap`), `howl.connect` loopback, POST `/internal/run-recurring` with `INTERN_TOKEN` from `.env`, read response }. The handler (main loop, so it *does* share state) does two things, both **idempotent per day**: (1) walks `terugkerend.dson`, generates due facturen + boekingen, advances `volgende_run`; (2) scans the mounted `data/import/` map — every new file becomes a Bijlage (`bron = "import"`) in the inbox and the source file is moved to `data/uploads/` (so import never double-ingests). `/internal/*` accepts only the token + loopback peer. Pups share no state (§6): loopback HTTP is the only correct channel; never give the pup its own store access.
+A single pup (`pack.zoom`) at boot: loop { sleep until next 06:00 (`nap`), `howl.connect` loopback, POST `/internal/run-recurring` with `INTERN_TOKEN` from `.env`, read response }. The handler (main loop, so it *does* share state) does two things, both **idempotent per day**: (1) walks `terugkerend.dson`, generates due facturen + journaalposten, advances `volgende_run`; (2) scans the mounted `data/import/` map — every new file becomes a Bijlage (`bron = "import"`) in the inbox and the source file is moved to `data/uploads/` (so import never double-ingests). `/internal/*` accepts only the token + loopback peer. Pups share no state (§6): loopback HTTP is the only correct channel; never give the pup its own store access.
 
 ### 5.3 Frontend — Dogescript
 
@@ -122,7 +124,7 @@ Pages stay server-rendered (`web/html.doge`); client-side gedrag (upload-shim, d
 
 ### 5.4 Exports
 
-All exports are GET endpoints rendering from the same services that render pages: aangifte-overzicht (print-CSS HTML + CSV), boekingen-CSV per tijdvak, jaaroverzicht. Factuur-PDF = print-CSS HTML (browser print); a real PDF pipeline is §7 territory.
+All exports are GET endpoints rendering from the same services that render pages: aangifte-overzicht (print-CSS HTML + CSV), journaal-CSV per tijdvak, balans + winst & verlies (`rapporten.doge`), jaaroverzicht. Factuur-PDF = print-CSS HTML (browser print); a real PDF pipeline is §7 territory.
 
 ### 5.5 Config
 

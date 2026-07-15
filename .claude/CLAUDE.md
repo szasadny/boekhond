@@ -22,7 +22,7 @@ Breaking any of these is never acceptable — including during debugging or hot 
 
 1. **Money is `Decimal`, never `Float`.** Amounts enter via `dec(str)`, are stored in DSON as strings (`dson.emit` of a Decimal is a deliberate `TypeError` — DSON numbers are octal), and never touch a Float. Mixing Decimal and Float is a Doge `TypeError` — that error is a feature, fix the source, never `float()` around it.
 2. **Factuurnummers are doorlopend** (`{jaar}-{####}`): issued once, never reused, never a gap. A number is only issued when a factuur goes `definitief`, and issuing is an audit event.
-3. **Fiscale bewaarplicht (7 jaar): nothing in an ingediend tijdvak is ever mutated or deleted** — no boeking edit, no bijlage delete. Corrections are a new tegenboeking (storno) in the current open tijdvak, flagged for suppletie. Attachments are never deleted at all.
+3. **Fiscale bewaarplicht (7 jaar): nothing in an ingediend tijdvak is ever mutated or deleted** — no journaalpost edit, no bijlage delete. Corrections are a new tegenboeking (storno) in the current open tijdvak, flagged for suppletie. Attachments are never deleted at all.
 4. **Every write to `data/` goes through `app/store/`** — atomic tmp-file + rename, plus an append to `audit.dsonl`. Never a direct `fetch.write` from a handler or service.
 5. **All btw logic lives in `app/services/btw.doge`** — tarieven, btw-code → rubriek mapping, afronding. No other file computes btw.
 6. **Every piece of user input rendered into HTML goes through the escaping helpers in `web/html.doge`** — never raw string interpolation of stored data (XSS).
@@ -35,12 +35,12 @@ Breaking any of these is never acceptable — including during debugging or hot 
 
 Self-hosted ledger/boekhoudapp voor één Nederlandse **eenmanszaak** (single user). Doel: de **btw-aangifte** (omzetbelasting) volledig voorbereiden zonder handwerk.
 
-- **Boekingen** — verkoop en inkoop, elk met een `btw_code` die exact op één aangifte-rubriek mapt (1a/1b/1e/2a/3a/3b/4a/4b/5b — zie [DATA-MODEL.md](./DATA-MODEL.md) §2).
-- **Bijlagen + import-inbox** — factuur-PDF's/afbeeldingen geüpload via de webinterface (open uploadveld) of automatisch ingeladen uit `data/import/`: zowel eigen al-verstuurde klantfacturen als abo-facturen van gebruikte diensten. Een bijlage zonder boeking staat in de inbox en wordt vandaaruit geboekt; 7 jaar bewaard.
-- **Verkoopfacturen** — in de app opgesteld, doorlopend genummerd, als HTML gerenderd (print → PDF); `definitief` maken creëert de omzet-boeking.
-- **Terugkerende facturen** — maandelijkse sjablonen die automatisch een factuur + boeking genereren.
+- **Dubbel boekhouden (double-entry)** — elke transactie is een **Journaalpost** met debet-/creditregels op een rekeningschema (chart of accounts); som(debet) == som(credit) altijd. Omzet-/kostenregels dragen een `btw_code` die exact op één aangifte-rubriek mapt (1a/1b/1e/2a/3a/3b/4a/4b/5b — zie [DATA-MODEL.md](./DATA-MODEL.md) §2). Invoer via sjabloonflows (verkoopfactuur, inkoopfactuur, bank/privé) of een vrije memoriaalpost.
+- **Bijlagen + import-inbox** — factuur-PDF's/afbeeldingen geüpload via de webinterface (open uploadveld) of automatisch ingeladen uit `data/import/`: zowel eigen al-verstuurde klantfacturen als abo-facturen van gebruikte diensten. Een bijlage zonder journaalpost staat in de inbox en wordt vandaaruit geboekt; 7 jaar bewaard.
+- **Verkoopfacturen** — in de app opgesteld, doorlopend genummerd, als HTML gerenderd (print → PDF); `definitief` maken creëert de journaalpost (debiteuren/omzet/btw).
+- **Terugkerende facturen** — maandelijkse sjablonen die automatisch een factuur + journaalpost genereren.
 - **Aangifte** — per kwartaal berekent de app alle rubrieken; de ondernemer neemt ze over in Mijn Belastingdienst Zakelijk (er is géén publieke indien-API — Digipoort vereist een PKIoverheid-certificaat en is out of scope). Daarna: tijdvak "ingediend" markeren → snapshot + slot (Hard Rule 3).
-- **Exports** — aangifte-overzicht (print/CSV), boekingen-CSV per tijdvak, jaaroverzicht (omzet/kosten, input voor de IB-aangifte).
+- **Exports & reports** — aangifte-overzicht (print/CSV), journaal-CSV per tijdvak, balans + winst & verlies, jaaroverzicht (input voor de IB-aangifte).
 
 ## Stack
 
@@ -63,16 +63,16 @@ main.doge               # boot: config, store load, scheduler pup, accept-loop
 web/                    # generic HTTP micro-framework (no domain knowledge)
   http.doge, router.doge, forms.doge, html.doge, static.doge, session.doge
 app/
-  handlers/             # one file per resource: boekingen, facturen, bijlagen, aangifte, instellingen, intern
-  services/             # business logic: btw.doge, boeking.doge, factuur.doge, aangifte.doge, terugkerend.doge
-  store/                # store.doge (atomic JSON + audit), one load/save per collection
+  handlers/             # one file per resource: journaal, facturen, bijlagen, aangifte, rekeningen, instellingen, intern
+  services/             # business logic: btw.doge, journaal.doge (balans-invariant + sjabloonflows), factuur.doge, aangifte.doge, rapporten.doge (balans/W&V), terugkerend.doge
+  store/                # store.doge (atomic DSON + audit), one load/save per collection
 lib/                    # domain-free helpers: datum.doge, geld.doge, csv.doge, base64.doge (stopgap doge#63)
 static/djs/             # Dogescript sources (client-side gedrag, o.a. upload-shim)
 static/js/              # compiled output van djs — gegenereerd, niet handmatig bewerken
 static/                 # css, favicon
 templates in code       # HTML via web/html.doge builders — no template files
 tests/                  # doge test — mirrors app/: test_btw.doge, test_store.doge, …
-data/                   # runtime state — gitignored; instellingen.dson, boekingen.dson, …, uploads/, import/, audit.dsonl
+data/                   # runtime state — gitignored; instellingen.dson, rekeningen.dson, journaal.dson, …, uploads/, import/, audit.dsonl
 Dockerfile, docker-compose.yml   # deploy: container in VM, data/ als volume
 .env                    # secrets: WACHTWOORD, INTERN_TOKEN, POORT, DATA_DIR
 ```

@@ -6,6 +6,7 @@ Opzet d.d. 2026-07-15. What we build, in which order, and what is blocked on the
 
 - **Doel:** btw-aangifte (omzetbelasting) voor één eenmanszaak volledig voorbereiden; indienen blijft handmatig via Mijn Belastingdienst Zakelijk — er is geen publieke indien-API (Digipoort = PKIoverheid-certificaat voor softwareleveranciers, out of scope).
 - **Btw-plichtig, géén KOR; aangifte per kwartaal.**
+- **Dubbel boekhouden (double-entry), besloten 2026-07-15:** elke transactie is een Journaalpost met debet-/creditregels op een rekeningschema (chart of accounts); som(debet) == som(credit) is een harde invariant. De UI houdt het simpel met sjabloonflows (verkoopfactuur, inkoopfactuur, bank/privé) die gebalanceerde posten genereren; balans en winst & verlies komen gratis mee. Zie DATA-MODEL.md §1.
 - **Hosting: Docker-container in een VM, alleen bereikbaar via LAN/VPN.** Interim-auth (ARCHITECTURE.md §5.1) is daarmee acceptabel tot doge#61 landt.
 - **Opslag: DSON-bestanden** (`dson` stdlib) — eigenaarskeuze, on-theme; geen database (Doge heeft geen driver; sqlite-via-subprocess afgewezen). Store-laag blijft een seam.
 - **Frontend: server-rendered HTML + Dogescript** (https://github.com/dogescript/dogescript, compileert naar JS) voor client-side gedrag. **Geen issues aanmaken op dogescript** — "we have what we get"; gaten vullen met gewone JS.
@@ -19,9 +20,9 @@ Each phase ends green (`doge check`/`fmt`/`test`) and usable on its own.
 
 - **Phase 0 — Fundament (no web). ✅ DONE 2026-07-15.** Scaffold (`doge.toml` — note: the `[dependencies]` table header is required even when empty), `lib/datum.doge`, `lib/geld.doge`, `app/services/btw.doge` (DATA-MODEL.md §2 as table-driven tests), `app/store/store.doge` (atomic DSON + audit + id-uitgifte); 24 tests green (`doge test "$PWD/tests"`); Dockerfile + docker-compose skeleton. Proved Doge on the domain before any HTTP exists.
 - **Phase 1 — `web/` micro-framework.** http parse/response, router, urlencoded forms, html builders + escaping, sessions, static files; tested via loopback (`howl.listen` port 0 — the stdlib echo pattern).
-- **Phase 2 — Boekingen + bijlagen.** Login, boeking CRUD (mutaties alleen in open tijdvakken), upload via base64-shim (§3) incl. het open uploadveld → import-inbox (bijlage zonder boeking = inbox-item, vandaaruit boeken), lijst/filter per tijdvak, dashboard. Dogescript-buildstap (`.djs` → `static/js/`) start hier.
-- **Phase 3 — Aangifte.** Rubriekenoverzicht per kwartaal, "markeer ingediend" + vergrendeling + storno/suppletie-flow (DATA-MODEL.md §3), exports: aangifte print-view + CSV, boekingen-CSV, jaaroverzicht.
-- **Phase 4 — Verkoopfacturen.** Concept → definitief (nummering + boeking), factuur-HTML met print-CSS, creditfactuur.
+- **Phase 2 — Journaal + bijlagen (double-entry).** Login; rekeningschema geseed + beheer; journaalpost-invoer via sjabloonflows (verkoopfactuur/inkoopfactuur/bank/privé) + vrije memoriaalpost, balans-invariant afgedwongen; mutaties alleen in open tijdvakken; upload via base64-shim (§3) incl. het open uploadveld → import-inbox (bijlage zonder journaalpost = inbox-item, vandaaruit boeken); journaal-lijst/filter per tijdvak, dashboard. Dogescript-buildstap (`.djs` → `static/js/`) start hier. **Refactor uit fase 0:** `btw.rubrieken` gaat van platte boekingen-dicts naar journaalregels als input (zelfde code→rubriek-mapping, tests mee).
+- **Phase 3 — Aangifte + reports.** Rubriekenoverzicht per kwartaal, "markeer ingediend" + vergrendeling + storno/suppletie-flow (DATA-MODEL.md §3); reports uit het journaal: balans + winst & verlies; exports: aangifte print-view + CSV, journaal-CSV per tijdvak, jaaroverzicht.
+- **Phase 4 — Verkoopfacturen.** Concept → definitief (nummering + journaalpost debiteuren/omzet/btw), factuur-HTML met print-CSS, creditfactuur.
 - **Phase 5 — Terugkerende facturen + import.** Sjablonen + scheduler-pup → loopback `/internal/run-recurring` (idempotent per dag); dagelijkse scan van de gemounte `data/import/`-map → inbox (abo-facturen automatisch inladen); Docker-deploy afronden (Dockerfile/compose staan als skelet vanaf de setup).
 - **Phase 6 — Upstream upgrades.** As tickets land: real multipart (#60/#63, delete shims), real auth crypto (#61), API-invoer facturen (#62). Not scheduled — event-driven.
 
@@ -40,7 +41,7 @@ Each phase ends green (`doge check`/`fmt`/`test`) and usable on its own.
 
 ## 4. What we build ourselves (and why it's ours, not the language's)
 
-`web/` HTTP micro-framework, `lib/datum.doge`, `lib/geld.doge`, `lib/csv.doge`, `app/store/` persistence, all fiscal logic (`btw.doge`), factuur-rendering. Each is application-shaped, pure Doge, and a decent stress-test of the language.
+`web/` HTTP micro-framework, `lib/datum.doge`, `lib/geld.doge`, `lib/csv.doge`, `app/store/` persistence, all fiscal logic (`btw.doge`), the double-entry journaal-service + balans/W&V-rapporten, factuur-rendering. Each is application-shaped, pure Doge, and a decent stress-test of the language.
 
 ## 5. Open questions
 
