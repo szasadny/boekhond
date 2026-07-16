@@ -1,0 +1,124 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../../web/multipart.doge"
+so "../services/bijlagen.doge"
+so weergave
+so strings
+
+# Upload + import-inbox. Bestand komt binnen als multipart/form-data (rauwe Bytes),
+# wordt gevalideerd + opgeslagen door de bijlagen-service, en vandaaruit aan een
+# journaalpost gekoppeld. Download is een session-gated route (geen /static/).
+# Alle dynamische waarden ge-escaped (Hard Rule 6).
+
+such upload_formulier:
+    such veld = html.bestand("bestand", "Inkoopbewijs (pdf/png/jpg)", ".pdf,.png,.jpg,.jpeg")
+    such form = html.formulier("/upload", "post", [veld, html.knop("Uploaden")], "multipart/form-data")
+    return "<h1>Bewijs uploaden</h1>{form}"
+wow
+
+such upload_form much req:
+    return http.html_response(weergave.render("Uploaden", upload_formulier()))
+wow
+
+such upload much req:
+    such store = req["ctx"]["store"]
+    pls
+        if not req["headers"].has("content-type"):
+            bonk "geen multipart-upload"
+        if len(req["body"]) == 0:
+            bonk "geen bestand geüpload"
+        such grens = multipart.grens_uit_content_type(req["headers"]["content-type"][0])
+        such p = multipart.parse(req["body"], grens)
+        if len(p["bestanden"]) == 0:
+            bonk "geen bestand geüpload"
+        for best in p["bestanden"]:
+            bijlagen.bewaar(store, best, "upload")
+    oh no err!
+        such fh = weergave.fout(err.message) + upload_formulier()
+        return http.html_response(weergave.render("Uploaden", fh))
+    return http.redirect("/inbox")
+wow
+
+# Dropdown met de laatste journaalposten om een inbox-bijlage aan te koppelen.
+such post_opties much store:
+    such o = [["", "(kies journaalpost)"]]
+    such posten = store.laad("journaal", [])
+    such n = len(posten)
+    such i = n - 20
+    if i < 0:
+        very i = 0
+    while i < n:
+        such p = posten[i]
+        such pid = p["id"]
+        such pd = p["datum"]
+        such po = p["omschrijving"]
+        such label = "{pid} — {pd} {po}"
+        o.append([pid, label])
+        very i = i + 1
+    return o
+wow
+
+such inbox_rij much store, b:
+    such bid = b["id"]
+    such naam = html.escape(b["bestandsnaam_origineel"])
+    such link = html.link("/bijlagen/{bid}", naam)
+    such sel = html.select("post_id", post_opties(store), "")
+    such hidbid = html.escape(bid)
+    such hid = "<input type=\"hidden\" name=\"bijlage_id\" value=\"{hidbid}\">"
+    such knop = html.knop("Koppelen")
+    such form = "<form action=\"/koppel\" method=\"post\" class=\"inline\">{hid}{sel}{knop}</form>"
+    return "<tr><td>{link}</td><td>{form}</td></tr>"
+wow
+
+such inbox_inhoud much store, melding:
+    such items = bijlagen.inbox(store)
+    such body = ""
+    for b in items:
+        very body = body + inbox_rij(store, b)
+    such leeg = ""
+    if len(items) == 0:
+        very leeg = "<p>De inbox is leeg.</p>"
+    such tabel = "<table><thead><tr><th>Bestand</th><th>Koppelen aan post</th></tr></thead><tbody>{body}</tbody></table>"
+    such up = html.link("/upload", "Bewijs uploaden")
+    return "{melding}<h1>Import-inbox</h1><p>{up}</p>{leeg}{tabel}"
+wow
+
+such inbox much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Inbox", inbox_inhoud(store, "")))
+wow
+
+such koppel much req:
+    such store = req["ctx"]["store"]
+    such velden = forms.decode(req["body"])
+    such bijlage_id = forms.enkel(velden, "bijlage_id", "")
+    such post_id = forms.enkel(velden, "post_id", "")
+    pls
+        bijlagen.koppel(store, bijlage_id, post_id)
+    oh no err!
+        return http.html_response(weergave.render("Inbox", inbox_inhoud(store, weergave.fout(err.message))))
+    return http.redirect("/inbox")
+wow
+
+# Strip tekens die een HTTP-header zouden breken (quote/CR/LF) uit een filename.
+such veilige_naam much naam:
+    such r = strings.replace(naam, "\"", "")
+    very r = strings.replace(r, "\r", "")
+    very r = strings.replace(r, "\n", "")
+    return r
+wow
+
+# Serveer een bijlage terug; session-gated via de router (nooit als static file).
+such download much req:
+    such store = req["ctx"]["store"]
+    such id = req["params"]["id"]
+    such b = bijlagen.zoek(bijlagen.alle(store), id)
+    if b == none:
+        return http.tekst_response(404, "bijlage niet gevonden")
+    such data = store.laad_bestand(b["pad"])
+    such naam = veilige_naam(b["bestandsnaam_origineel"])
+    such disp = "attachment; filename=\"{naam}\""
+    return {"status": 200, "headers": {"Content-Type": b["mime"], "Content-Disposition": disp}, "body": data}
+wow
+wow

@@ -76,4 +76,16 @@ such test_geen_tmp_restant:
     amaze not fetch.exists(fetch.join(TMPMAP, "proef.dson.tmp"))
     schoon()
 wow
+
+such test_bewaar_en_laad_bestand:
+    schoon()
+    such s = store.Store(TMPMAP)
+    such data = bytes([37, 80, 68, 70, 0, 255, 10])
+    s.bewaar_bestand("uploads/2026/b-1.pdf", data)
+    amaze fetch.exists(fetch.join(TMPMAP, "uploads/2026/b-1.pdf"))
+    amaze not fetch.exists(fetch.join(TMPMAP, "uploads/2026/b-1.pdf.tmp"))
+    such terug = s.laad_bestand("uploads/2026/b-1.pdf")
+    amaze terug.hex() == data.hex()
+    schoon()
+wow
 wow

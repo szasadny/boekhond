@@ -2,8 +2,7 @@ so howl
 so strings
 so "../web/http.doge"
 
-# stopgap for doge#67 — geen \r-escape; CRLF uit bytes.
-so CRLF = bytes([13, 10]).decode()
+so CRLF = "\r\n"
 
 # Stuurt een rauwe request over loopback en geeft de geparste request terug.
 such rond much req_txt:

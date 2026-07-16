@@ -1,0 +1,82 @@
+so journaal
+so nap
+so fetch
+so strings
+
+# Bijlagen (inkoopbewijs): upload-validatie, opslag onder een gegenereerde naam,
+# en de import-inbox (bijlage zonder journaalpost). store komt als parameter binnen;
+# deze service importeert de store nooit. Bijlagen worden nooit verwijderd (Hard Rule 3).
+# De grenzen hieronder zijn domein-constanten (geen secret) → hier, niet in .env.
+
+so TOEGESTANE_EXT = ["pdf", "png", "jpg", "jpeg"]
+so MAX_BYTES = 10485760
+# mime wordt afgeleid van de gevalideerde extensie, nooit van de client-header.
+so MIME = {"pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}
+
+# Genormaliseerde extensie zonder punt, lowercase. fetch.ext geeft ".PDF" → "pdf".
+such ext_van much filename:
+    such e = strings.smoll(fetch.ext(filename))
+    if len(e) > 0 and e[0] == ".":
+        return e[1:]
+    return e
+wow
+
+such zoek much lijst, id:
+    for b in lijst:
+        if b["id"] == id:
+            return b
+    return none
+wow
+
+such alle much store:
+    return store.laad("bijlagen", [])
+wow
+
+# De import-inbox: bijlagen die nog aan geen journaalpost hangen.
+such inbox much store:
+    such uit = []
+    for b in store.laad("bijlagen", []):
+        if b["journaalpost_id"] == none:
+            uit.append(b)
+    return uit
+wow
+
+# Valideer + persisteer een geüpload part {name, filename, content_type, data:Bytes}.
+# Weigert (bonk) bij verkeerde extensie, leeg bestand of overschrijding van de cap.
+such bewaar much store, part, bron:
+    such ext = ext_van(part["filename"])
+    if not TOEGESTANE_EXT.contains(ext):
+        bonk "bestandstype niet toegestaan: {ext}"
+    such grootte = len(part["data"])
+    if grootte == 0:
+        bonk "leeg bestand"
+    if grootte > MAX_BYTES:
+        bonk "bestand te groot: {grootte} bytes (max {MAX_BYTES})"
+    such geupload_op = nap.stamp(nap.now())
+    such jaar = geupload_op[0:4]
+    such id = store.nieuw_id("b")
+    such pad = "uploads/{jaar}/{id}.{ext}"
+    such meta = {"id": id, "journaalpost_id": none, "bron": bron, "bestandsnaam_origineel": part["filename"], "pad": pad, "mime": MIME[ext], "grootte_bytes": grootte, "geupload_op": geupload_op}
+    such lijst = store.laad("bijlagen", [])
+    store.audit("geupload", "bijlage", id, meta)
+    store.bewaar_bestand(pad, part["data"])
+    lijst.append(meta)
+    store.bewaar("bijlagen", lijst)
+    return meta
+wow
+
+# Koppel een inbox-bijlage aan een journaalpost. journaal.doge schrijft de post
+# (single writer + tijdvak-lock); pas daarna zetten we journaalpost_id op de bijlage,
+# zodat een vergrendeld tijdvak niets aan beide kanten muteert.
+such koppel much store, bijlage_id, post_id:
+    such lijst = store.laad("bijlagen", [])
+    such b = zoek(lijst, bijlage_id)
+    if b == none:
+        bonk "onbekende bijlage: {bijlage_id}"
+    journaal.koppel_bijlage(store, post_id, bijlage_id)
+    b["journaalpost_id"] = post_id
+    store.audit("gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": post_id})
+    store.bewaar("bijlagen", lijst)
+    return b
+wow
+wow

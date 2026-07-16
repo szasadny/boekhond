@@ -1,0 +1,52 @@
+so "../web/multipart.doge"
+
+so CRLF = "\r\n"
+
+# Binaire blob met een null-byte, 0xFF en een losse \n — nooit te decoden.
+so BLOB = [37, 80, 68, 70, 0, 255, 10]
+
+# Bouw een geldige multipart/form-data body: één tekstveld + één bestand.
+such bouw_body much boundary:
+    such veld = "--{boundary}{CRLF}Content-Disposition: form-data; name=\"omschrijving\"{CRLF}{CRLF}factuur mei{CRLF}"
+    such bestandkop = "--{boundary}{CRLF}Content-Disposition: form-data; name=\"bestand\"; filename=\"bewijs.pdf\"{CRLF}Content-Type: application/pdf{CRLF}{CRLF}"
+    such staart = "{CRLF}--{boundary}--{CRLF}"
+    return bytes(veld) + bytes(bestandkop) + bytes(BLOB) + bytes(staart)
+wow
+
+such test_parse_veld_en_bestand:
+    such boundary = "X-BOUND-123"
+    such p = multipart.parse(bouw_body(boundary), boundary)
+    amaze p["velden"]["omschrijving"][0] == "factuur mei"
+    amaze len(p["bestanden"]) == 1
+    such f = p["bestanden"][0]
+    amaze f["name"] == "bestand"
+    amaze f["filename"] == "bewijs.pdf"
+    amaze f["content_type"] == "application/pdf"
+    amaze f["data"].hex() == bytes(BLOB).hex()
+wow
+
+such test_boundary_uit_content_type:
+    such b = multipart.grens_uit_content_type("multipart/form-data; boundary=X-BOUND-123")
+    amaze b == "X-BOUND-123"
+wow
+
+such test_boundary_quoted:
+    such b = multipart.grens_uit_content_type("multipart/form-data; boundary=\"abc def\"")
+    amaze b == "abc def"
+wow
+
+such test_geen_boundary_bonkt:
+    such gevangen = false
+    pls
+        multipart.grens_uit_content_type("text/plain")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+wow
+
+such test_lege_body_geen_parts:
+    such p = multipart.parse(bytes("--B--{CRLF}"), "B")
+    amaze len(p["bestanden"]) == 0
+    amaze len(p["velden"].keys()) == 0
+wow
+wow

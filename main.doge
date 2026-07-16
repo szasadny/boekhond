@@ -10,6 +10,7 @@ so "app/handlers/auth_h.doge"
 so "app/handlers/rekeningen_h.doge"
 so "app/handlers/journaal_h.doge"
 so "app/handlers/dashboard_h.doge"
+so "app/handlers/bijlagen_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Fase 2a: login-gate, rekeningschema,
 # dubbel-boekhouden journaal. Handlers krijgen state via req["ctx"] (de router
@@ -55,6 +56,11 @@ such maak_router:
     r.voeg_toe("POST", "/journaal/bank", journaal_h.bank)
     r.voeg_toe("GET", "/journaal/memoriaal", journaal_h.memoriaal_form)
     r.voeg_toe("POST", "/journaal/memoriaal", journaal_h.memoriaal)
+    r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
+    r.voeg_toe("POST", "/upload", bijlagen_h.upload)
+    r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)
+    r.voeg_toe("POST", "/koppel", bijlagen_h.koppel)
+    r.voeg_toe("GET", "/bijlagen/\{id\}", bijlagen_h.download)
     return r
 wow
 

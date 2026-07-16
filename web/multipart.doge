@@ -1,0 +1,86 @@
+so strings
+
+# multipart/form-data parser. Domeinvrij (web/), importeert nooit app/.
+# De body komt binaire als rauwe Bytes binnen (http.is_tekst houdt multipart als
+# Bytes); tekstvelden komen eruit in de forms-vorm Dict<Str,List<Str>>, bestanden
+# als List<Dict>{name, filename, content_type, data:Bytes}. Leunt op de native
+# Bytes-search van doge 0.3.3 (find/split); geen byte-scan-stopgap meer nodig.
+
+so CRLF = "\r\n"
+so SCHEIDER = "\r\n\r\n"
+
+# Strip omringende dubbele quotes van een header-parameterwaarde.
+such ontquote much s:
+    such t = strings.trim(s)
+    if len(t) >= 2 and t[0] == "\"" and t[-1] == "\"":
+        return t[1:len(t) - 1]
+    return t
+wow
+
+# Boundary uit een Content-Type-waarde halen. bonk als er geen is.
+such grens_uit_content_type much ct:
+    for stuk in strings.split(ct, ";"):
+        such s = strings.trim(stuk)
+        if strings.smoll(s[0:9]) == "boundary=":
+            return ontquote(s[9:])
+    bonk "geen multipart-boundary in Content-Type"
+wow
+
+# Parse het header-blok van één part (al gedecodeerd naar Str).
+such parse_part_headers much blok:
+    such naam = none
+    such filename = none
+    such content_type = "application/octet-stream"
+    for regel in strings.split(blok, CRLF):
+        such lc = strings.smoll(regel)
+        if strings.contains(lc, "content-disposition"):
+            for param in strings.split(regel, ";"):
+                such p = strings.trim(param)
+                if strings.smoll(p[0:5]) == "name=":
+                    very naam = ontquote(p[5:])
+                elif strings.smoll(p[0:9]) == "filename=":
+                    very filename = ontquote(p[9:])
+        elif strings.contains(lc, "content-type"):
+            such dp = strings.split(regel, ":")
+            if len(dp) >= 2:
+                very content_type = strings.trim(strings.join(dp[1:], ":"))
+    return {"naam": naam, "filename": filename, "content_type": content_type}
+wow
+
+# Parse een multipart/form-data body (Bytes) met de gegeven boundary (Str).
+such parse much body, boundary:
+    such velden = {}
+    such bestanden = []
+    such grens = bytes("--" + boundary)
+    such stukken = body.split(grens)
+    # stukken[0] = preamble (leeg), laatste = "--CRLF" (closing); de parts staan
+    # ertussen, elk met een leidende CRLF (na de boundary) en een trailing CRLF.
+    such i = 1
+    while i < len(stukken) - 1:
+        such deel = stukken[i]
+        if len(deel) >= 2:
+            very deel = deel[2:]
+        if len(deel) >= 2:
+            very deel = deel[0:len(deel) - 2]
+        such sep = deel.find(bytes(SCHEIDER))
+        if sep == -1:
+            very i = i + 1
+            continue
+        such h = parse_part_headers(deel[0:sep].decode())
+        such inhoud = deel[sep + 4:]
+        if h["naam"] == none:
+            very i = i + 1
+            continue
+        if h["filename"] == none:
+            such waarde = inhoud.decode()
+            if velden.has(h["naam"]):
+                velden[h["naam"]].append(waarde)
+            else:
+                velden[h["naam"]] = [waarde]
+        else:
+            such best = {"name": h["naam"], "filename": h["filename"], "content_type": h["content_type"], "data": inhoud}
+            bestanden.append(best)
+        very i = i + 1
+    return {"velden": velden, "bestanden": bestanden}
+wow
+wow

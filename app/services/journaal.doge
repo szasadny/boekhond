@@ -55,6 +55,30 @@ such bewaar much store, post:
     return post
 wow
 
+# Koppel een bijlage-id aan een bestaande post. journaal.doge is de enige schrijver
+# van journaalposten, dus de tijdvak-lock (Hard Rule 3) wordt hier bewaakt. Bijlagen
+# aan een post in een ingediend tijdvak hangen is muteren en dus verboden.
+such koppel_bijlage much store, post_id, bijlage_id:
+    such lijst = store.laad("journaal", [])
+    such post = none
+    for p in lijst:
+        if p["id"] == post_id:
+            very post = p
+    if post == none:
+        bonk "onbekende journaalpost: {post_id}"
+    if not tijdvak_open(store.laad("aangiften", []), post["datum"]):
+        such tv = datum.kwartaal(post["datum"])
+        such j = datum.jaar(post["datum"])
+        bonk "tijdvak Q{tv}-{j} is ingediend en vergrendeld"
+    if not post.has("bijlage_ids"):
+        post["bijlage_ids"] = []
+    if not post["bijlage_ids"].contains(bijlage_id):
+        post["bijlage_ids"].append(bijlage_id)
+    store.audit("bijlage_gekoppeld", "journaalpost", post_id, {"bijlage_id": bijlage_id})
+    store.bewaar("journaal", lijst)
+    return post
+wow
+
 # --- Sjabloonflows: bouwen een gebalanceerde post, persisteren niet. ---
 
 # Inkoop: de btw_code zit op de ene grondslagregel (de kostenregel); de btw- en

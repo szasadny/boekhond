@@ -25,6 +25,9 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | Rekeningschema: seed, lookup, unique-nummer validation, deactiveren | `app/services/rekeningen.doge` — master-data; owns the `REK_*` constants `journaal.doge` binds to |
 | Mollie-inkomsten ophalen + boeken (idempotent per `mollie_payment_id`) | `app/services/mollie.doge` — bouwt gebalanceerde omzet-posten, roept `journaal.doge` |
 | Terugkerende maandkosten genereren | `app/services/terugkerend.doge` — kostensjablonen → maandpost via `journaal.doge` |
+| Bijlagen: upload-validatie (ext-allowlist + size-cap), opslag `uploads/{jaar}/{id}{ext}`, import-inbox, koppelen | `app/services/bijlagen.doge` — owns de allow-list/size-cap/mime-constanten; roept `journaal.koppel_bijlage` voor de post-kant (single writer) |
+| Een `multipart/form-data` body (binaire upload) parsen | `web/multipart.doge` — domeinvrij; native `bytes.find`/`split`; input = rauwe Bytes-body + boundary uit Content-Type |
+| Een geüploade bijlage terugserveren (download) | een session-gated router-route (`app/handlers/bijlagen_h.doge` `download`), **nooit** onder `/static/` — leest de bytes uit de `bijlagen.dson`-metadata (§5.6) |
 | Balans / winst & verlies aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
 | A new page or form endpoint | `app/handlers/<resource>_h.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. Shared view-schil (nav, foutbanner) in `app/handlers/weergave.doge`. |
 | A route registration | `main.doge` route table — handlers never self-register |
@@ -91,13 +94,14 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 | `http.doge` | request parse (`{method, path, query, headers, body, cookies}` Dict), response build, status/content-type constants |
 | `router.doge` | route table `[method, pattern, handler]`, path params (`/journaal/{id}`), 404/405 |
 | `forms.doge` | `application/x-www-form-urlencoded` decode (incl. percent + `+`), multi-value fields |
+| `multipart.doge` | `multipart/form-data` parse van een rauwe Bytes-body → `{velden, bestanden}`; boundary uit Content-Type; native `bytes.find`/`split` (0.3.3), file-bytes nooit gedecodeerd |
 | `html.doge` | `escape(s)` + page/layout/form/table builders; the **only** place HTML strings are assembled (Hard Rule 6) |
 | `session.doge` | cookie sessions: token issue/check/expiry — `crypto.token` sessie-id, `crypto.same` constant-time compare (§5.1) |
 | `static.doge` | static file serving with an extension → content-type map, path-traversal safe (reject `..`) |
 
 Handlers receive the request Dict + the loaded state, return a response Dict; `main.doge` owns the socket. Keep the framework small — it exists because Doge has no HTTP server story yet; if that ever ships upstream, `web/` is the seam to delete.
 
-Concrete contract as built: `parse_request(conn)` → `{method, path, query, headers, body, cookies, params}` (header names lowercased, each value a List; `query` decoded via `forms`); `bouw_response(resp)` → Bytes for one `send_bytes`, where `resp` is `{status, headers, set_cookie?, body}` and Content-Length is `len(bytes(body))` (byte count, never char). The `Router` (object) matches `[methode, patroon, handler]`, captures `/pad/{id}` params, and returns a 404 (no path) vs 405 (`Allow`) response; handlers are called positionally with the single request Dict. Response CRLF comes from `so CRLF = bytes([13, 10]).decode()` — a `# stopgap for doge#67` because Doge has no `\r` escape.
+Concrete contract as built: `parse_request(conn)` → `{method, path, query, headers, body, cookies, params}` (header names lowercased, each value a List; `query` decoded via `forms`); `bouw_response(resp)` → Bytes for one `send_bytes`, where `resp` is `{status, headers, set_cookie?, body}` and Content-Length is `len(bytes(body))` (byte count, never char). The `Router` (object) matches `[methode, patroon, handler]`, captures `/pad/{id}` params, and returns a 404 (no path) vs 405 (`Allow`) response; handlers are called positionally with the single request Dict. Response CRLF is the literal `so CRLF = "\r\n"` (the doge#67 stopgap is retired in 0.3.3). A `multipart/form-data` body arrives as raw **Bytes** (`http.is_tekst` returns false), so `web/multipart.doge` parses it directly — no `http.doge`/`router` change was needed for upload.
 
 ---
 
@@ -135,6 +139,10 @@ All exports are GET endpoints rendering from the same services that render pages
 
 `.env` read once at boot → config Dict → passed down explicitly. Keys: `WACHTWOORD` (hash), `INTERN_TOKEN`, `MOLLIE_API_KEY`, `POORT`, `DATA_DIR`. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
 
+### 5.6 Bijlagen — upload & download
+
+The upload form posts `multipart/form-data`; the body arrives as raw Bytes and `web/multipart.doge` extracts the file part(s). `app/services/bijlagen.doge` validates (extension allow-list + size-cap — domain constants, *not* `.env`), derives the mime from the trusted extension (never the client header), issues a `b-<n>` id, and writes the blob atomically via `store.bewaar_bestand` under `data/uploads/{jaar}/{id}{ext}` (generated name; original filename is metadata only — Hard Rule 7). A bijlage with `journaalpost_id == none` is an inbox item; `bijlagen.koppel` links it through `journaal.koppel_bijlage` (the single journaalpost writer, which enforces the tijdvak-lock). **Download is a session-gated router route** (`GET /bijlagen/{id}`), never served from `/static/`: the handler looks up the metadata, reads the bytes with `store.laad_bestand`, and returns them with the stored mime + a sanitised `Content-Disposition` filename. Nothing is ever deleted (Hard Rule 3). The size-cap is checked after the full body is in memory (no streaming) — acceptable for a LAN/VPN single-user app.
+
 ---
 
 ## 6. Doge-specific Constraints That Shaped This Design
@@ -149,7 +157,7 @@ Read this before proposing structural changes — these are language facts, not 
 6. **Module files hold only definitions** — all boot/wiring lives in `main.doge`.
 7. **A `so` import resolves stdlib → dependency → sibling `.doge`.** Same-directory siblings import by **bare name** (`web/router.doge` uses `so http`); cross-directory modules by string path (`main.doge` uses `so "web/http.doge"`, a test uses `so "../web/http.doge"`). Verified in Phase 1. **There is no import alias, and two modules with the same basename collide** (`foo is already defined`) — so handler modules that `main.doge` imports next to a same-named service carry an `_h` suffix (`app/handlers/rekeningen_h.doge` next to `app/services/rekeningen.doge`). Verified in Phase 2a.
 9. **Handlers reach boot state via `req["ctx"]`, not closures.** The router calls `handler(req)` positionally and handlers are top-level (registered before `start()` builds the store), so they cannot lexically capture it. `afhandel` sets `req["ctx"] = {store, sessies, config}` before dispatch; handlers read `req["ctx"]["store"]`. Auth-gating also lives in `afhandel` (redirect to `/login` unless the path is exempt — `/login`, `/health`, `/static/*`, `/internal/*` — and the `sid` cookie is a valid session).
-8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **String escapes lack `\r`** (`\n \t \" \\ \{ \}` only) → CRLF via `bytes([13, 10]).decode()` (doge#67). A **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`. A **`{…}` interpolation can't contain a nested string literal** (`"{html.knop(\"x\")}"` fails — the interpolation "never closes"); bind the call to a local first, then interpolate the local. Verified in Phase 2a.
+8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **v0.3.3 closed two gaps that shaped Phase 1–2a:** `\r` is now a valid string escape (`so CRLF = "\r\n"`, doge#67), and `Bytes` gained `find(sub)`→Int|`-1` / `split(sep)`→`List<Bytes>` / `contains(sub)`→Bool (doge#68) — used natively by `web/multipart.doge` (no `bytes.index`). Still true: a **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`; and a **`{…}` interpolation can't contain a nested string literal** (`"{html.knop(\"x\")}"` fails — the interpolation "never closes"), so bind the call to a local first. **`Str * Int` sequence-repeat does not exist** (doge#70). Verified through Phase 2b.
 
 ---
 

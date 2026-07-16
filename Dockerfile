@@ -1,6 +1,6 @@
 # Build: doge transpileert naar Rust, dus de build-stage heeft de Rust-toolchain nodig.
 FROM rust:slim AS build
-RUN cargo install dogelang
+RUN cargo install dogelang --version 0.3.3
 WORKDIR /app
 COPY doge.toml main.doge ./
 COPY lib/ lib/

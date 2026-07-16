@@ -8,8 +8,7 @@ so forms
 so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "500": "500 Internal Server Error"}
 so HTML = "text/html; charset=utf-8"
 so PLAIN = "text/plain; charset=utf-8"
-# stopgap for doge#67 — Doge kent geen \r-escape; CRLF uit bytes.
-so CRLF = bytes([13, 10]).decode()
+so CRLF = "\r\n"
 
 # Body als tekst behandelen? Binaire content-types (upload, beeld, pdf) blijven Bytes.
 such is_tekst much headers:

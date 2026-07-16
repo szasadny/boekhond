@@ -49,7 +49,7 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 
 ## Stack
 
-- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.2.
+- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.3.
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
@@ -64,9 +64,9 @@ Read only the folder relevant to the task; grep before scanning.
 ```text
 doge.toml               # manifest, entry = main.doge ([dependencies] header required even when empty)
 main.doge               # boot: config, store load, scheduler pup, accept-loop, route table, auth gate
-web/                    # generic HTTP micro-framework (no domain knowledge; never imports app/)
+web/                    # generic HTTP micro-framework (HTTP/1.1 parse, router, cookies, forms, multipart, html escaping, static; never imports app/)
 app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared nav/foutbanner); _h avoids the service-import name clash
-app/services/           # business logic: btw, journaal, rekeningen, mollie, aangifte, rapporten, terugkerend
+app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, aangifte, rapporten, terugkerend
 app/store/              # store.doge (atomic DSON + audit), one load/save per collection
 lib/                    # domain-free helpers: datum, geld, csv
 static/djs/ , static/js/, static/   # Dogescript source, compiled output (gitignored), css/favicon

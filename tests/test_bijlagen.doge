@@ -1,0 +1,148 @@
+so fetch
+so strings
+so "../app/store/store.doge"
+so "../app/services/bijlagen.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+
+so TMPMAP = "tmp_test_bijlagen"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+such deel much filename, data:
+    return {"name": "bewijs", "filename": filename, "content_type": "application/octet-stream", "data": data}
+wow
+
+# Een gebalanceerde memoriaalpost in een open tijdvak (Q3 2026).
+such maak_post much s:
+    such regels = [{"rekening": "1100", "debet": "100.00", "credit": "", "btw_code": none}, {"rekening": "0800", "debet": "", "credit": "100.00", "btw_code": none}]
+    such post = journaal.memoriaal_post("2026-07-10", "test", "", regels)
+    return journaal.bewaar(s, post)
+wow
+
+# doge#70: geen str*int, dus een grote Bytes bouwen we via verdubbelen.
+such groter_dan much n:
+    such b = bytes([0])
+    while len(b) <= n:
+        very b = b + b
+    return b
+wow
+
+such test_bewaar_geldig_pdf:
+    such s = verse()
+    such m = bijlagen.bewaar(s, deel("factuur.pdf", bytes([37, 80, 68, 70, 1])), "upload")
+    amaze m["id"] == "b-1"
+    amaze m["journaalpost_id"] == none
+    amaze m["bron"] == "upload"
+    amaze m["bestandsnaam_origineel"] == "factuur.pdf"
+    amaze m["mime"] == "application/pdf"
+    amaze m["grootte_bytes"] == 5
+    amaze m["pad"][0:8] == "uploads/"
+    amaze strings.contains(m["pad"], "/b-1.pdf")
+    amaze fetch.exists(fetch.join(TMPMAP, m["pad"]))
+    schoon()
+wow
+
+such test_audit_geschreven:
+    such s = verse()
+    bijlagen.bewaar(s, deel("bon.png", bytes([1, 2, 3])), "upload")
+    such inhoud = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
+    amaze strings.contains(inhoud, "geupload")
+    amaze strings.contains(inhoud, "bijlage")
+    schoon()
+wow
+
+such test_weiger_verkeerde_ext:
+    such s = verse()
+    such gevangen = false
+    pls
+        bijlagen.bewaar(s, deel("virus.exe", bytes([1])), "upload")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_weiger_zonder_ext:
+    such s = verse()
+    such gevangen = false
+    pls
+        bijlagen.bewaar(s, deel("geenext", bytes([1])), "upload")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_weiger_leeg:
+    such s = verse()
+    such gevangen = false
+    pls
+        bijlagen.bewaar(s, deel("leeg.pdf", bytes("")), "upload")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_weiger_te_groot:
+    such s = verse()
+    such gevangen = false
+    pls
+        bijlagen.bewaar(s, deel("groot.pdf", groter_dan(bijlagen.MAX_BYTES)), "upload")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_koppel_zet_beide_kanten:
+    such s = verse()
+    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such post = maak_post(s)
+    bijlagen.koppel(s, m["id"], post["id"])
+    such bl = bijlagen.zoek(bijlagen.alle(s), m["id"])
+    amaze bl["journaalpost_id"] == post["id"]
+    such posten = s.laad("journaal", [])
+    amaze posten[0]["bijlage_ids"].contains(m["id"])
+    amaze len(bijlagen.inbox(s)) == 0
+    schoon()
+wow
+
+such test_koppel_vergrendeld_bonkt:
+    such s = verse()
+    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such post = maak_post(s)
+    s.bewaar("aangiften", [{"id": "a-1", "jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
+    such gevangen = false
+    pls
+        bijlagen.koppel(s, m["id"], post["id"])
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze len(bijlagen.inbox(s)) == 1
+    schoon()
+wow
+
+such test_inbox_filtert_gekoppelde:
+    such s = verse()
+    bijlagen.bewaar(s, deel("a.pdf", bytes([1])), "upload")
+    such tweede = bijlagen.bewaar(s, deel("b.pdf", bytes([2])), "upload")
+    amaze len(bijlagen.inbox(s)) == 2
+    such post = maak_post(s)
+    bijlagen.koppel(s, tweede["id"], post["id"])
+    amaze len(bijlagen.inbox(s)) == 1
+    amaze len(bijlagen.alle(s)) == 2
+    schoon()
+wow
+wow

@@ -37,7 +37,12 @@ such home much req:
         very recent = recent + "<li>{d} — {oms}</li>"
         very i = i + 1
     such laatste = "<h2>Laatste posten</h2><ul>{recent}</ul>"
-    such inhoud = "<h1>Overzicht Q{kw}-{j}</h1>{tabel}{totalen}{laatste}"
+    such inboxn = 0
+    for b in store.laad("bijlagen", []):
+        if b["journaalpost_id"] == none:
+            very inboxn = inboxn + 1
+    such inboxlink = html.link("/inbox", "Inbox ({inboxn})")
+    such inhoud = "<h1>Overzicht Q{kw}-{j}</h1><p>{inboxlink}</p>{tabel}{totalen}{laatste}"
     return http.html_response(weergave.render("Overzicht", inhoud))
 wow
 wow

@@ -135,6 +135,6 @@ Enforced in services, elk met een test (Hard Rule 9):
 1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in.
 2. **Import is idempotent, elke bron precies één keer geboekt:** een Mollie-payment wordt hoogstens één journaalpost (uniek `mollie_payment_id`), een kostensjabloon hoogstens één post per maand (uniek `terugkerend_id` + maand). Dubbel draaien van de sync/scheduler boekt nooit dubbel; elke import is een audit-event (Hard Rule 2).
 3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking.
-4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren).
+4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren). Koppelen is symmetrisch en gaat via `journaal.koppel_bijlage` (de enige schrijver van journaalposten): het zet `journaalpost_id` op de Bijlage én voegt het bijlage-id toe aan `bijlage_ids` van de post — en wordt geweigerd als de post in een ingediend tijdvak valt (§3.3, invariant 3).
 5. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
 6. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.

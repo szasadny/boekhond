@@ -3,7 +3,7 @@ so "../../web/html.doge"
 # Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
 # Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
 
-so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/rekeningen", "Rekeningen"]]
+so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"]]
 
 such nav:
     such items = ""

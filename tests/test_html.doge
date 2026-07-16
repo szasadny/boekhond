@@ -44,6 +44,20 @@ such test_formulier_en_veld:
     amaze strings.contains(f, "value=\"12,50\"")
 wow
 
+such test_bestand_veld:
+    such b = html.bestand("bewijs", "Inkoopbewijs", ".pdf,.png")
+    amaze strings.contains(b, "<label>Inkoopbewijs<input type=\"file\" name=\"bewijs\"")
+    amaze strings.contains(b, "accept=\".pdf,.png\"")
+wow
+
+such test_formulier_enctype:
+    such f = html.formulier("/upload", "post", [html.bestand("bewijs", "Bewijs")], "multipart/form-data")
+    amaze strings.contains(f, "method=\"post\" enctype=\"multipart/form-data\"")
+    # zonder enctype-arg blijft de form onveranderd (backward compatible)
+    such g = html.formulier("/x", "post", [])
+    amaze strings.contains(g, "<form action=\"/x\" method=\"post\">")
+wow
+
 such test_select_gekozen_en_escaped:
     such s = html.select("btw_code", [["hoog_21", "21%"], ["geen_btw", "<geen>"]], "geen_btw")
     amaze strings.contains(s, "<select name=\"btw_code\">")

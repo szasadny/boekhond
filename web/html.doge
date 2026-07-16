@@ -41,10 +41,22 @@ such select much naam, opties, gekozen:
     return "<select name=\"{escape(naam)}\">{items}</select>"
 wow
 
-# Form-wrapper. actie/methode = code; velden = List van builder-output.
-such formulier much actie, methode, velden:
+# Eén file-upload-veld. naam = code; label = tekst; accept = code (extensie-hint).
+such bestand much naam, label, accept = "":
+    such acc = ""
+    if accept != "":
+        very acc = " accept=\"{escape(accept)}\""
+    return "<label>{escape(label)}<input type=\"file\" name=\"{escape(naam)}\"{acc}></label>"
+wow
+
+# Form-wrapper. actie/methode/enctype = code; velden = List van builder-output.
+# enctype alleen gezet als niet-leeg (multipart/form-data bij een upload-form).
+such formulier much actie, methode, velden, enctype = "":
     such inhoud = strings.join(velden, "\n")
-    return "<form action=\"{escape(actie)}\" method=\"{escape(methode)}\">\n{inhoud}\n</form>"
+    such enc = ""
+    if enctype != "":
+        very enc = " enctype=\"{escape(enctype)}\""
+    return "<form action=\"{escape(actie)}\" method=\"{escape(methode)}\"{enc}>\n{inhoud}\n</form>"
 wow
 
 # Tabel. koppen = List<tekst>; rijen = List<List<tekst>>. Alle cellen ge-escaped.

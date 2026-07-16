@@ -1,6 +1,7 @@
 so dson
 so fetch
 so nap
+so strings
 
 # Enige toegang tot data/ (Hard Rule 4): atomic writes + audit-append.
 # Bedragen komen hier altijd als Str binnen — dson.emit van een Decimal is een TypeError.
@@ -27,6 +28,24 @@ many Store:
         such tmp = p + ".tmp"
         fetch.write(tmp, dson.emit(waarde))
         fetch.rename(tmp, p)
+    wow
+
+    # Atomic binaire write onder data/ (uploads). relpad = "uploads/{jaar}/{id}{ext}";
+    # de tussenmappen worden aangemaakt (make_dir is recursief). Geen audit hier —
+    # het metadata-record in bijlagen.doge draagt het audit-event.
+    such bewaar_bestand much relpad, data:
+        such vol = fetch.join(self.dir, relpad)
+        such delen = strings.split(relpad, "/")
+        such mapdeel = strings.join(delen[0:len(delen) - 1], "/")
+        if mapdeel != "":
+            fetch.make_dir(fetch.join(self.dir, mapdeel))
+        such tmp = vol + ".tmp"
+        fetch.write_bytes(tmp, data)
+        fetch.rename(tmp, vol)
+    wow
+
+    such laad_bestand much relpad:
+        return fetch.read_bytes(fetch.join(self.dir, relpad))
     wow
 
     # Append-only, vóór elke bewaar-aanroep door de caller (bewaarplicht).
