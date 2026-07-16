@@ -38,4 +38,11 @@ wow
 such test_rondgang:
     amaze geld.parse(geld.formatteer(dec("8135.79"))) == dec("8135.79")
 wow
+
+such test_bedrag:
+    amaze geld.bedrag("") == dec("0")
+    amaze geld.bedrag(none) == dec("0")
+    amaze geld.bedrag("1250.00") == dec("1250.00")
+    amaze geld.bedrag("-1000") == dec("-1000")
+wow
 wow

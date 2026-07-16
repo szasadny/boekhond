@@ -31,6 +31,16 @@ such veld much naam, label, type = "text", waarde = "":
     return "<label>{escape(label)}<input name=\"{escape(naam)}\" type=\"{escape(type)}\" value=\"{escape(waarde)}\"></label>"
 wow
 
+# Dropdown. naam = code; opties = List van [waarde, label]; gekozen = code.
+# Alle waarden en labels ge-escaped; " selected" op de match.
+such select much naam, opties, gekozen:
+    such items = ""
+    for o in opties:
+        such sel = " selected" if o[0] == gekozen else ""
+        very items = items + "<option value=\"{escape(o[0])}\"{sel}>{escape(o[1])}</option>"
+    return "<select name=\"{escape(naam)}\">{items}</select>"
+wow
+
 # Form-wrapper. actie/methode = code; velden = List van builder-output.
 such formulier much actie, methode, velden:
     such inhoud = strings.join(velden, "\n")

@@ -18,6 +18,14 @@ such rond2 much bedrag:
     return resultaat
 wow
 
+# Regel-bedrag uit de store naar Decimal: "" of none is de ongebruikte
+# debet/credit-kant en telt als nul. Houdt Decimal↔Str op één plek (Hard Rule 1).
+such bedrag much s:
+    if s == "" or s == none:
+        return dec("0")
+    return dec(s)
+wow
+
 # NL-invoer naar Decimal: "1.234,56", "19,99", "1234.56", "€ 12,50".
 such parse much tekst:
     such t = strings.trim(tekst)

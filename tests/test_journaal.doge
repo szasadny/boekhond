@@ -1,0 +1,101 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../app/services/btw.doge"
+
+so TMPMAP = "tmp_test_journaal"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse_store:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+such test_balans_klopt:
+    such goed = [{"rekening": "4200", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "1600", "debet": "", "credit": "100", "btw_code": none}]
+    amaze journaal.balans_klopt(goed)
+    such fout = [{"rekening": "4200", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "1600", "debet": "", "credit": "90", "btw_code": none}]
+    amaze not journaal.balans_klopt(fout)
+wow
+
+such test_bewaar_kent_id_uit:
+    such s = verse_store()
+    such post = journaal.memoriaal_post("2026-07-15", "test", "", [{"rekening": "1100", "debet": "50", "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": "50", "btw_code": none}])
+    such bewaard = journaal.bewaar(s, post)
+    amaze bewaard["id"] == "j-1"
+    amaze len(bewaard["created_at"]) == 20
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_bewaar_onbalans_weigert:
+    such s = verse_store()
+    such post = journaal.memoriaal_post("2026-07-15", "scheef", "", [{"rekening": "1100", "debet": "50", "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": "40", "btw_code": none}])
+    such gevangen = false
+    pls
+        journaal.bewaar(s, post)
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_tijdvak_vergrendeld:
+    such s = verse_store()
+    s.bewaar("aangiften", [{"jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
+    such post = journaal.memoriaal_post("2026-08-01", "te laat", "", [{"rekening": "1100", "debet": "10", "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": "10", "btw_code": none}])
+    such gevangen = false
+    pls
+        journaal.bewaar(s, post)
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_inkoop_aftrek_balanceert:
+    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", "100", "voorbelasting_hoog", "4200")
+    amaze len(post["regels"]) == 3
+    amaze journaal.balans_klopt(post["regels"])
+    amaze post["bron"] == "handmatig"
+wow
+
+such test_inkoop_zelf_balanceert:
+    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", "100", "import_buiten_eu", "4000")
+    amaze len(post["regels"]) == 4
+    amaze journaal.balans_klopt(post["regels"])
+wow
+
+such test_inkoop_geen_btw_balanceert:
+    such post = journaal.inkoop_post("2026-07-15", "Verzekeraar", "aansprakelijkheid", "250", "geen_btw", "4300")
+    amaze len(post["regels"]) == 2
+    amaze journaal.balans_klopt(post["regels"])
+wow
+
+such test_prive_post_balanceert:
+    such storting = journaal.prive_post("2026-07-15", "eigen geld", "1100", "500", "storting")
+    amaze journaal.balans_klopt(storting["regels"])
+    such onttrekking = journaal.prive_post("2026-07-15", "opname", "1100", "500", "onttrekking")
+    amaze journaal.balans_klopt(onttrekking["regels"])
+wow
+
+such test_rubrieken_uit_geboekte_inkoop:
+    such s = verse_store()
+    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", "100", "import_buiten_eu", "4000")
+    journaal.bewaar(s, post)
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze r["rubrieken"]["4a"]["bedrag"] == 100
+    amaze r["rubrieken"]["4a"]["btw"] == 21
+    amaze r["5b"] == 21
+    amaze r["saldo"] == 0
+    schoon()
+wow
+wow

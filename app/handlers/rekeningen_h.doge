@@ -1,0 +1,81 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/rekeningen.doge"
+so "../services/btw.doge"
+so weergave
+
+# Rekeningschema tonen + beheren. Alle dynamische waarden ge-escaped (Hard Rule 6);
+# statische structuur is vast. Nooit verwijderen — deactiveren (Hard Rule 3).
+
+so TYPE_OPTIES = [["activa", "activa"], ["passiva", "passiva"], ["eigen_vermogen", "eigen_vermogen"], ["omzet", "omzet"], ["kosten", "kosten"]]
+
+such btw_opties:
+    such o = [["", "(geen)"]]
+    for c in btw.CODES:
+        o.append([c, c])
+    return o
+wow
+
+such toevoeg_formulier:
+    such vn = html.veld("nummer", "Nummer", "text", "")
+    such vnaam = html.veld("naam", "Naam", "text", "")
+    such stype = html.select("type", TYPE_OPTIES, "kosten")
+    such vtype = "<label>Type {stype}</label>"
+    such sbtw = html.select("btw_code", btw_opties(), "")
+    such vbtw = "<label>Btw-code {sbtw}</label>"
+    return html.formulier("/rekeningen", "post", [vn, vnaam, vtype, vbtw, html.knop("Toevoegen")])
+wow
+
+such rij much r:
+    such nummer = html.escape(r["nummer"])
+    such naam = html.escape(r["naam"])
+    such type = html.escape(r["type"])
+    such code = ""
+    if r["btw_code"] != none:
+        very code = html.escape(r["btw_code"])
+    such actie = "inactief"
+    if r["actief"]:
+        such knop = html.knop("Deactiveren")
+        very actie = "<form action=\"/rekeningen/{nummer}/deactiveer\" method=\"post\" class=\"inline\">{knop}</form>"
+    return "<tr><td>{nummer}</td><td>{naam}</td><td>{type}</td><td>{code}</td><td>{actie}</td></tr>"
+wow
+
+such inhoud_van much store, melding:
+    such body = ""
+    for r in rekeningen.alle(store):
+        very body = body + rij(r)
+    such tabel = "<table><thead><tr><th>Nummer</th><th>Naam</th><th>Type</th><th>Btw-code</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
+    return "{melding}<h1>Rekeningen</h1>{tabel}<h2>Nieuwe rekening</h2>{toevoeg_formulier()}"
+wow
+
+such lijst much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Rekeningen", inhoud_van(store, "")))
+wow
+
+such toevoegen much req:
+    such store = req["ctx"]["store"]
+    such velden = forms.decode(req["body"])
+    such code = forms.enkel(velden, "btw_code", "")
+    such btw_code = none
+    if code != "":
+        very btw_code = code
+    such rek = {"nummer": forms.enkel(velden, "nummer", ""), "naam": forms.enkel(velden, "naam", ""), "type": forms.enkel(velden, "type", "kosten"), "btw_code": btw_code}
+    pls
+        rekeningen.voeg_toe(store, rek)
+    oh no err!
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+    return http.redirect("/rekeningen")
+wow
+
+such deactiveer much req:
+    such store = req["ctx"]["store"]
+    such nummer = req["params"]["nummer"]
+    pls
+        rekeningen.deactiveer(store, nummer)
+    oh no err!
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+    return http.redirect("/rekeningen")
+wow
+wow

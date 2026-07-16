@@ -22,10 +22,11 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | A business rule or behaviour | `app/services/<domein>.doge` — never in a handler |
 | Anything that computes btw (tarief, rubriek, afronding) | `app/services/btw.doge` — the only file that knows fiscal math (Hard Rule 5) |
 | Journaalpost-creation, balans-invariant, sjabloonflows (inkoop/bank/privé/memoriaal) | `app/services/journaal.doge` — the only place that writes journaalposten |
+| Rekeningschema: seed, lookup, unique-nummer validation, deactiveren | `app/services/rekeningen.doge` — master-data; owns the `REK_*` constants `journaal.doge` binds to |
 | Mollie-inkomsten ophalen + boeken (idempotent per `mollie_payment_id`) | `app/services/mollie.doge` — bouwt gebalanceerde omzet-posten, roept `journaal.doge` |
 | Terugkerende maandkosten genereren | `app/services/terugkerend.doge` — kostensjablonen → maandpost via `journaal.doge` |
 | Balans / winst & verlies aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
-| A new page or form endpoint | `app/handlers/<resource>.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. |
+| A new page or form endpoint | `app/handlers/<resource>_h.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. Shared view-schil (nav, foutbanner) in `app/handlers/weergave.doge`. |
 | A route registration | `main.doge` route table — handlers never self-register |
 | A read/write of any `data/` file | `app/store/store.doge` (atomic write + audit append) — Hard Rule 4 |
 | A new entity / JSON collection | `app/store/` load/save pair + [DATA-MODEL.md](./DATA-MODEL.md) entry + a migration note if the shape of an existing file changes |
@@ -106,7 +107,7 @@ Concrete contract as built: `parse_request(conn)` → `{method, path, query, hea
 - **Atomic write:** `store.bewaar(naam, waarde)` writes `data/<naam>.dson.tmp` then `fetch.rename` over the real file — a crash never half-writes state. `store.laad(naam, standaard)` returns the default when the file is absent (first boot).
 - **Audit log:** every mutation appends one DSON line to `data/audit.dsonl` — `{ts, actie, entiteit, id, data}` — *before* the collection save. Append-only, never rewritten, never rotated (bewaarplicht).
 - **Amounts are strings in DSON** (`"bedrag_ex" is "1250.00"`); `dec()` at load, `str()` at save. `dson.emit` of a Decimal is a catchable `TypeError` (DSON has no faithful Decimal form) — the store never sees a bare Decimal (Hard Rule 1).
-- **In-memory model:** the accept-loop holds the collections as Dicts/Lists loaded at boot; a mutation updates memory + audit + file in that request. Sequential handling makes this trivially consistent.
+- **In-memory model:** collections are **loaded per request through `store.laad`** and written back through `store.bewaar` (the store already does per-call file I/O). Chosen over a boot-loaded cache (Phase 2a): single-user + strictly sequential + tiny volume means a DSON parse per request is free, and it avoids a dual-write invariant (memory *and* file) with no upside. Handlers get the `Store` instance via `req["ctx"]["store"]`. Revisit only if profiling ever shows a hot read.
 - **Uploads:** `data/uploads/{jaar}/{bijlage_id}{ext}` — generated names only (Hard Rule 7); metadata in `bijlagen.dson`. Deletion does not exist (Hard Rule 3).
 - **Backups are external** (the whole `data/` dir is the state — restic/borg on a timer); the app itself never deletes or rewrites history.
 
@@ -146,8 +147,9 @@ Read this before proposing structural changes — these are language facts, not 
 4. **`nap` has stamps only, no date arithmetic** → `lib/datum.doge` owns YYYY-MM-DD math (kwartalen, maand-increment, schrikkeljaren) in pure string/Int code.
 5. **Keyword args don't work on methods/stored functions** — pass positionally in handler tables.
 6. **Module files hold only definitions** — all boot/wiring lives in `main.doge`.
-7. **A `so` import resolves stdlib → dependency → sibling `.doge`.** Same-directory siblings import by **bare name** (`web/router.doge` uses `so http`); cross-directory modules by string path (`main.doge` uses `so "web/http.doge"`, a test uses `so "../web/http.doge"`). Verified in Phase 1.
-8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **String escapes lack `\r`** (`\n \t \" \\ \{ \}` only) → CRLF via `bytes([13, 10]).decode()` (doge#67). A **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`.
+7. **A `so` import resolves stdlib → dependency → sibling `.doge`.** Same-directory siblings import by **bare name** (`web/router.doge` uses `so http`); cross-directory modules by string path (`main.doge` uses `so "web/http.doge"`, a test uses `so "../web/http.doge"`). Verified in Phase 1. **There is no import alias, and two modules with the same basename collide** (`foo is already defined`) — so handler modules that `main.doge` imports next to a same-named service carry an `_h` suffix (`app/handlers/rekeningen_h.doge` next to `app/services/rekeningen.doge`). Verified in Phase 2a.
+9. **Handlers reach boot state via `req["ctx"]`, not closures.** The router calls `handler(req)` positionally and handlers are top-level (registered before `start()` builds the store), so they cannot lexically capture it. `afhandel` sets `req["ctx"] = {store, sessies, config}` before dispatch; handlers read `req["ctx"]["store"]`. Auth-gating also lives in `afhandel` (redirect to `/login` unless the path is exempt — `/login`, `/health`, `/static/*`, `/internal/*` — and the `sid` cookie is a valid session).
+8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **String escapes lack `\r`** (`\n \t \" \\ \{ \}` only) → CRLF via `bytes([13, 10]).decode()` (doge#67). A **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`. A **`{…}` interpolation can't contain a nested string literal** (`"{html.knop(\"x\")}"` fails — the interpolation "never closes"); bind the call to a local first, then interpolate the local. Verified in Phase 2a.
 
 ---
 

@@ -1,0 +1,43 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../services/btw.doge"
+so "../../lib/datum.doge"
+so weergave
+
+# Overzichtspagina: het open tijdvak met live-berekende rubrieken + saldo
+# (uit de journaalposten) en de laatst geboekte posten.
+
+such home much req:
+    such store = req["ctx"]["store"]
+    such vandaag = datum.vandaag()
+    such j = datum.jaar(vandaag)
+    such kw = datum.kwartaal(vandaag)
+    such posten = store.laad("journaal", [])
+    such r = btw.rubrieken(posten, j, kw)
+    such body = ""
+    for code in btw.RUBRIEKEN:
+        such rb = r["rubrieken"][code]
+        such bedrag = rb["bedrag"]
+        such vat = rb["btw"]
+        very body = body + "<tr><td>{code}</td><td>{bedrag}</td><td>{vat}</td></tr>"
+    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{body}</tbody></table>"
+    such r5a = r["5a"]
+    such r5b = r["5b"]
+    such saldo = r["saldo"]
+    such totalen = "<p>5a (verschuldigd): {r5a} · 5b (voorbelasting): {r5b} · <strong>Saldo: {saldo}</strong></p>"
+    such recent = ""
+    such n = len(posten)
+    such i = n - 5
+    if i < 0:
+        very i = 0
+    while i < n:
+        such p = posten[i]
+        such d = html.escape(p["datum"])
+        such oms = html.escape(p["omschrijving"])
+        very recent = recent + "<li>{d} — {oms}</li>"
+        very i = i + 1
+    such laatste = "<h2>Laatste posten</h2><ul>{recent}</ul>"
+    such inhoud = "<h1>Overzicht Q{kw}-{j}</h1>{tabel}{totalen}{laatste}"
+    return http.html_response(weergave.render("Overzicht", inhoud))
+wow
+wow

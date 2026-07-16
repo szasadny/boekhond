@@ -1,0 +1,81 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/rekeningen.doge"
+
+so TMPMAP = "tmp_test_rekeningen"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such test_seed_idempotent:
+    schoon()
+    such s = store.Store(TMPMAP)
+    such een = rekeningen.seed(s)
+    amaze len(een) == len(rekeningen.STANDAARD)
+    # tweede seed mag niet dubbelen
+    rekeningen.seed(s)
+    such alle = rekeningen.alle(s)
+    amaze len(alle) == len(rekeningen.STANDAARD)
+    schoon()
+wow
+
+such test_zoek:
+    such lijst = rekeningen.STANDAARD
+    amaze rekeningen.zoek(lijst, "1100")["naam"] == "Bank"
+    amaze rekeningen.zoek(lijst, "9999") == none
+wow
+
+such test_voeg_toe_ok:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    rekeningen.voeg_toe(s, {"nummer": "4600", "naam": "Reiskosten", "type": "kosten", "btw_code": "voorbelasting_hoog"})
+    such r = rekeningen.zoek(rekeningen.alle(s), "4600")
+    amaze r["naam"] == "Reiskosten"
+    amaze r["actief"] == true
+    schoon()
+wow
+
+such test_voeg_toe_dubbel_nummer:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such gevangen = false
+    pls
+        rekeningen.voeg_toe(s, {"nummer": "1100", "naam": "Dubbel", "type": "activa", "btw_code": none})
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_voeg_toe_onbekende_btw:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such gevangen = false
+    pls
+        rekeningen.voeg_toe(s, {"nummer": "4700", "naam": "Raar", "type": "kosten", "btw_code": "bestaat_niet"})
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_deactiveer:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    rekeningen.deactiveer(s, "8100")
+    amaze rekeningen.zoek(rekeningen.alle(s), "8100")["actief"] == false
+    such gevangen = false
+    pls
+        rekeningen.deactiveer(s, "0000")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+wow

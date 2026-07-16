@@ -1,0 +1,41 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../../web/session.doge"
+
+# Login/logout. Single-user: geen username, alleen het wachtwoord uit .env
+# (bij boot gehasht). Sign-in best practice: current-password + required.
+
+such formulier much melding:
+    such veld = "<label for=\"current-password\">Wachtwoord</label><input type=\"password\" id=\"current-password\" name=\"wachtwoord\" autocomplete=\"current-password\" required>"
+    such knop = html.knop("Inloggen")
+    return "<h1>Inloggen</h1>{melding}<form action=\"/login\" method=\"post\">{veld}{knop}</form>"
+wow
+
+such login_form much req:
+    return http.html_response(html.pagina("Inloggen", formulier("")))
+wow
+
+such login much req:
+    such velden = forms.decode(req["body"])
+    such ingevoerd = forms.enkel(velden, "wachtwoord", "")
+    such cfg = req["ctx"]["config"]
+    such sessies = req["ctx"]["sessies"]
+    if session.wachtwoord_klopt(cfg["wachtwoord_hash"], ingevoerd):
+        such sid = sessies.nieuw()
+        such resp = http.redirect("/")
+        resp["set_cookie"] = [sessies.cookie(sid)]
+        return resp
+    such melding = "<p class=\"fout\">Onjuist wachtwoord.</p>"
+    return http.html_response(html.pagina("Inloggen", formulier(melding)))
+wow
+
+such logout much req:
+    such sessies = req["ctx"]["sessies"]
+    such sid = ""
+    if req["cookies"].has("sid"):
+        very sid = req["cookies"]["sid"]
+    sessies.verwijder(sid)
+    return http.redirect("/login")
+wow
+wow

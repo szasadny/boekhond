@@ -1,0 +1,82 @@
+so btw
+
+# Rekeningschema (chart of accounts) — master-data, los van het boeken zelf.
+# journaal.doge bindt aan de REK_*-constanten hieronder (single source of truth).
+# store wordt als parameter doorgegeven; deze service importeert de store nooit.
+
+# Vaste rekeningen waar de sjabloonflows in journaal.doge naar verwijzen.
+so REK_PRIVE = "0900"
+so REK_BANK = "1100"
+so REK_AF_TE_DRAGEN = "1510"
+so REK_VOORBELASTING = "1520"
+so REK_CREDITEUREN = "1600"
+
+# Standaardschema voor een NL-eenmanszaak (RGS-geïnspireerd). Bij eerste boot
+# geseed; uitbreidbaar via de UI. nummer is uniek en onwijzigbaar.
+so STANDAARD = [
+    {"nummer": "0100", "naam": "Inventaris", "type": "activa", "btw_code": none, "actief": true},
+    {"nummer": "0800", "naam": "Eigen vermogen", "type": "eigen_vermogen", "btw_code": none, "actief": true},
+    {"nummer": "0900", "naam": "Prive-opnamen en -stortingen", "type": "eigen_vermogen", "btw_code": none, "actief": true},
+    {"nummer": "1100", "naam": "Bank", "type": "activa", "btw_code": none, "actief": true},
+    {"nummer": "1300", "naam": "Debiteuren", "type": "activa", "btw_code": none, "actief": true},
+    {"nummer": "1510", "naam": "Af te dragen omzetbelasting", "type": "passiva", "btw_code": none, "actief": true},
+    {"nummer": "1520", "naam": "Te vorderen voorbelasting", "type": "activa", "btw_code": none, "actief": true},
+    {"nummer": "1600", "naam": "Crediteuren", "type": "passiva", "btw_code": none, "actief": true},
+    {"nummer": "4000", "naam": "Software en abonnementen", "type": "kosten", "btw_code": "import_buiten_eu", "actief": true},
+    {"nummer": "4100", "naam": "Hosting", "type": "kosten", "btw_code": "import_buiten_eu", "actief": true},
+    {"nummer": "4200", "naam": "Kantoorkosten", "type": "kosten", "btw_code": "voorbelasting_hoog", "actief": true},
+    {"nummer": "4300", "naam": "Verzekeringen", "type": "kosten", "btw_code": "geen_btw", "actief": true},
+    {"nummer": "4400", "naam": "Bankkosten", "type": "kosten", "btw_code": "geen_btw", "actief": true},
+    {"nummer": "4500", "naam": "Overige algemene kosten", "type": "kosten", "btw_code": "voorbelasting_hoog", "actief": true},
+    {"nummer": "8000", "naam": "Omzet 21%", "type": "omzet", "btw_code": "hoog_21", "actief": true},
+    {"nummer": "8100", "naam": "Omzet overig", "type": "omzet", "btw_code": none, "actief": true},
+]
+
+# Idempotent: alleen seeden als de collectie nog leeg is.
+such seed much store:
+    such huidig = store.laad("rekeningen", [])
+    if len(huidig) > 0:
+        return huidig
+    store.audit("geseed", "rekeningen", "*", {"aantal": len(STANDAARD)})
+    store.bewaar("rekeningen", STANDAARD)
+    return STANDAARD
+wow
+
+such alle much store:
+    return store.laad("rekeningen", STANDAARD)
+wow
+
+# De rekening met dit nummer, of none.
+such zoek much lijst, nummer:
+    for r in lijst:
+        if r["nummer"] == nummer:
+            return r
+    return none
+wow
+
+such voeg_toe much store, rekening:
+    such lijst = store.laad("rekeningen", [])
+    if zoek(lijst, rekening["nummer"]) != none:
+        such n = rekening["nummer"]
+        bonk "rekeningnummer bestaat al: {n}"
+    if rekening["btw_code"] != none and not btw.bestaat(rekening["btw_code"]):
+        such c = rekening["btw_code"]
+        bonk "onbekende btw-code: {c}"
+    rekening["actief"] = true
+    store.audit("aangemaakt", "rekening", rekening["nummer"], rekening)
+    lijst.append(rekening)
+    store.bewaar("rekeningen", lijst)
+    return rekening
+wow
+
+# Nooit verwijderen (Hard Rule 3) — deactiveren bewaart de historie.
+such deactiveer much store, nummer:
+    such lijst = store.laad("rekeningen", [])
+    such r = zoek(lijst, nummer)
+    if r == none:
+        bonk "onbekende rekening: {nummer}"
+    r["actief"] = false
+    store.audit("gedeactiveerd", "rekening", nummer, r)
+    store.bewaar("rekeningen", lijst)
+wow
+wow

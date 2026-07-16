@@ -43,4 +43,12 @@ such test_formulier_en_veld:
     amaze strings.contains(f, "name=\"bedrag\"")
     amaze strings.contains(f, "value=\"12,50\"")
 wow
+
+such test_select_gekozen_en_escaped:
+    such s = html.select("btw_code", [["hoog_21", "21%"], ["geen_btw", "<geen>"]], "geen_btw")
+    amaze strings.contains(s, "<select name=\"btw_code\">")
+    amaze strings.contains(s, "<option value=\"hoog_21\">21%</option>")
+    amaze strings.contains(s, "<option value=\"geen_btw\" selected>&lt;geen&gt;</option>")
+    amaze not strings.contains(s, "value=\"hoog_21\" selected")
+wow
 wow

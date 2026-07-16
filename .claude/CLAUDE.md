@@ -63,7 +63,7 @@ main.doge               # boot: config, store load, scheduler pup, accept-loop
 web/                    # generic HTTP micro-framework (no domain knowledge)
   http.doge, router.doge, forms.doge, html.doge, static.doge, session.doge
 app/
-  handlers/             # one file per resource: journaal, bijlagen, kosten, aangifte, rekeningen, instellingen, intern
+  handlers/             # one `<resource>_h.doge` per resource (journaal, rekeningen, auth, dashboard, …) + weergave.doge (shared nav/foutbanner); `_h` avoids the same-name service-import clash
   services/             # business logic: btw.doge, journaal.doge (balans-invariant + sjabloonflows), mollie.doge (inkomsten-import), aangifte.doge, rapporten.doge (balans/W&V), terugkerend.doge (kostensjablonen)
   store/                # store.doge (atomic DSON + audit), one load/save per collection
 lib/                    # domain-free helpers: datum.doge, geld.doge, csv.doge

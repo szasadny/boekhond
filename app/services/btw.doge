@@ -64,27 +64,44 @@ such euro_op much bedrag:
     return hele
 wow
 
-# Alle rubrieken voor één tijdvak, uit de volledige boekingenlijst.
+# Grondslag van één journaalregel op zijn natuurlijke kant: omzet (verkoop) staat
+# op credit, kosten/inkoop op debet. Antisymmetrisch, dus een storno (gespiegelde
+# debet/credit) nettoot vanzelf negatief.
+such regel_grondslag much r, soort:
+    such d = geld.bedrag(r["debet"])
+    such c = geld.bedrag(r["credit"])
+    if soort == "verkoop":
+        return c - d
+    return d - c
+wow
+
+# Alle rubrieken voor één tijdvak, uit de journaalposten van dat tijdvak.
+# Elke regel met een btw_code is een grondslagregel; de btw wordt hier afgeleid
+# (invariant 1 — nooit uit een opgeslagen veld gelezen).
 # Resultaat: {"rubrieken": {rubriek: {"bedrag", "btw"}}, "5a", "5b", "saldo"} — alles hele euro's (Int).
-such rubrieken much boekingen, j, kw:
+such rubrieken much posten, j, kw:
     such grondslag = {}
     such btw_som = {}
     for r in RUBRIEKEN:
         grondslag[r] = dec("0")
         btw_som[r] = dec("0")
     such voorbelasting = dec("0")
-    for b in boekingen:
-        if not datum.in_kwartaal(b["datum"], j, kw):
+    for p in posten:
+        if not datum.in_kwartaal(p["datum"], j, kw):
             continue
-        such c = info(b["btw_code"])
-        such ex = dec(b["bedrag_ex"])
-        such bb = dec(b["btw_bedrag"])
-        if c["grondslag"] != none:
-            grondslag[c["grondslag"]] += ex
-        if c["btw"] != none:
-            btw_som[c["btw"]] += bb
-        if c["aftrek"]:
-            voorbelasting += bb
+        for regel in p["regels"]:
+            if not regel.has("btw_code") or regel["btw_code"] == none:
+                continue
+            such code = regel["btw_code"]
+            such c = info(code)
+            such ex = regel_grondslag(regel, c["soort"])
+            such bb = btw_bedrag(ex, code)
+            if c["grondslag"] != none:
+                grondslag[c["grondslag"]] += ex
+            if c["btw"] != none:
+                btw_som[c["btw"]] += bb
+            if c["aftrek"]:
+                voorbelasting += bb
     such per_rubriek = {}
     such r5a = 0
     for r in RUBRIEKEN:

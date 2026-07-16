@@ -1,0 +1,216 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/journaal.doge"
+so "../services/rekeningen.doge"
+so "../services/btw.doge"
+so "../../lib/datum.doge"
+so "../../lib/geld.doge"
+so weergave
+
+# Journaal: lijst per tijdvak + de sjabloonflows (inkoop, bank/privé) en de
+# vrije memoriaalpost. Handlers parsen invoer (geld.parse), roepen journaal.doge;
+# alle boekingslogica en de balans-invariant zitten daar.
+
+so MEMO_RIJEN = 6
+
+# --- kleine helpers ---
+
+such lijst_van much velden, sleutel:
+    if velden.has(sleutel):
+        return velden[sleutel]
+    return []
+wow
+
+such element much lst, i:
+    if i < len(lst):
+        return lst[i]
+    return ""
+wow
+
+such rekening_opties much store:
+    such o = [["", "(kies rekening)"]]
+    for r in rekeningen.alle(store):
+        if r["actief"]:
+            such nr = r["nummer"]
+            such naam = r["naam"]
+            o.append([nr, "{nr} {naam}"])
+    return o
+wow
+
+such inkoop_btw_opties:
+    such o = []
+    for c in btw.CODES:
+        if btw.CODES[c]["soort"] == "inkoop":
+            o.append([c, c])
+    return o
+wow
+
+such btw_opties_leeg:
+    such o = [["", "(geen)"]]
+    for c in btw.CODES:
+        o.append([c, c])
+    return o
+wow
+
+such bedrag_str much rauw:
+    if rauw == "":
+        return ""
+    return str(geld.rond2(geld.parse(rauw)))
+wow
+
+# --- lijst per tijdvak ---
+
+such lijst much req:
+    such store = req["ctx"]["store"]
+    such vandaag = datum.vandaag()
+    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
+    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    such body = ""
+    for p in store.laad("journaal", []):
+        if not datum.in_kwartaal(p["datum"], j, kw):
+            continue
+        such totaal = dec("0")
+        for r in p["regels"]:
+            very totaal = totaal + geld.bedrag(r["debet"])
+        such d = html.escape(p["datum"])
+        such oms = html.escape(p["omschrijving"])
+        such bron = html.escape(p["bron"])
+        such bedrag = html.escape(geld.formatteer(totaal))
+        very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td>{bedrag}</td></tr>"
+    such tabel = "<table><thead><tr><th>Datum</th><th>Omschrijving</th><th>Bron</th><th>Bedrag</th></tr></thead><tbody>{body}</tbody></table>"
+    such l_ink = html.link("/journaal/inkoop", "Inkoop boeken")
+    such l_bank = html.link("/journaal/bank", "Bank/privé boeken")
+    such l_memo = html.link("/journaal/memoriaal", "Memoriaalpost")
+    such acties = "<p>{l_ink} · {l_bank} · {l_memo}</p>"
+    such inhoud = "<h1>Journaal Q{kw}-{j}</h1>{acties}{tabel}"
+    return http.html_response(weergave.render("Journaal", inhoud))
+wow
+
+# --- inkoop ---
+
+such inkoop_inhoud much store, melding:
+    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
+    such vlev = html.veld("leverancier", "Leverancier", "text", "")
+    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", "")
+    such sbtw = html.select("btw_code", inkoop_btw_opties(), "voorbelasting_hoog")
+    such vbtw = "<label>Btw-code {sbtw}</label>"
+    such srek = html.select("kosten_rek", rekening_opties(store), "")
+    such vrek = "<label>Kostenrekening {srek}</label>"
+    such form = html.formulier("/journaal/inkoop", "post", [vd, vlev, voms, vbedrag, vbtw, vrek, html.knop("Boeken")])
+    return "{melding}<h1>Inkoop boeken</h1>{form}"
+wow
+
+such inkoop_form much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, "")))
+wow
+
+such inkoop much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    pls
+        such ex = bedrag_str(forms.enkel(v, "bedrag_ex", ""))
+        such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, forms.enkel(v, "btw_code", ""), forms.enkel(v, "kosten_rek", ""))
+        journaal.bewaar(store, post)
+        return http.redirect("/journaal")
+    oh no err!
+        return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message))))
+wow
+
+# --- bank / privé ---
+
+such bank_inhoud much store, melding:
+    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
+    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
+    such srek = html.select("rekening", rekening_opties(store), "")
+    such vrek = "<label>Rekening {srek}</label>"
+    such vbedrag = html.veld("bedrag", "Bedrag", "text", "")
+    such kant_opties = [["storting", "storting (geld erin)"], ["onttrekking", "onttrekking (geld eruit)"]]
+    such skant = html.select("kant", kant_opties, "storting")
+    such vkant = "<label>Soort {skant}</label>"
+    such form = html.formulier("/journaal/bank", "post", [vd, voms, vrek, vbedrag, vkant, html.knop("Boeken")])
+    return "{melding}<h1>Bank/privé boeken</h1>{form}"
+wow
+
+such bank_form much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Bank", bank_inhoud(store, "")))
+wow
+
+such bank much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    pls
+        such bedrag = bedrag_str(forms.enkel(v, "bedrag", ""))
+        such post = journaal.prive_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "rekening", ""), bedrag, forms.enkel(v, "kant", "storting"))
+        journaal.bewaar(store, post)
+        return http.redirect("/journaal")
+    oh no err!
+        return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message))))
+wow
+
+# --- vrije memoriaalpost (vaste MEMO_RIJEN rijen, geen JS) ---
+
+such memoriaal_rij much store:
+    such rk = html.select("regel_rekening", rekening_opties(store), "")
+    such db = "<input name=\"regel_debet\" type=\"text\" inputmode=\"decimal\">"
+    such cr = "<input name=\"regel_credit\" type=\"text\" inputmode=\"decimal\">"
+    such bt = html.select("regel_btw", btw_opties_leeg(), "")
+    return "<tr><td>{rk}</td><td>{db}</td><td>{cr}</td><td>{bt}</td></tr>"
+wow
+
+such memoriaal_inhoud much store, melding:
+    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
+    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
+    such vrel = html.veld("relatie", "Relatie", "text", "")
+    such rijen = ""
+    for i in range(MEMO_RIJEN):
+        very rijen = rijen + memoriaal_rij(store)
+    such tabel = "<table><thead><tr><th>Rekening</th><th>Debet</th><th>Credit</th><th>Btw-code</th></tr></thead><tbody>{rijen}</tbody></table>"
+    such knop = html.knop("Boeken")
+    such form = "<form action=\"/journaal/memoriaal\" method=\"post\">{vd}{voms}{vrel}{tabel}{knop}</form>"
+    return "{melding}<h1>Memoriaalpost</h1>{form}"
+wow
+
+such memoriaal_form much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, "")))
+wow
+
+such bouw_regels much v:
+    such reks = lijst_van(v, "regel_rekening")
+    such debs = lijst_van(v, "regel_debet")
+    such creds = lijst_van(v, "regel_credit")
+    such btws = lijst_van(v, "regel_btw")
+    such regels = []
+    such i = 0
+    while i < len(reks):
+        such deb = bedrag_str(element(debs, i))
+        such cred = bedrag_str(element(creds, i))
+        if deb != "" or cred != "":
+            such rek = element(reks, i)
+            if rek == "":
+                bonk "regel met bedrag mist een rekening"
+            such code = element(btws, i)
+            such bc = none
+            if code != "":
+                very bc = code
+            regels.append({"rekening": rek, "debet": deb, "credit": cred, "btw_code": bc})
+        very i = i + 1
+    return regels
+wow
+
+such memoriaal much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    pls
+        such regels = bouw_regels(v)
+        such post = journaal.memoriaal_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "relatie", ""), regels)
+        journaal.bewaar(store, post)
+        return http.redirect("/journaal")
+    oh no err!
+        return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message))))
+wow
+wow

@@ -1,8 +1,15 @@
 so "../app/services/btw.doge"
 
+# Bouwt een minimale journaalpost met één grondslagregel: omzet (verkoop) op
+# credit, kosten/inkoop op debet — de natuurlijke kant die rubrieken() verwacht.
 such maak much d, code, ex:
-    such bb = btw.btw_bedrag(dec(ex), code)
-    return {"datum": d, "btw_code": code, "bedrag_ex": ex, "btw_bedrag": str(bb)}
+    such c = btw.info(code)
+    such regel = {"rekening": "0000", "debet": "", "credit": "", "btw_code": code}
+    if c["soort"] == "verkoop":
+        regel["credit"] = ex
+    else:
+        regel["debet"] = ex
+    return {"datum": d, "regels": [regel]}
 wow
 
 such test_btw_bedrag:

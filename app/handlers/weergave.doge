@@ -1,0 +1,26 @@
+so "../../web/html.doge"
+
+# Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
+# Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
+
+so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/rekeningen", "Rekeningen"]]
+
+such nav:
+    such items = ""
+    for l in LINKS:
+        very items = items + html.link(l[0], l[1]) + " "
+    such knop = html.knop("Uitloggen")
+    such uit = "<form action=\"/logout\" method=\"post\" class=\"inline\">{knop}</form>"
+    return "<nav>{items}{uit}</nav>"
+wow
+
+# Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output.
+such render much titel, inhoud:
+    return html.layout(titel, nav(), inhoud)
+wow
+
+# Rode foutmelding; bericht = tekst (ge-escaped).
+such fout much bericht:
+    return "<p class=\"fout\">{html.escape(bericht)}</p>"
+wow
+wow

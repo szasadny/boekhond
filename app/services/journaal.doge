@@ -1,0 +1,100 @@
+so btw
+so rekeningen
+so nap
+so "../../lib/datum.doge"
+so "../../lib/geld.doge"
+
+# De enige plek die journaalposten schrijft (ARCHITECTURE §0). store komt als
+# parameter binnen; deze service importeert de store nooit (blijft testbaar).
+# Bedragen: Str in de regels (de ongebruikte debet/credit-kant is ""), Decimal
+# in de rekenkant. Alle btw-rekenwerk gaat via btw.doge (Hard Rule 5).
+
+# Een tijdvak is dicht zodra er een ingediende Aangifte voor bestaat (Hard Rule 3).
+such tijdvak_open much aangiften, d:
+    such tv = "Q{datum.kwartaal(d)}"
+    such j = datum.jaar(d)
+    for a in aangiften:
+        if a["jaar"] == j and a["tijdvak"] == tv and a["status"] == "ingediend":
+            return false
+    return true
+wow
+
+# Invariant 0: som(debet) == som(credit), op de cent.
+such balans_klopt much regels:
+    such debet = dec("0")
+    such credit = dec("0")
+    for r in regels:
+        very debet = debet + geld.bedrag(r["debet"])
+        very credit = credit + geld.bedrag(r["credit"])
+    return geld.rond2(debet) == geld.rond2(credit)
+wow
+
+# Valideer + persisteer een gebalanceerde post. Weigert (bonk) bij ongeldige datum,
+# te weinig regels, onbalans of een vergrendeld tijdvak. Audit vóór de state-write.
+such bewaar much store, post:
+    such d = post["datum"]
+    if not datum.is_geldig(d):
+        bonk "ongeldige datum: {d}"
+    if len(post["regels"]) < 2:
+        bonk "een journaalpost heeft minstens twee regels"
+    if not balans_klopt(post["regels"]):
+        bonk "post balanceert niet: som(debet) != som(credit)"
+    if not tijdvak_open(store.laad("aangiften", []), d):
+        such tv = datum.kwartaal(d)
+        such j = datum.jaar(d)
+        bonk "tijdvak Q{tv}-{j} is ingediend en vergrendeld"
+    such lijst = store.laad("journaal", [])
+    such id = store.nieuw_id("j")
+    post["id"] = id
+    post["created_at"] = nap.stamp(nap.now())
+    if not post.has("bijlage_ids"):
+        post["bijlage_ids"] = []
+    store.audit("aangemaakt", "journaalpost", id, post)
+    lijst.append(post)
+    store.bewaar("journaal", lijst)
+    return post
+wow
+
+# --- Sjabloonflows: bouwen een gebalanceerde post, persisteren niet. ---
+
+# Inkoop: de btw_code zit op de ene grondslagregel (de kostenregel); de btw- en
+# crediteurenregels dragen geen code en bestaan alleen voor de balans.
+such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, kosten_rek:
+    such ex = geld.rond2(dec(bedrag_ex))
+    such c = btw.info(code)
+    such bb = btw.btw_bedrag(ex, code)
+    such regels = []
+    regels.append({"rekening": kosten_rek, "debet": str(ex), "credit": "", "btw_code": code})
+    if c["zelf"]:
+        # btw verlegd naar mij: factuur is exclusief; ik draag zelf af én trek voor
+        regels.append({"rekening": rekeningen.REK_VOORBELASTING, "debet": str(bb), "credit": "", "btw_code": none})
+        regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(ex), "btw_code": none})
+        regels.append({"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(bb), "btw_code": none})
+    elif c["aftrek"]:
+        # gewone NL-voorbelasting: factuur inclusief btw
+        regels.append({"rekening": rekeningen.REK_VOORBELASTING, "debet": str(bb), "credit": "", "btw_code": none})
+        regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(geld.rond2(ex + bb)), "btw_code": none})
+    else:
+        # geen_btw: alleen kosten tegen crediteuren
+        regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(ex), "btw_code": none})
+    return {"datum": datum_s, "omschrijving": omschrijving, "relatie": leverancier, "regels": regels, "bron": "handmatig", "bijlage_ids": []}
+wow
+
+# Bank/privé: geld dat via privé de zaak in of uit gaat. kant = "storting" | "onttrekking".
+such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
+    such b = str(geld.rond2(dec(bedrag)))
+    such regels = []
+    if kant == "storting":
+        regels.append({"rekening": rekening, "debet": b, "credit": "", "btw_code": none})
+        regels.append({"rekening": rekeningen.REK_PRIVE, "debet": "", "credit": b, "btw_code": none})
+    else:
+        regels.append({"rekening": rekeningen.REK_PRIVE, "debet": b, "credit": "", "btw_code": none})
+        regels.append({"rekening": rekening, "debet": "", "credit": b, "btw_code": none})
+    return {"datum": datum_s, "omschrijving": omschrijving, "relatie": "", "regels": regels, "bron": "bank", "bijlage_ids": []}
+wow
+
+# Vrije memoriaalpost: rauwe regels erin; bewaar() dwingt de balans-invariant af.
+such memoriaal_post much datum_s, omschrijving, relatie, regels:
+    return {"datum": datum_s, "omschrijving": omschrijving, "relatie": relatie, "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
+wow
+wow
