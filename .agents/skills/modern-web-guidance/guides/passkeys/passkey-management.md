@@ -45,7 +45,7 @@ router.delete('/api/credential/:id', checkUserAuthenticated, async (req, res) =>
 Render a dedicated settings panel allowing users to easily audit and manage their registered authentication options:
 
 1.  **Display saved list**: Fetch list from your endpoint and render individual credential rows. If the response is empty, render a helpful empty-state message (e.g., "No passkeys found").
-2.  **Map AAGUID Metadata**: For each passkey, lookup its `aaguid` property against your local registry to render its provider details. See [Determine the passkey provider from AAGUID](#aaguid) section for more details.
+2.  **Map AAGUID Metadata**: For each passkey, lookup its `aaguid` property against your local registry to render its provider details. See [Determine the passkey provider from AAGUID](#determine-the-passkey-provider-from-aaguid) section for more details.
 3.  **Per-Item UI Requirements**: Every row inside the list container MUST render:
     *   **Provider Icon**: AAGUID-derived image or data URI.
     *   **Provider/Custom Name**: AAGUID-derived name or user-renamed string.
@@ -128,7 +128,7 @@ async function performRename(rpId, userId, updatedName, updatedDisplayName) {
 }
 ```
 
-## Determine the passkey provider from AAGUID {: #aaguid }
+## Determine the passkey provider from AAGUID
 
 An AAGUID (Authenticator Attestation Globally Unique Identifier) is a 128-bit identifier that represents the model of the authenticator, not a specific instance. It is included in the authenticator data during passkey registration and can be used to determine which passkey provider (e.g. Google Password Manager, iCloud Keychain, 1Password) created a credential.
 

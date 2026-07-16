@@ -18,8 +18,6 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 ```text
 ─── instellingen.dson (singleton Dict) ───────────────────────
   bedrijfsnaam, adres, kvk_nummer, btw_id, iban
-  aangiftefrequentie   "kwartaal" (default; "maand"/"jaar" possible)
-  kor                  Bool — Kleineondernemersregeling actief (→ §4.6)
   standaard_btw_code   default btw_code voor nieuwe journaalregels
   mollie_laatste_sync  "YYYY-MM-DD" — hoogwatermerk voor de Mollie-import (§4.2)
                        (de Mollie API-key is een secret → .env, nooit hier)
@@ -71,7 +69,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 
 ─── aangiften.dson (List) ────────────────────────────────────
   Aangifte — één ingediend (of open berekend) tijdvak
-    id, jaar, tijdvak        "Q1".."Q4" (of "01".."12" bij maandaangifte)
+    id, jaar, tijdvak        "Q1".."Q4"
     status                   "open" | "ingediend"
     ingediend_op
     rubrieken                snapshot bij indienen: {rubriek: {omzet, btw}} (§2)
@@ -97,7 +95,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 | `verlegd_naar_afnemer` | btw verlegd naar NL-afnemer | **1e** | omzet → 1e; geen btw; factuur vermeldt "btw verlegd" + btw-id afnemer |
 | `vrijgesteld` | vrijgestelde prestatie | — | telt in geen rubriek; wel in jaaroverzicht |
 | `export_buiten_eu` | levering buiten de EU | **3a** | omzet → 3a; geen btw |
-| `levering_eu` | ICP: levering/dienst binnen EU (btw-id klant verplicht) | **3b** | omzet → 3b; geen btw; **flag: ICP-opgaaf vereist** (§4.7) |
+| `levering_eu` | ICP: levering/dienst binnen EU (btw-id klant verplicht) | **3b** | omzet → 3b; geen btw; **flag: ICP-opgaaf vereist** (§4.5) |
 
 ### Inkoop (type = "inkoop")
 
@@ -122,7 +120,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 
 ## 3. Tijdvak & aangifte lifecycle
 
-1. Een tijdvak (kwartaal, `instellingen.aangiftefrequentie`) is **open** zolang er geen Aangifte met status `ingediend` voor bestaat; rubrieken worden live berekend uit de journaalposten met `datum` in het tijdvak.
+1. Een kwartaaltijdvak (`Q1`..`Q4`) is **open** zolang er geen Aangifte met status `ingediend` voor bestaat; rubrieken worden live berekend uit de journaalposten met `datum` in het tijdvak.
 2. De ondernemer neemt de berekende rubrieken over in **Mijn Belastingdienst Zakelijk** (handmatig — geen publieke API; Digipoort is out of scope) en markeert het tijdvak **ingediend** → Aangifte-record met rubrieken-snapshot + `ingediend_op`.
 3. Vanaf dat moment is het tijdvak **vergrendeld** (Hard Rule 3): journaalposten met een datum in een ingediend tijdvak zijn immutable; nieuwe posten kunnen er niet in gedateerd worden.
 4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte).
@@ -138,6 +136,5 @@ Enforced in services, elk met een test (Hard Rule 9):
 2. **Import is idempotent, elke bron precies één keer geboekt:** een Mollie-payment wordt hoogstens één journaalpost (uniek `mollie_payment_id`), een kostensjabloon hoogstens één post per maand (uniek `terugkerend_id` + maand). Dubbel draaien van de sync/scheduler boekt nooit dubbel; elke import is een audit-event (Hard Rule 2).
 3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking.
 4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren).
-5. **KOR actief** (`instellingen.kor`): geen rubrieken, geen aangiften; de app bewaakt de €20.000-omzetgrens per kalenderjaar en waarschuwt vanaf 80%.
-6. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
-7. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.
+5. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
+6. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.

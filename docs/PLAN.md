@@ -17,7 +17,7 @@ What we build, in which order. Delete phases here as they complete; this file de
 
 ## 2. Phases
 
-Each phase ends green (`doge check`/`fmt`/`test`) and usable on its own.
+Each phase ends green (`doge check`, non-mutating `doge fmt` audit, `doge test`) and usable on its own. Doge v0.3.2 has no `doge fmt --check`; format temporary copies and compare them with the sources.
 
 - **Phase 0 — Fundament (no web). ✅ DONE.** Scaffold (`doge.toml` — note: the `[dependencies]` table header is required even when empty), `lib/datum.doge`, `lib/geld.doge`, `app/services/btw.doge` (DATA-MODEL.md §2 as table-driven tests), `app/store/store.doge` (atomic DSON + audit + id-uitgifte); 24 tests green; Dockerfile + docker-compose skeleton.
 - **Phase 1 — `web/` micro-framework. ✅ DONE.** `web/forms.doge` (urlencoded decode, UTF-8, multi-value), `web/html.doge` (escape + page/form/table/link builders, Hard Rule 6), `web/session.doge` (server-side in-memory `Sessies` met `crypto.token`-id + `nap`-expiry, plus `hash_wachtwoord`/`wachtwoord_klopt` met `crypto.same`), `web/static.doge` (ext→content-type, traversal-safe), `web/http.doge` (parse/response, byte-accurate Content-Length), `web/router.doge` (path-params + 404/405); alle modules getest via loopback (`howl.listen` port 0), 34 web-tests + 24 uit fase 0 groen. `main.doge` draait een dunne server (`/health` + static; login/domein-routes volgen in fase 2). Sibling-imports binnen `web/` per bare name (`so http`); `main`/tests per string-pad. Eén taalgat gevonden: `\r`-escape ontbreekt (doge#67, §3).
@@ -42,6 +42,6 @@ Loop je tegen een nieuw gat aan, dan geldt Hard Rule 10: ticket op DogeLanguage/
 
 `web/` HTTP micro-framework, `lib/datum.doge`, `lib/geld.doge`, `lib/csv.doge`, `app/store/` persistence, all fiscal logic (`btw.doge`), the double-entry journaal-service + balans/W&V-rapporten, de Mollie-import (`mollie.doge`) en de terugkerende-kosten-generator (`terugkerend.doge`). Each is application-shaped, pure Doge, and a decent stress-test of the language.
 
-## 5. Reference docs from the template project
+## 5. Skills
 
-`.claude/skills/` still contains skills inherited from an earlier project template: `modern-web-guidance` (useful — web UI), `maintaining-claude`, `skill-creator` (generic), and `function-index` (**Python-specific — its indexer script doesn't exist here; rebuild for Doge or remove when Phase 1 code exists**). `writing-doge` is copied from the Doge repo and is the load-bearing one.
+Repo-scoped skills live canonically in `.agents/skills/` (Codex scans them from cwd up to the repo root): **`writing-doge`** (load-bearing — never write Doge from memory), **`modern-web-guidance`** (web UI patterns, npx-driven), and **`maintaining-agents-md`** (keeps the single source of truth and its dependent inventories current). Claude Code discovers the same three skills through name-matching relative symlinks in `.claude/skills/`; never maintain duplicate copies. The old duplicated/template skills are gone, and Codex supplies the global `skill-creator` used to validate repo skills.

@@ -2,7 +2,7 @@
 
 Signatures for every builtin, collection method, and stdlib module member. Names in
 doge-speak are unguessable, so look them up here rather than inventing them. This
-mirrors `docs/STDLIB.md`; read that for full semantics and edge cases. Every failure
+mirrors the pinned [Doge v0.3.2 STDLIB specification](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/STDLIB.md); read that for full semantics and edge cases. Every failure
 below is a **catchable** error (`pls`/`oh no`), never a crash.
 
 ## Builtins (always in scope, no import)
