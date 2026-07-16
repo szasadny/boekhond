@@ -1,0 +1,44 @@
+so strings
+so "../web/router.doge"
+
+such hallo much req:
+    return {"status": 200, "headers": {"Content-Type": "text/plain"}, "body": "hallo"}
+wow
+
+such toon_id much req:
+    return {"status": 200, "headers": {"Content-Type": "text/plain"}, "body": req["params"]["id"]}
+wow
+
+such maak_router:
+    such r = router.Router()
+    r.voeg_toe("GET", "/health", hallo)
+    r.voeg_toe("GET", "/journaal/\{id\}", toon_id)
+    r.voeg_toe("POST", "/journaal", hallo)
+    return r
+wow
+
+such test_match_simpel:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "GET", "path": "/health", "params": {}})
+    amaze resp["body"] == "hallo"
+wow
+
+such test_path_param:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "GET", "path": "/journaal/b-3", "params": {}})
+    amaze resp["body"] == "b-3"
+wow
+
+such test_404_onbekend_path:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "GET", "path": "/bestaat-niet", "params": {}})
+    amaze resp["status"] == 404
+wow
+
+such test_405_verkeerde_methode:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "DELETE", "path": "/health", "params": {}})
+    amaze resp["status"] == 405
+    amaze strings.contains(resp["headers"]["Allow"], "GET")
+wow
+wow

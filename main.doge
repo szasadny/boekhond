@@ -1,2 +1,79 @@
-bark "boekhond — fase 0: fundament (datum, geld, btw, store). webinterface volgt in fase 1."
+so env
+so howl
+so "web/http.doge"
+so "web/router.doge"
+so "web/static.doge"
+so "web/session.doge"
+so "web/html.doge"
+
+# Boot + wiring (ARCHITECTURE §2/§6.6). Fase 1: een dunne, draaiende server met
+# /health + static; login en domein-routes volgen in fase 2.
+
+so STATIC_ROOT = "static"
+so STATIC_PREFIX = "/static/"
+
+such config:
+    such poort = env.get("POORT")
+    if poort == none:
+        very poort = "8085"
+    return {"poort": int(poort)}
+wow
+
+such health much req:
+    return http.tekst_response(200, "ok")
+wow
+
+such home much req:
+    such inhoud = "<h1>Boekhond</h1><p>Fase 1: het web-framework draait.</p>"
+    return http.html_response(html.pagina("Boekhond", inhoud))
+wow
+
+such maak_router:
+    such r = router.Router()
+    r.voeg_toe("GET", "/health", health)
+    r.voeg_toe("GET", "/", home)
+    return r
+wow
+
+such begint_met much s, voorvoegsel:
+    if len(s) < len(voorvoegsel):
+        return false
+    return s[0:len(voorvoegsel)] == voorvoegsel
+wow
+
+# Eén verbinding: parse -> static of router -> stuur. Alles in één pls/oh no,
+# zodat een fout een schone 500 geeft en de accept-loop nooit sneuvelt.
+such afhandel much conn, r, sessies:
+    pls
+        such req = http.parse_request(conn)
+        if req == none:
+            return
+        such resp = none
+        if begint_met(req["path"], STATIC_PREFIX):
+            very resp = static.bedien(STATIC_ROOT, req["path"][7:])
+        else:
+            very resp = r.verwerk(req)
+        howl.send_bytes(conn, http.bouw_response(resp))
+    oh no err!
+        bark "verzoekfout: " + err.message
+        pls
+            howl.send_bytes(conn, http.bouw_response(http.tekst_response(500, "interne fout")))
+        oh no err2!
+            bark "kon 500 niet sturen: " + err2.message
+wow
+
+such start:
+    such cfg = config()
+    such sessies = session.Sessies()
+    such r = maak_router()
+    such listener = howl.listen("127.0.0.1", cfg["poort"])
+    such p = cfg["poort"]
+    bark "boekhond luistert op 127.0.0.1:{p}"
+    while true:
+        such conn = howl.accept(listener)
+        afhandel(conn, r, sessies)
+        howl.close(conn)
+wow
+
+start()
 wow

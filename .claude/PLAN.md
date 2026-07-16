@@ -20,7 +20,7 @@ What we build, in which order. Delete phases here as they complete; this file de
 Each phase ends green (`doge check`/`fmt`/`test`) and usable on its own.
 
 - **Phase 0 — Fundament (no web). ✅ DONE.** Scaffold (`doge.toml` — note: the `[dependencies]` table header is required even when empty), `lib/datum.doge`, `lib/geld.doge`, `app/services/btw.doge` (DATA-MODEL.md §2 as table-driven tests), `app/store/store.doge` (atomic DSON + audit + id-uitgifte); 24 tests green; Dockerfile + docker-compose skeleton.
-- **Phase 1 — `web/` micro-framework.** http parse/response, router, urlencoded forms, html builders + escaping, sessions (echte crypto: `crypto.token` sessie-id, gehasht wachtwoord, `crypto.same` constant-time compare), static files; tested via loopback (`howl.listen` port 0).
+- **Phase 1 — `web/` micro-framework. ✅ DONE.** `web/forms.doge` (urlencoded decode, UTF-8, multi-value), `web/html.doge` (escape + page/form/table/link builders, Hard Rule 6), `web/session.doge` (server-side in-memory `Sessies` met `crypto.token`-id + `nap`-expiry, plus `hash_wachtwoord`/`wachtwoord_klopt` met `crypto.same`), `web/static.doge` (ext→content-type, traversal-safe), `web/http.doge` (parse/response, byte-accurate Content-Length), `web/router.doge` (path-params + 404/405); alle modules getest via loopback (`howl.listen` port 0), 34 web-tests + 24 uit fase 0 groen. `main.doge` draait een dunne server (`/health` + static; login/domein-routes volgen in fase 2). Sibling-imports binnen `web/` per bare name (`so http`); `main`/tests per string-pad. Eén taalgat gevonden: `\r`-escape ontbreekt (doge#67, §3).
 - **Phase 2 — Journaal + bijlagen (double-entry).** Login; rekeningschema geseed + beheer; journaalpost-invoer via sjabloonflows (inkoop/bank/privé) + vrije memoriaalpost, balans-invariant afgedwongen; mutaties alleen in open tijdvakken; binaire upload (native `recv_bytes`/`send_bytes`) incl. het open uploadveld → import-inbox (bijlage zonder journaalpost = inbox-item, vandaaruit boeken); journaal-lijst/filter per tijdvak, dashboard. Dogescript-buildstap (`.djs` → `static/js/`) start hier. **Refactor uit fase 0:** `btw.rubrieken` gaat van platte boekingen-dicts naar journaalregels als input (zelfde code→rubriek-mapping, tests mee).
 - **Phase 3 — Aangifte + reports.** Rubriekenoverzicht per kwartaal, "markeer ingediend" + vergrendeling + storno/suppletie-flow (DATA-MODEL.md §3); reports uit het journaal: balans + winst & verlies; exports: aangifte print-view + CSV, journaal-CSV per tijdvak, jaaroverzicht.
 - **Phase 4 — Mollie-koppeling (inkomsten).** Mollie API via `howl.request` (key uit `.env`): betaalde payments + refunds ophalen sinds de laatste sync, elk als journaalpost boeken (omzet 1a + af te dragen btw), idempotent per `mollie_payment_id`. Getriggerd door de scheduler-pup (§Phase 5) én een handmatige "sync nu"-knop. Refund → tegenboeking.
@@ -28,7 +28,11 @@ Each phase ends green (`doge check`/`fmt`/`test`) and usable on its own.
 
 ## 3. Language gaps
 
-Er staat op dit moment **geen** taalgat open: de stdlib dekt binaire sockets (`howl.recv_bytes`/`send_bytes`), `crypto` (sha256/hmac/token/same), de volledige HTTP-client (`howl.request` met headers/methods), en base64/hex (`bytes.b64()`, `str.from_b64()`/`from_hex()`).
+Open taalgaten:
+
+- **doge#67 — string-escapes kennen geen `\r`** (known set: `\n \t \" \\ \{ \}`). CRLF-wireprotocollen (HTTP/1.1) kun je niet als literal schrijven. Stopgap: `so CRLF = bytes([13, 10]).decode()` in `web/http.doge` (+ `tests/test_http.doge`), gemarkeerd `# stopgap for doge#67` — weg zodra de ticket landt.
+
+De stdlib dekt verder alles wat fase 0–1 nodig had: binaire sockets (`howl.recv_bytes`/`send_bytes`), `crypto` (sha256/hmac/token/same), de volledige HTTP-client (`howl.request` met headers/methods), en base64/hex (`bytes.b64()`, `str.from_b64()`/`from_hex()`).
 
 Loop je tegen een nieuw gat aan, dan geldt Hard Rule 10: ticket op DogeLanguage/doge + de kleinste `# stopgap for doge#NN`-workaround, en hier één regel bij. **Bewust *niet* gevraagd** aan de taal: SQLite/DB-driver (DSON-bestanden zijn de juiste maat), date-arithmetic (`lib/datum.doge` hoort in userland), TLS-server (reverse proxy is het standaardantwoord), HTML-templating (userland).
 

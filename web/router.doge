@@ -1,0 +1,68 @@
+so strings
+so http
+so forms
+
+# Route-tabel met path-params (/journaal/{id}) en 404/405-onderscheid.
+# Handlers zijn opgeslagen function-values; ze worden positioneel met één
+# request-Dict aangeroepen (keyword-args werken niet op stored functions).
+
+many Router:
+    such init:
+        self.routes = []
+    wow
+
+    such voeg_toe much methode, patroon, handler:
+        self.routes.append([methode, patroon, handler])
+    wow
+
+    # Match op path. Bij een treffer: {"handler", "params"}.
+    # Geen path-match -> 404-response; wel path maar verkeerde methode -> 405.
+    such match much methode, path:
+        such padsegs = strings.split(path, "/")
+        such pad_matcht = false
+        such toegestaan = []
+        for route in self.routes:
+            such patsegs = strings.split(route[1], "/")
+            if not (len(patsegs) == len(padsegs)):
+                continue
+            such params = {}
+            such ok = true
+            such i = 0
+            while i < len(patsegs):
+                such p = patsegs[i]
+                such s = padsegs[i]
+                if len(p) >= 2 and p[0] == "\{" and p[len(p) - 1] == "\}":
+                    params[p[1:len(p) - 1]] = forms.decode_component(s)
+                elif not (p == s):
+                    very ok = false
+                    bork
+                very i = i + 1
+            if not ok:
+                continue
+            very pad_matcht = true
+            if route[0] == methode:
+                return {"handler": route[2], "params": params}
+            if not toegestaan.contains(route[0]):
+                toegestaan.append(route[0])
+        if pad_matcht:
+            return {"response": methode_niet_toegestaan(toegestaan)}
+        return {"response": http.tekst_response(404, "niet gevonden")}
+    wow
+
+    # Match + roep de handler positioneel aan met de request-Dict.
+    such verwerk much req:
+        such m = self.match(req["method"], req["path"])
+        if m.has("response"):
+            return m["response"]
+        req["params"] = m["params"]
+        such handler = m["handler"]
+        return handler(req)
+    wow
+wow
+
+such methode_niet_toegestaan much toegestaan:
+    such resp = http.tekst_response(405, "methode niet toegestaan")
+    resp["headers"]["Allow"] = strings.join(toegestaan, ", ")
+    return resp
+wow
+wow

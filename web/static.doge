@@ -1,0 +1,53 @@
+so fetch
+so strings
+
+# Statische bestanden serveren, path-traversal-veilig. Geeft een response-Dict
+# ({status, headers, body}) terug; http.bouw_response maakt er bytes van.
+
+so CONTENT_TYPES = {"css": "text/css", "js": "text/javascript", "html": "text/html; charset=utf-8", "svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "ico": "image/x-icon", "woff2": "font/woff2", "json": "application/json", "pdf": "application/pdf", "txt": "text/plain; charset=utf-8"}
+
+such content_type much pad:
+    such e = strings.smoll(fetch.ext(pad))
+    if len(e) > 0 and e[0] == ".":
+        very e = e[1:]
+    if CONTENT_TYPES.has(e):
+        return CONTENT_TYPES[e]
+    return "application/octet-stream"
+wow
+
+such niet_gevonden:
+    return {"status": 404, "headers": {"Content-Type": "text/plain; charset=utf-8"}, "body": "niet gevonden"}
+wow
+
+# Traversal-check op de rauwe URL-segmenten, vóór we het filesystem raken.
+such veilig much segmenten:
+    for seg in segmenten:
+        if seg == "..":
+            return false
+        if strings.contains(seg, "\\"):
+            return false
+    return true
+wow
+
+such bedien much root, urlpad:
+    such segmenten = strings.split(urlpad, "/")
+    if not veilig(segmenten):
+        return niet_gevonden()
+    such relpad = ""
+    for seg in segmenten:
+        if seg == "":
+            continue
+        if relpad == "":
+            very relpad = seg
+        else:
+            very relpad = fetch.join(relpad, seg)
+    if relpad == "":
+        return niet_gevonden()
+    such pad = fetch.join(root, relpad)
+    if not fetch.exists(pad):
+        return niet_gevonden()
+    if fetch.stat(pad)["is_dir"]:
+        return niet_gevonden()
+    return {"status": 200, "headers": {"Content-Type": content_type(pad)}, "body": fetch.read_bytes(pad)}
+wow
+wow

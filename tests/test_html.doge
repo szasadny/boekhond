@@ -1,0 +1,46 @@
+so strings
+so "../web/html.doge"
+
+such test_escape_tags:
+    amaze html.escape("<script>alert(1)</script>") == "&lt;script&gt;alert(1)&lt;/script&gt;"
+wow
+
+such test_escape_ampersand_eerst:
+    # één amp, niet dubbel-escaped
+    amaze html.escape("a&b") == "a&amp;b"
+    amaze html.escape("&lt;") == "&amp;lt;"
+wow
+
+such test_escape_quotes:
+    amaze html.escape("\"'") == "&quot;&#39;"
+wow
+
+such test_link_escaped:
+    such l = html.link("/x?a=1&b=2", "<b>klik</b>")
+    amaze strings.contains(l, "href=\"/x?a=1&amp;b=2\"")
+    amaze strings.contains(l, "&lt;b&gt;klik&lt;/b&gt;")
+    amaze not strings.contains(l, "<b>")
+wow
+
+such test_tabel_cellen_escaped:
+    such t = html.tabel(["Naam"], [["<b>kabosu</b>"]])
+    amaze strings.contains(t, "<th>Naam</th>")
+    amaze strings.contains(t, "&lt;b&gt;kabosu&lt;/b&gt;")
+    amaze not strings.contains(t, "<b>kabosu")
+wow
+
+such test_pagina_bevat_titel_en_body:
+    such p = html.pagina("Overzicht", "<p>hoi</p>")
+    amaze strings.contains(p, "<!DOCTYPE html>")
+    amaze strings.contains(p, "<title>Overzicht</title>")
+    amaze strings.contains(p, "<p>hoi</p>")
+wow
+
+such test_formulier_en_veld:
+    such v = html.veld("bedrag", "Bedrag", "text", "12,50")
+    such f = html.formulier("/kosten", "post", [v])
+    amaze strings.contains(f, "<form action=\"/kosten\" method=\"post\">")
+    amaze strings.contains(f, "name=\"bedrag\"")
+    amaze strings.contains(f, "value=\"12,50\"")
+wow
+wow

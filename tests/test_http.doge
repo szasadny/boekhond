@@ -1,0 +1,69 @@
+so howl
+so strings
+so "../web/http.doge"
+
+# stopgap for doge#67 — geen \r-escape; CRLF uit bytes.
+so CRLF = bytes([13, 10]).decode()
+
+# Stuurt een rauwe request over loopback en geeft de geparste request terug.
+such rond much req_txt:
+    such server = howl.listen("127.0.0.1", 0)
+    such poort = howl.port(server)
+    such client = howl.connect("127.0.0.1", poort)
+    howl.send(client, req_txt)
+    such conn = howl.accept(server)
+    such req = http.parse_request(conn)
+    howl.close(conn)
+    howl.close(client)
+    howl.close(server)
+    return req
+wow
+
+such test_parse_post_body:
+    such req = rond("POST /p?x=1&y=2 HTTP/1.1{CRLF}Host: local{CRLF}Content-Type: application/x-www-form-urlencoded{CRLF}Content-Length: 3{CRLF}{CRLF}abc")
+    amaze req["method"] == "POST"
+    amaze req["path"] == "/p"
+    amaze req["query"]["x"][0] == "1"
+    amaze req["query"]["y"][0] == "2"
+    amaze req["body"] == "abc"
+wow
+
+such test_parse_body_byte_accuraat:
+    # "€" is 1 char maar 3 bytes; Content-Length telt bytes.
+    such req = rond("POST /p HTTP/1.1{CRLF}Content-Type: application/x-www-form-urlencoded{CRLF}Content-Length: 3{CRLF}{CRLF}€")
+    amaze req["body"] == "€"
+wow
+
+such test_parse_cookies:
+    such req = rond("GET / HTTP/1.1{CRLF}Cookie: sid=abc123; theme=dark{CRLF}{CRLF}")
+    amaze req["cookies"]["sid"] == "abc123"
+    amaze req["cookies"]["theme"] == "dark"
+wow
+
+such test_parse_headers_lowercased:
+    such req = rond("GET / HTTP/1.1{CRLF}Host: Localhost:8085{CRLF}{CRLF}")
+    amaze req["headers"]["host"][0] == "Localhost:8085"
+wow
+
+such test_bouw_response_content_length_is_bytes:
+    such raw = http.bouw_response(http.html_response("€"))
+    such txt = raw.decode()
+    amaze strings.contains(txt, "HTTP/1.1 200 OK")
+    amaze strings.contains(txt, "Content-Length: 3")
+    amaze strings.contains(txt, "Content-Type: text/html")
+wow
+
+such test_redirect:
+    such txt = http.bouw_response(http.redirect("/login")).decode()
+    amaze strings.contains(txt, "303 See Other")
+    amaze strings.contains(txt, "Location: /login")
+    amaze strings.contains(txt, "Content-Length: 0")
+wow
+
+such test_tekst_response:
+    such txt = http.bouw_response(http.tekst_response(404, "weg")).decode()
+    amaze strings.contains(txt, "404 Not Found")
+    amaze strings.contains(txt, "Content-Type: text/plain")
+    amaze strings.contains(txt, "{CRLF}{CRLF}weg")
+wow
+wow

@@ -1,0 +1,63 @@
+so strings
+
+# De enige plek waar HTML-strings worden samengesteld (Hard Rule 6).
+# Handlers stellen builder-output samen; ze concatenen nooit zelf rauwe tags.
+# Regel per builder: parameters gemarkeerd "tekst" worden ge-escaped;
+# parameters gemarkeerd "inhoud" zijn al vertrouwde builder-output (rauw ingevoegd).
+
+# Neutraliseer user-input voor HTML. '&' eerst, anders dubbel-escape je entities.
+such escape much s:
+    such r = strings.replace(str(s), "&", "&amp;")
+    very r = strings.replace(r, "<", "&lt;")
+    very r = strings.replace(r, ">", "&gt;")
+    very r = strings.replace(r, "\"", "&quot;")
+    very r = strings.replace(r, "'", "&#39;")
+    return r
+wow
+
+# Volledig HTML-document. titel = tekst; inhoud = vertrouwde builder-output.
+such pagina much titel, inhoud:
+    return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n</body>\n</html>\n"
+wow
+
+# Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output.
+such layout much titel, nav, inhoud:
+    such body = "<header>{nav}</header>\n<main>\n{inhoud}\n</main>"
+    return pagina(titel, body)
+wow
+
+# Eén gelabeld invoerveld. naam/type = code; label/waarde = tekst.
+such veld much naam, label, type = "text", waarde = "":
+    return "<label>{escape(label)}<input name=\"{escape(naam)}\" type=\"{escape(type)}\" value=\"{escape(waarde)}\"></label>"
+wow
+
+# Form-wrapper. actie/methode = code; velden = List van builder-output.
+such formulier much actie, methode, velden:
+    such inhoud = strings.join(velden, "\n")
+    return "<form action=\"{escape(actie)}\" method=\"{escape(methode)}\">\n{inhoud}\n</form>"
+wow
+
+# Tabel. koppen = List<tekst>; rijen = List<List<tekst>>. Alle cellen ge-escaped.
+such tabel much koppen, rijen:
+    such kop = ""
+    for k in koppen:
+        very kop = kop + "<th>{escape(k)}</th>"
+    such body = ""
+    for rij in rijen:
+        such cellen = ""
+        for cel in rij:
+            very cellen = cellen + "<td>{escape(cel)}</td>"
+        very body = body + "<tr>{cellen}</tr>"
+    return "<table>\n<thead><tr>{kop}</tr></thead>\n<tbody>{body}</tbody>\n</table>"
+wow
+
+# Anker. href/tekst = tekst (beide ge-escaped).
+such link much href, tekst:
+    return "<a href=\"{escape(href)}\">{escape(tekst)}</a>"
+wow
+
+# Knop. tekst = tekst; type = code.
+such knop much tekst, type = "submit":
+    return "<button type=\"{escape(type)}\">{escape(tekst)}</button>"
+wow
+wow

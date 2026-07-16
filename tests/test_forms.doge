@@ -1,0 +1,40 @@
+so "../web/forms.doge"
+
+such test_decode_basis:
+    such d = forms.decode("a=1&b=hello+world&x=%E2%82%AC")
+    amaze d["a"][0] == "1"
+    amaze d["b"][0] == "hello world"
+    amaze d["x"][0] == "€"
+wow
+
+such test_decode_multivalue:
+    such d = forms.decode("k=1&k=2&k=3")
+    amaze len(d["k"]) == 3
+    amaze d["k"][0] == "1"
+    amaze d["k"][2] == "3"
+wow
+
+such test_decode_leeg_en_zonder_isteken:
+    such d = forms.decode("")
+    amaze len(d) == 0
+    such e = forms.decode("vlag&naam=kabosu")
+    amaze e["vlag"][0] == ""
+    amaze e["naam"][0] == "kabosu"
+wow
+
+such test_decode_waarde_met_isteken:
+    such d = forms.decode("q=a=b=c")
+    amaze d["q"][0] == "a=b=c"
+wow
+
+such test_decode_component_kapot_percent:
+    amaze forms.decode_component("100%") == "100%"
+    amaze forms.decode_component("%zz") == "%zz"
+wow
+
+such test_enkel:
+    such d = forms.decode("b=hello+world")
+    amaze forms.enkel(d, "b", "def") == "hello world"
+    amaze forms.enkel(d, "weg", "def") == "def"
+wow
+wow

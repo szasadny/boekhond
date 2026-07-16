@@ -1,0 +1,59 @@
+so strings
+
+# application/x-www-form-urlencoded decode — domeinvrij, alleen stdlib.
+# Wordt door http.doge hergebruikt voor de query-string.
+
+# Decode één component: '+' -> spatie, '%XX' -> byte. Bouwt eerst een Bytes-buffer
+# en decodeert die in één keer, zodat multi-byte UTF-8 (bv. %E2%82%AC = "€") klopt.
+# Een kapotte %XX wordt lenient als letterlijke '%' behandeld.
+such decode_component much s:
+    such buf = bytes("")
+    such i = 0
+    such n = len(s)
+    while i < n:
+        such ch = s[i]
+        if ch == "+":
+            very buf = buf + bytes(" ")
+            very i = i + 1
+        elif ch == "%" and i + 2 < n:
+            such hexpaar = s[i + 1:i + 3]
+            pls
+                very buf = buf + hexpaar.from_hex()
+                very i = i + 3
+            oh no err!
+                very buf = buf + bytes("%")
+                very i = i + 1
+        else:
+            very buf = buf + bytes(ch)
+            very i = i + 1
+    return buf.decode()
+wow
+
+# Decode een hele body naar Dict Str -> List<Str> (multi-value getrouw).
+# Splitst op '&', elk paar op de eerste '=' (waarde mag verdere '=' bevatten).
+such decode much body:
+    such velden = {}
+    if body == "":
+        return velden
+    for paar in strings.split(body, "&"):
+        if paar == "":
+            continue
+        such stukken = strings.split(paar, "=")
+        such sleutel = decode_component(stukken[0])
+        such waarde = ""
+        if len(stukken) > 1:
+            very waarde = decode_component(strings.join(stukken[1:], "="))
+        if velden.has(sleutel):
+            velden[sleutel].append(waarde)
+        else:
+            velden[sleutel] = [waarde]
+    return velden
+wow
+
+# Gemak: eerste waarde voor een sleutel, of standaard als die ontbreekt.
+such enkel much velden, sleutel, standaard:
+    if velden.has(sleutel) and len(velden[sleutel]) > 0:
+        return velden[sleutel][0]
+    return standaard
+wow
+wow

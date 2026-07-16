@@ -1,0 +1,45 @@
+so strings
+so "../web/session.doge"
+
+such test_nieuw_uniek_en_geldig:
+    such s = session.Sessies()
+    such a = s.nieuw()
+    such b = s.nieuw()
+    amaze len(a) == 64
+    amaze not (a == b)
+    amaze s.geldig(a)
+    amaze s.geldig(b)
+    amaze not s.geldig("bogus")
+wow
+
+such test_verwijder:
+    such s = session.Sessies()
+    such sid = s.nieuw()
+    amaze s.geldig(sid)
+    s.verwijder(sid)
+    amaze not s.geldig(sid)
+wow
+
+such test_verlopen_wordt_opgeruimd:
+    such s = session.Sessies()
+    such sid = s.nieuw()
+    s.map[sid]["verloopt"] = 0
+    amaze not s.geldig(sid)
+    amaze not s.map.has(sid)
+wow
+
+such test_cookie_httponly:
+    such s = session.Sessies()
+    such sid = s.nieuw()
+    such c = s.cookie(sid)
+    amaze strings.contains(c, "HttpOnly")
+    amaze strings.contains(c, sid)
+wow
+
+such test_wachtwoord:
+    such h = session.hash_wachtwoord("geheim")
+    amaze len(h) == 64
+    amaze session.wachtwoord_klopt(h, "geheim")
+    amaze not session.wachtwoord_klopt(h, "fout")
+wow
+wow

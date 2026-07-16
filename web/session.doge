@@ -1,0 +1,51 @@
+so crypto
+so nap
+
+# Server-side sessies in geheugen — past bij de sequentiële single-user opzet:
+# directe revocatie, geen signing-key beheer. De instance leeft in main.doge
+# (de accept-loop bezit hem); deze module definieert alleen het object.
+so DUUR = 43200
+
+many Sessies:
+    such init:
+        self.map = {}
+    wow
+
+    # Nieuwe sessie: onraadbaar CSPRNG-id (32 bytes -> 64 hex), met verlooptijd.
+    such nieuw:
+        such sid = crypto.token(32).hex()
+        such nu = nap.now()
+        self.map[sid] = {"aangemaakt": nu, "verloopt": nu + DUUR}
+        return sid
+    wow
+
+    # Geldig als aanwezig en niet verlopen; ruimt een verlopen sessie meteen op.
+    such geldig much sid:
+        if not self.map.has(sid):
+            return false
+        if nap.now() >= self.map[sid]["verloopt"]:
+            self.map.remove(sid)
+            return false
+        return true
+    wow
+
+    such verwijder much sid:
+        if self.map.has(sid):
+            self.map.remove(sid)
+    wow
+
+    such cookie much sid:
+        return "sid={sid}; HttpOnly; Path=/; SameSite=Strict"
+    wow
+wow
+
+# Wachtwoord: bij inladen hashen (nooit plaintext bewaren), bij login constant-time
+# vergelijken. Phase 2's login-handler roept wachtwoord_klopt aan.
+such hash_wachtwoord much plain:
+    return crypto.sha256(plain).hex()
+wow
+
+such wachtwoord_klopt much hash_opgeslagen, plain_ingevoerd:
+    return crypto.same(hash_opgeslagen, crypto.sha256(plain_ingevoerd).hex())
+wow
+wow

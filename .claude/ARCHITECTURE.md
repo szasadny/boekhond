@@ -83,7 +83,7 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 
 ## 3. The `web/` Micro-framework Contract
 
-`web/` is a generic package: it may import stdlib only, never `app/`. Target modules:
+`web/` is a generic package: it may import stdlib only, never `app/`. Modules (all built in Phase 1):
 
 | Module | Owns |
 | --- | --- |
@@ -95,6 +95,8 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 | `static.doge` | static file serving with an extension → content-type map, path-traversal safe (reject `..`) |
 
 Handlers receive the request Dict + the loaded state, return a response Dict; `main.doge` owns the socket. Keep the framework small — it exists because Doge has no HTTP server story yet; if that ever ships upstream, `web/` is the seam to delete.
+
+Concrete contract as built: `parse_request(conn)` → `{method, path, query, headers, body, cookies, params}` (header names lowercased, each value a List; `query` decoded via `forms`); `bouw_response(resp)` → Bytes for one `send_bytes`, where `resp` is `{status, headers, set_cookie?, body}` and Content-Length is `len(bytes(body))` (byte count, never char). The `Router` (object) matches `[methode, patroon, handler]`, captures `/pad/{id}` params, and returns a 404 (no path) vs 405 (`Allow`) response; handlers are called positionally with the single request Dict. Response CRLF comes from `so CRLF = bytes([13, 10]).decode()` — a `# stopgap for doge#67` because Doge has no `\r` escape.
 
 ---
 
@@ -144,7 +146,8 @@ Read this before proposing structural changes — these are language facts, not 
 4. **`nap` has stamps only, no date arithmetic** → `lib/datum.doge` owns YYYY-MM-DD math (kwartalen, maand-increment, schrikkeljaren) in pure string/Int code.
 5. **Keyword args don't work on methods/stored functions** — pass positionally in handler tables.
 6. **Module files hold only definitions** — all boot/wiring lives in `main.doge`.
-7. **A `so` import resolves stdlib → dependency → sibling `.doge`**; subdirectory modules via string-path imports (`so "web/http.doge"`).
+7. **A `so` import resolves stdlib → dependency → sibling `.doge`.** Same-directory siblings import by **bare name** (`web/router.doge` uses `so http`); cross-directory modules by string path (`main.doge` uses `so "web/http.doge"`, a test uses `so "../web/http.doge"`). Verified in Phase 1.
+8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **String escapes lack `\r`** (`\n \t \" \\ \{ \}` only) → CRLF via `bytes([13, 10]).decode()` (doge#67). A **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`.
 
 ---
 

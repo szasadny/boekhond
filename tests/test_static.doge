@@ -1,0 +1,31 @@
+so "../web/static.doge"
+
+such test_content_type:
+    amaze static.content_type("style.css") == "text/css"
+    amaze static.content_type("app.js") == "text/javascript"
+    amaze static.content_type("logo.PNG") == "image/png"
+    amaze static.content_type("raar.xyz") == "application/octet-stream"
+wow
+
+such test_bedien_bestaand:
+    such r = static.bedien("static", "/style.css")
+    amaze r["status"] == 200
+    amaze r["headers"]["Content-Type"] == "text/css"
+    amaze len(r["body"]) > 0
+wow
+
+such test_bedien_ontbrekend:
+    such r = static.bedien("static", "/bestaat-niet.css")
+    amaze r["status"] == 404
+wow
+
+such test_bedien_traversal_geweigerd:
+    amaze static.bedien("static", "/../secret")["status"] == 404
+    amaze static.bedien("static", "/a/../../etc/passwd")["status"] == 404
+wow
+
+such test_bedien_map_is_404:
+    such r = static.bedien("static", "/")
+    amaze r["status"] == 404
+wow
+wow

@@ -1,0 +1,132 @@
+so howl
+so strings
+so forms
+
+# HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers met
+# recv_line en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
+
+so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "500": "500 Internal Server Error"}
+so HTML = "text/html; charset=utf-8"
+so PLAIN = "text/plain; charset=utf-8"
+# stopgap for doge#67 — Doge kent geen \r-escape; CRLF uit bytes.
+so CRLF = bytes([13, 10]).decode()
+
+# Body als tekst behandelen? Binaire content-types (upload, beeld, pdf) blijven Bytes.
+such is_tekst much headers:
+    if not headers.has("content-type"):
+        return true
+    such ct = strings.smoll(headers["content-type"][0])
+    if strings.contains(ct, "multipart"):
+        return false
+    if strings.contains(ct, "octet-stream"):
+        return false
+    if strings.contains(ct, "application/pdf"):
+        return false
+    if strings.contains(ct, "image/"):
+        return false
+    return true
+wow
+
+such parse_cookies much headers:
+    such cookies = {}
+    if not headers.has("cookie"):
+        return cookies
+    for stuk in strings.split(headers["cookie"][0], ";"):
+        such s = strings.trim(stuk)
+        if s == "":
+            continue
+        such kv = strings.split(s, "=")
+        if len(kv) < 2:
+            continue
+        cookies[strings.trim(kv[0])] = strings.trim(strings.join(kv[1:], "="))
+    return cookies
+wow
+
+# Parse één request van conn. none als de verbinding sluit vóór een request-line.
+such parse_request much conn:
+    such regel = howl.recv_line(conn)
+    if regel == none or regel == "":
+        return none
+    such delen = strings.split(regel, " ")
+    if len(delen) < 2:
+        return none
+    such method = delen[0]
+    such target = delen[1]
+    such path = target
+    such query = {}
+    such qdeel = strings.split(target, "?")
+    if len(qdeel) > 1:
+        very path = qdeel[0]
+        very query = forms.decode(strings.join(qdeel[1:], "?"))
+    such headers = {}
+    while true:
+        such h = howl.recv_line(conn)
+        if h == none or h == "":
+            bork
+        such dp = strings.split(h, ":")
+        if len(dp) < 2:
+            continue
+        such naam = strings.smoll(strings.trim(dp[0]))
+        such waarde = strings.trim(strings.join(dp[1:], ":"))
+        if headers.has(naam):
+            headers[naam].append(waarde)
+        else:
+            headers[naam] = [waarde]
+    such cookies = parse_cookies(headers)
+    such body = ""
+    if headers.has("content-length"):
+        such n = 0
+        pls
+            very n = int(headers["content-length"][0])
+        oh no err!
+            very n = 0
+        such buf = bytes("")
+        while len(buf) < n:
+            such chunk = howl.recv_bytes(conn, n - len(buf))
+            if chunk == none:
+                bork
+            very buf = buf + chunk
+        if is_tekst(headers):
+            very body = buf.decode()
+        else:
+            very body = buf
+    return {"method": method, "path": path, "query": query, "headers": headers, "body": body, "cookies": cookies, "params": {}}
+wow
+
+# Bouw de volledige response als Bytes (klaar voor één howl.send_bytes).
+# Content-Length = len(bytes(body)) — bytes, niet chars (een "€" is 1 char / 3 bytes).
+such bouw_response much resp:
+    such status = str(resp["status"])
+    such statustekst = STATUS["500"]
+    if STATUS.has(status):
+        very statustekst = STATUS[status]
+    such body_bytes = bytes(resp["body"])
+    such kop = "HTTP/1.1 {statustekst}{CRLF}"
+    such headers = resp["headers"]
+    such heeft_ct = false
+    for naam in headers:
+        very kop = kop + "{naam}: {headers[naam]}{CRLF}"
+        if strings.smoll(naam) == "content-type":
+            very heeft_ct = true
+    if not heeft_ct:
+        very kop = kop + "Content-Type: {HTML}{CRLF}"
+    if resp.has("set_cookie"):
+        for c in resp["set_cookie"]:
+            very kop = kop + "Set-Cookie: {c}{CRLF}"
+    very kop = kop + "Content-Length: {len(body_bytes)}{CRLF}"
+    very kop = kop + "Connection: close{CRLF}"
+    return bytes(kop + CRLF) + body_bytes
+wow
+
+such html_response much body:
+    return {"status": 200, "headers": {"Content-Type": HTML}, "body": body}
+wow
+
+such tekst_response much status, body:
+    return {"status": status, "headers": {"Content-Type": PLAIN}, "body": body}
+wow
+
+such redirect much locatie:
+    return {"status": 303, "headers": {"Location": locatie}, "body": ""}
+wow
+wow
