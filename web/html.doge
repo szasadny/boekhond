@@ -15,9 +15,17 @@ such escape much s:
     return r
 wow
 
+# Deferred script-tag. src = code (ge-escaped). Progressive enhancement:
+# de pagina werkt volledig zonder; ontbreekt het bestand dan 404't dit onschadelijk.
+such script much src:
+    return "<script src=\"{escape(src)}\" defer></script>"
+wow
+
 # Volledig HTML-document. titel = tekst; inhoud = vertrouwde builder-output.
+# boekhond.js wordt site-wide deferred geladen (feature-detect per pagina, geen JS-baseline vereist).
 such pagina much titel, inhoud:
-    return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n</body>\n</html>\n"
+    such js = script("/static/js/boekhond.js")
+    return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n{js}\n</body>\n</html>\n"
 wow
 
 # Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output.

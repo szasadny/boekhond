@@ -53,7 +53,7 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
-- **Auth:** single user, wachtwoord uit `.env` (plaintext secret, app hashes at boot with `crypto.sha256`, compares with `crypto.same`), sessie-cookie. LAN/VPN-only.
+- **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`).
 - **Scheduler:** one `pack.zoom` pup POSTs loopback `/internal/run-recurring` (Mollie-sync + terugkerende kosten; pups share no state — loopback HTTP is the only channel).
 - **Deploy:** `doge build` → single binary in a Docker container inside a VM (`data/` as volume), LAN/VPN only.
 
@@ -63,7 +63,8 @@ Read only the folder relevant to the task; grep before scanning.
 
 ```text
 doge.toml               # manifest, entry = main.doge ([dependencies] header required even when empty)
-main.doge               # boot: config, store load, scheduler pup, accept-loop, route table, auth gate
+package.json            # npm-toolchain voor de Dogescript-build (build-js.mjs → static/js/; dogescript library-API)
+main.doge               # boot: config (.env), store load, scheduler pup, accept-loop, route table
 web/                    # generic HTTP micro-framework (HTTP/1.1 parse, router, cookies, forms, multipart, html escaping, static; never imports app/)
 app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared nav/foutbanner); _h avoids the service-import name clash
 app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, aangifte, rapporten, terugkerend

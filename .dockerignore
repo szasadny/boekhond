@@ -1,0 +1,6 @@
+# Build-context uitsluiten: runtime-state, dependencies, git, lokale build-output.
+data/
+node_modules/
+static/js/
+.git/
+.env

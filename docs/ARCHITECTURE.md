@@ -9,7 +9,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | 2 | Topology & request lifecycle |
 | 3 | The `web/` micro-framework contract |
 | 4 | Persistence: store, audit, uploads |
-| 5 | Cross-cutting: auth, scheduler, exports, config |
+| 5 | Cross-cutting: scheduler, exports, config |
 | 6 | Doge-specific constraints that shaped this design |
 | 7 | Goal architecture — NOT instructions |
 
@@ -27,14 +27,15 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | Terugkerende maandkosten genereren | `app/services/terugkerend.doge` — kostensjablonen → maandpost via `journaal.doge` |
 | Bijlagen: upload-validatie (ext-allowlist + size-cap), opslag `uploads/{jaar}/{id}{ext}`, import-inbox, koppelen | `app/services/bijlagen.doge` — owns de allow-list/size-cap/mime-constanten; roept `journaal.koppel_bijlage` voor de post-kant (single writer) |
 | Een `multipart/form-data` body (binaire upload) parsen | `web/multipart.doge` — domeinvrij; native `bytes.find`/`split`; input = rauwe Bytes-body + boundary uit Content-Type |
-| Een geüploade bijlage terugserveren (download) | een session-gated router-route (`app/handlers/bijlagen_h.doge` `download`), **nooit** onder `/static/` — leest de bytes uit de `bijlagen.dson`-metadata (§5.6) |
+| Een geüploade bijlage terugserveren (download) | een router-route (`app/handlers/bijlagen_h.doge` `download`), **nooit** onder `/static/` — leest de bytes uit de `bijlagen.dson`-metadata (§5.6) |
 | Balans / winst & verlies aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
 | A new page or form endpoint | `app/handlers/<resource>_h.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. Shared view-schil (nav, foutbanner) in `app/handlers/weergave.doge`. |
 | A route registration | `main.doge` route table — handlers never self-register |
 | A read/write of any `data/` file | `app/store/store.doge` (atomic write + audit append) — Hard Rule 4 |
 | A new entity / JSON collection | `app/store/` load/save pair + [DATA-MODEL.md](./DATA-MODEL.md) entry + a migration note if the shape of an existing file changes |
 | HTML structure, escaping, form/table builders | `web/html.doge` — handlers compose builders, never concatenate raw HTML |
-| HTTP parsing, cookies, sessions, static files | `web/` — must stay domain-free (no `app/` imports) |
+| HTTP parsing, cookies, static files | `web/` — must stay domain-free (no `app/` imports) |
+| Client-side gedrag (progressive enhancement: +regel, upload-UX) | `static/djs/boekhond.djs` (Dogescript) → `npm run build` → `static/js/boekhond.js`, site-wide deferred geladen door `html.pagina`. Feature-detected; baseline blijft no-JS (§5.3) |
 | Date math (kwartaal, vervaldatum, maand-increment) | `lib/datum.doge` |
 | Money parsing/formatting (`"1.234,56"` ↔ Decimal) | `lib/geld.doge` |
 | A CSV export | `lib/csv.doge` (generic writer) + the shaping in the owning service |
@@ -81,7 +82,7 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 
 - **Sequential accept-loop, deliberately single-threaded.** `howl.listen` → `accept` → handle → close, one request at a time. One user; no concurrent mutation, no locking, no races. Do not "fix" this with a pup-per-connection: Doge pups deep-copy all state (§6), so a threaded server could not share the store anyway.
 - **Request lifecycle:** read request line + headers via `recv_line`; read the body with byte-accurate `Content-Length` framing — `recv_bytes` for binary (multipart PDF-upload), `recv` for text forms; dispatch on `(method, path)`; every handler runs inside one outer `pls`/`oh no` that renders a clean 500 and logs the error — internals never reach the response.
-- **Responses** are built as full strings (status line, headers incl. `Content-Length`, body) and sent in one `howl.send`. Static files under `static/` are served with correct content types; uploads are served back via a download handler that checks the session, never as static files.
+- **Responses** are built as full strings (status line, headers incl. `Content-Length`, body) and sent in one `howl.send`. Static files under `static/` are served with correct content types; uploads are served back via a download handler (router route), never as static files.
 
 ---
 
@@ -96,7 +97,6 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 | `forms.doge` | `application/x-www-form-urlencoded` decode (incl. percent + `+`), multi-value fields |
 | `multipart.doge` | `multipart/form-data` parse van een rauwe Bytes-body → `{velden, bestanden}`; boundary uit Content-Type; native `bytes.find`/`split` (0.3.3), file-bytes nooit gedecodeerd |
 | `html.doge` | `escape(s)` + page/layout/form/table builders; the **only** place HTML strings are assembled (Hard Rule 6) |
-| `session.doge` | cookie sessions: token issue/check/expiry — `crypto.token` sessie-id, `crypto.same` constant-time compare (§5.1) |
 | `static.doge` | static file serving with an extension → content-type map, path-traversal safe (reject `..`) |
 
 Handlers receive the request Dict + the loaded state, return a response Dict; `main.doge` owns the socket. Keep the framework small — it exists because Doge has no HTTP server story yet; if that ever ships upstream, `web/` is the seam to delete.
@@ -119,9 +119,9 @@ Concrete contract as built: `parse_request(conn)` → `{method, path, query, hea
 
 ## 5. Cross-cutting
 
-### 5.1 Auth (single user)
+### 5.1 Access (single user, no app auth)
 
-Login form → wachtwoord check against `WACHTWOORD` from `.env` → session token in an http-only cookie; every non-static route except `/login` and `/internal/*` requires the session. `.env` holds the plaintext wachtwoord (it is a human-managed secret file); the app hashes it with `crypto.sha256` at boot and never keeps the plaintext around, then compares the hash of the submitted wachtwoord against it with `crypto.same` (constant-time). Session-id from `crypto.token(n)` (CSPRNG). The app stays LAN/VPN-only by deployment choice (decided 2026-07-15), not because the auth is weak.
+**There is no login and no wachtwoord.** Single-user app; the only access boundary is the network — LAN/VPN-only (decided 2026-07-15), meant to sit behind a reverse proxy. An application password was deliberately dropped: with the plaintext already on the same host and no TLS in-app, a fast unsalted hash added no real protection, and Doge's `crypto` has no KDF (only `sha256`/`hmac`/`token`/`same`) to do it properly. Every route is served directly; `web/http.doge` still parses cookies generically, but nothing gates on them. `/internal/*` (Phase 5) will still guard on `INTERN_TOKEN` + loopback peer — that is service-to-service auth, not user login.
 
 ### 5.2 Scheduler (Mollie-sync + terugkerende kosten)
 
@@ -129,7 +129,7 @@ A single pup (`pack.zoom`) at boot: loop { sleep until next 06:00 (`nap`), `howl
 
 ### 5.3 Frontend — Dogescript
 
-Pages stay server-rendered (`web/html.doge`); client-side gedrag (upload-veld, dynamische journaalregels, kleine UX) is written in **Dogescript** (https://github.com/dogescript/dogescript — doge-dialect that compiles to JS). Sources in `static/djs/`, compiled to `static/js/` by an npm build step (`dogescript` package); compiled output is gitignored and rebuilt in the Docker image. Rules: **never file issues on dogescript** ("we have what we get") — where Dogescript can't express something, drop to plain JS in the same file (Dogescript passes unknown lines through) or a vanilla `.js` file; no SPA framework unless a page genuinely needs one.
+Pages stay server-rendered (`web/html.doge`); client-side gedrag is progressive enhancement written in **Dogescript** (https://github.com/dogescript/dogescript — doge-dialect that compiles to JS). Sources in `static/djs/`, compiled to `static/js/` by `npm run build` → `build-js.mjs`, which calls the dogescript **library API** (`package.json` pins `dogescript`); the packaged CLI-bin is broken in 2.4.3, so we never invoke it. Compiled output is gitignored and rebuilt in the Docker `assets` node-stage, then overlaid into the final image. `html.pagina` loads `static/js/boekhond.js` **site-wide, deferred**; every enhancement feature-detects its target (`form[action$="/journaal/memoriaal"]`, `input[type=file][name=bestand]`) and no-ops when absent, so a missing/un-built file 404's harmlessly and the baseline works. Rules: **never file issues on dogescript** ("we have what we get") — Dogescript's keyword-syntax mis-compiles real DOM code, so the `.djs` is authored as pass-through plain JS with `shh` line-comments (the "gaps → plain JS" rule); no SPA framework. Built in Phase 2c: memoriaal "+ regel" (clones a row; the server already accepts N regels) and upload-UX (filename display, client-side ext/size check mirroring `bijlagen.doge`, drag-and-drop) — client checks are UX only, `bijlagen.bewaar` stays the security boundary (Hard Rule 7).
 
 ### 5.4 Exports
 
@@ -137,11 +137,11 @@ All exports are GET endpoints rendering from the same services that render pages
 
 ### 5.5 Config
 
-`.env` read once at boot → config Dict → passed down explicitly. Keys: `WACHTWOORD` (hash), `INTERN_TOKEN`, `MOLLIE_API_KEY`, `POORT`, `DATA_DIR`. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
+`.env` read once at boot → config Dict → passed down explicitly. `main.doge` loads `.env` itself (a small parser; real environment variables win, so `docker compose env_file`/exports override the file). Keys: `INTERN_TOKEN`, `MOLLIE_API_KEY`, `POORT`, `DATA_DIR`. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
 
 ### 5.6 Bijlagen — upload & download
 
-The upload form posts `multipart/form-data`; the body arrives as raw Bytes and `web/multipart.doge` extracts the file part(s). `app/services/bijlagen.doge` validates (extension allow-list + size-cap — domain constants, *not* `.env`), derives the mime from the trusted extension (never the client header), issues a `b-<n>` id, and writes the blob atomically via `store.bewaar_bestand` under `data/uploads/{jaar}/{id}{ext}` (generated name; original filename is metadata only — Hard Rule 7). A bijlage with `journaalpost_id == none` is an inbox item; `bijlagen.koppel` links it through `journaal.koppel_bijlage` (the single journaalpost writer, which enforces the tijdvak-lock). **Download is a session-gated router route** (`GET /bijlagen/{id}`), never served from `/static/`: the handler looks up the metadata, reads the bytes with `store.laad_bestand`, and returns them with the stored mime + a sanitised `Content-Disposition` filename. Nothing is ever deleted (Hard Rule 3). The size-cap is checked after the full body is in memory (no streaming) — acceptable for a LAN/VPN single-user app.
+The upload form posts `multipart/form-data`; the body arrives as raw Bytes and `web/multipart.doge` extracts the file part(s). `app/services/bijlagen.doge` validates (extension allow-list + size-cap — domain constants, *not* `.env`), derives the mime from the trusted extension (never the client header), issues a `b-<n>` id, and writes the blob atomically via `store.bewaar_bestand` under `data/uploads/{jaar}/{id}{ext}` (generated name; original filename is metadata only — Hard Rule 7). A bijlage with `journaalpost_id == none` is an inbox item; `bijlagen.koppel` links it through `journaal.koppel_bijlage` (the single journaalpost writer, which enforces the tijdvak-lock). **Download is a router route** (`GET /bijlagen/{id}`), never served from `/static/` (bijlagen live outside the static root): the handler looks up the metadata, reads the bytes with `store.laad_bestand`, and returns them with the stored mime + a sanitised `Content-Disposition` filename. Nothing is ever deleted (Hard Rule 3). The size-cap is checked after the full body is in memory (no streaming) — acceptable for a LAN/VPN single-user app.
 
 ---
 
@@ -156,7 +156,7 @@ Read this before proposing structural changes — these are language facts, not 
 5. **Keyword args don't work on methods/stored functions** — pass positionally in handler tables.
 6. **Module files hold only definitions** — all boot/wiring lives in `main.doge`.
 7. **A `so` import resolves stdlib → dependency → sibling `.doge`.** Same-directory siblings import by **bare name** (`web/router.doge` uses `so http`); cross-directory modules by string path (`main.doge` uses `so "web/http.doge"`, a test uses `so "../web/http.doge"`). Verified in Phase 1. **There is no import alias, and two modules with the same basename collide** (`foo is already defined`) — so handler modules that `main.doge` imports next to a same-named service carry an `_h` suffix (`app/handlers/rekeningen_h.doge` next to `app/services/rekeningen.doge`). Verified in Phase 2a.
-9. **Handlers reach boot state via `req["ctx"]`, not closures.** The router calls `handler(req)` positionally and handlers are top-level (registered before `start()` builds the store), so they cannot lexically capture it. `afhandel` sets `req["ctx"] = {store, sessies, config}` before dispatch; handlers read `req["ctx"]["store"]`. Auth-gating also lives in `afhandel` (redirect to `/login` unless the path is exempt — `/login`, `/health`, `/static/*`, `/internal/*` — and the `sid` cookie is a valid session).
+9. **Handlers reach boot state via `req["ctx"]`, not closures.** The router calls `handler(req)` positionally and handlers are top-level (registered before `start()` builds the store), so they cannot lexically capture it. `afhandel` sets `req["ctx"] = {store, config}` before dispatch; handlers read `req["ctx"]["store"]`. `afhandel` only splits `/static/*` (served directly) from everything else (routed) — there is no auth gate (§5.1).
 8. **Dict keys must be Str** (an Int key is a `TypeError`) — a status-code map is `{"404": …}`, looked up via `str(code)`. **v0.3.3 closed two gaps that shaped Phase 1–2a:** `\r` is now a valid string escape (`so CRLF = "\r\n"`, doge#67), and `Bytes` gained `find(sub)`→Int|`-1` / `split(sep)`→`List<Bytes>` / `contains(sub)`→Bool (doge#68) — used natively by `web/multipart.doge` (no `bytes.index`). Still true: a **literal `{`/`}` in a string is `\{`/`\}`** — an unescaped `{id}` is interpolation, so route patterns are written `"/journaal/\{id\}"`; and a **`{…}` interpolation can't contain a nested string literal** (`"{html.knop(\"x\")}"` fails — the interpolation "never closes"), so bind the call to a local first. **`Str * Int` sequence-repeat does not exist** (doge#70). Verified through Phase 2b.
 
 ---
@@ -165,7 +165,6 @@ Read this before proposing structural changes — these are language facts, not 
 
 Ideas parked until explicitly asked for; do not implement on your own initiative:
 
-- Drag-and-drop upload polish on top of the native binary upload.
 - Invoice ingestion beyond Mollie + the import-map: pull inkoop-PDF's from a supplier API (`howl.request`); e-mail (IMAP) ingestion.
 - ICP-opgaaf export view when 3b-omzet ever occurs.
 - Jaarafsluiting/IB-hulp: afschrijvingen, KIA, urenregistratie.

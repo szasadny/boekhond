@@ -36,6 +36,14 @@ such test_pagina_bevat_titel_en_body:
     amaze strings.contains(p, "<p>hoi</p>")
 wow
 
+such test_pagina_laadt_deferred_script:
+    # progressive enhancement: boekhond.js wordt deferred geladen, vóór </body>
+    such p = html.pagina("Overzicht", "<p>hoi</p>")
+    amaze strings.contains(p, "<script src=\"/static/js/boekhond.js\" defer></script>")
+    # de script-tag staat vlak vóór </body> (na de inhoud)
+    amaze strings.contains(p, "boekhond.js\" defer></script>\n</body>")
+wow
+
 such test_formulier_en_veld:
     such v = html.veld("bedrag", "Bedrag", "text", "12,50")
     such f = html.formulier("/kosten", "post", [v])

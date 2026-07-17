@@ -40,11 +40,12 @@ doge bark                         # run (project entry)
 doge check lib/datum.doge         # snelle syntax check
 doge test tests                   # volledige suite
 doge fmt <file>                   # canonical formatting
+npm ci && npm run build           # Dogescript static/djs/ → static/js/ 
 ```
 
 ## Deployment
 
 ```sh
-cp .env.example .env              # wachtwoord e.d. invullen
+cp .env.example .env              # secrets (INTERN_TOKEN, MOLLIE_API_KEY) invullen
 docker compose up -d              # app op poort 8085, administratie in ./data
 ```

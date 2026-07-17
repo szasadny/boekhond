@@ -1,0 +1,13 @@
+{
+  "name": "boekhond-assets",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Dogescript -> JS build for Boekhond's progressive-enhancement layer (baseline stays no-JS).",
+  "type": "module",
+  "scripts": {
+    "build": "node build-js.mjs"
+  },
+  "dependencies": {
+    "dogescript": "2.4.3"
+  }
+}

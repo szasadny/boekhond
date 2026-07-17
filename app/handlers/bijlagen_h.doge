@@ -8,8 +8,8 @@ so strings
 
 # Upload + import-inbox. Bestand komt binnen als multipart/form-data (rauwe Bytes),
 # wordt gevalideerd + opgeslagen door de bijlagen-service, en vandaaruit aan een
-# journaalpost gekoppeld. Download is een session-gated route (geen /static/).
-# Alle dynamische waarden ge-escaped (Hard Rule 6).
+# journaalpost gekoppeld. Download loopt via een router-route (nooit als /static/,
+# want bijlagen liggen buiten de static-root). Alle dynamische waarden ge-escaped (Hard Rule 6).
 
 such upload_formulier:
     such veld = html.bestand("bestand", "Inkoopbewijs (pdf/png/jpg)", ".pdf,.png,.jpg,.jpeg")
@@ -109,7 +109,7 @@ such veilige_naam much naam:
     return r
 wow
 
-# Serveer een bijlage terug; session-gated via de router (nooit als static file).
+# Serveer een bijlage terug via de router (nooit als static file).
 such download much req:
     such store = req["ctx"]["store"]
     such id = req["params"]["id"]

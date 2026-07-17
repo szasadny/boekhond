@@ -53,9 +53,9 @@ such test_bouw_response_content_length_is_bytes:
 wow
 
 such test_redirect:
-    such txt = http.bouw_response(http.redirect("/login")).decode()
+    such txt = http.bouw_response(http.redirect("/inbox")).decode()
     amaze strings.contains(txt, "303 See Other")
-    amaze strings.contains(txt, "Location: /login")
+    amaze strings.contains(txt, "Location: /inbox")
     amaze strings.contains(txt, "Content-Length: 0")
 wow
 

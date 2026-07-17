@@ -1,1 +1,27 @@
 /* Boekhond — basisstijl volgt in fase 2 (webinterface). */
+
+/* Progressive enhancement (static/js/boekhond.js). Zonder JS zijn deze classes
+   nooit gezet en verandert er niets aan de server-rendered baseline. */
+.regel-toevoegen {
+    margin: 0.5rem 0;
+}
+
+label.dropzone {
+    display: block;
+    padding: 0.75rem;
+    border: 1px dashed #999;
+    border-radius: 4px;
+}
+
+label.dropzone.sleep {
+    border-color: #0b57d0;
+    background: #eef3fd;
+}
+
+.upload-status {
+    margin: 0.25rem 0;
+}
+
+.upload-status.fout {
+    color: #b00020;
+}

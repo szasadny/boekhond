@@ -1,37 +1,73 @@
 so env
+so fetch
+so strings
 so howl
 so "web/http.doge"
 so "web/router.doge"
 so "web/static.doge"
-so "web/session.doge"
 so "app/store/store.doge"
 so "app/services/rekeningen.doge"
-so "app/handlers/auth_h.doge"
 so "app/handlers/rekeningen_h.doge"
 so "app/handlers/journaal_h.doge"
 so "app/handlers/dashboard_h.doge"
 so "app/handlers/bijlagen_h.doge"
 
-# Boot + wiring (ARCHITECTURE §2/§6.6). Fase 2a: login-gate, rekeningschema,
-# dubbel-boekhouden journaal. Handlers krijgen state via req["ctx"] (de router
-# roept handler(req) positioneel; closures kunnen de bootstate niet bereiken).
+# Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
+# het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
+# req["ctx"] (de router roept handler(req) positioneel; closures kunnen de
+# bootstate niet bereiken).
 
 so STATIC_ROOT = "static"
 so STATIC_PREFIX = "/static/"
 
-# .env één keer bij boot; secrets nooit in source, geen fallback (Hard Rule 8).
+# Strip één paar omringende quotes (VALUE of "VALUE" of 'VALUE' in .env).
+such ontquote much s:
+    if len(s) >= 2:
+        such eerste = s[0]
+        such laatste = s[len(s) - 1]
+        if eerste == laatste and (eerste == "\"" or eerste == "'"):
+            return s[1:len(s) - 1]
+    return s
+wow
+
+# .env-bestand → Dict (KEY=VALUE per regel; # is commentaar, lege regels overgeslagen).
+# Ontbreekt het bestand, dan leeg — de echte environment blijft de bron (docker compose
+# injecteert via env_file, dan is dit leeg). Secrets blijven in .env, nooit in source (Hard Rule 8).
+such dotenv:
+    such d = {}
+    if not fetch.exists(".env"):
+        return d
+    for regel in strings.split(fetch.read(".env"), "\n"):
+        such r = strings.trim(regel)
+        if r == "" or r[0] == "#" or not strings.contains(r, "="):
+            continue
+        such sleutel = strings.trim(strings.split(r, "=")[0])
+        such waarde = strings.trim(r[len(strings.split(r, "=")[0]) + 1:])
+        d[sleutel] = ontquote(waarde)
+    return d
+wow
+
+# Config-waarde: echte env-var wint, dan .env-bestand, anders none. Zo overriden
+# expliciete exports en `docker compose env_file` altijd het bestand.
+such haal much sleutel, envd:
+    such v = env.get(sleutel)
+    if v != none:
+        return v
+    if envd.has(sleutel):
+        return envd[sleutel]
+    return none
+wow
+
+# .env één keer bij boot; instance-config uit de environment of het .env-bestand.
 such config:
-    such poort = env.get("POORT")
+    such envd = dotenv()
+    such poort = haal("POORT", envd)
     if poort == none:
         very poort = "8085"
-    such data_dir = env.get("DATA_DIR")
+    such data_dir = haal("DATA_DIR", envd)
     if data_dir == none:
         very data_dir = "data"
-    such wachtwoord = env.get("WACHTWOORD")
-    if wachtwoord == none:
-        bonk "WACHTWOORD ontbreekt in .env"
-    such hash = session.hash_wachtwoord(wachtwoord)
-    return {"poort": int(poort), "data_dir": data_dir, "wachtwoord_hash": hash}
+    return {"poort": int(poort), "data_dir": data_dir}
 wow
 
 such health much req:
@@ -42,9 +78,6 @@ wow
 such maak_router:
     such r = router.Router()
     r.voeg_toe("GET", "/health", health)
-    r.voeg_toe("GET", "/login", auth_h.login_form)
-    r.voeg_toe("POST", "/login", auth_h.login)
-    r.voeg_toe("POST", "/logout", auth_h.logout)
     r.voeg_toe("GET", "/", dashboard_h.home)
     r.voeg_toe("GET", "/rekeningen", rekeningen_h.lijst)
     r.voeg_toe("POST", "/rekeningen", rekeningen_h.toevoegen)
@@ -70,27 +103,9 @@ such begint_met much s, voorvoegsel:
     return s[0:len(voorvoegsel)] == voorvoegsel
 wow
 
-# Bereikbaar zonder sessie: login + health + (later) /internal/*. Static wordt
-# apart afgehandeld vóór de auth-gate.
-such toegankelijk much pad:
-    if pad == "/login":
-        return true
-    if pad == "/health":
-        return true
-    if begint_met(pad, "/internal/"):
-        return true
-    return false
-wow
-
-such ingelogd much req, sessies:
-    if not req["cookies"].has("sid"):
-        return false
-    return sessies.geldig(req["cookies"]["sid"])
-wow
-
-# Eén verbinding: parse -> static / auth-gate / router -> stuur. Alles in één
-# pls/oh no, zodat een fout een schone 500 geeft en de accept-loop nooit sneuvelt.
-such afhandel much conn, r, sessies, winkel, cfg:
+# Eén verbinding: parse -> static / router -> stuur. Alles in één pls/oh no,
+# zodat een fout een schone 500 geeft en de accept-loop nooit sneuvelt.
+such afhandel much conn, r, winkel, cfg:
     pls
         such req = http.parse_request(conn)
         if req == none:
@@ -99,10 +114,8 @@ such afhandel much conn, r, sessies, winkel, cfg:
         such resp = none
         if begint_met(pad, STATIC_PREFIX):
             very resp = static.bedien(STATIC_ROOT, pad[7:])
-        elif not toegankelijk(pad) and not ingelogd(req, sessies):
-            very resp = http.redirect("/login")
         else:
-            req["ctx"] = {"store": winkel, "sessies": sessies, "config": cfg}
+            req["ctx"] = {"store": winkel, "config": cfg}
             very resp = r.verwerk(req)
         howl.send_bytes(conn, http.bouw_response(resp))
     oh no err!
@@ -115,7 +128,6 @@ wow
 
 such start:
     such cfg = config()
-    such sessies = session.Sessies()
     such winkel = store.Store(cfg["data_dir"])
     rekeningen.seed(winkel)
     such r = maak_router()
@@ -124,7 +136,7 @@ such start:
     bark "boekhond luistert op 127.0.0.1:{p}"
     while true:
         such conn = howl.accept(listener)
-        afhandel(conn, r, sessies, winkel, cfg)
+        afhandel(conn, r, winkel, cfg)
         howl.close(conn)
 wow
 

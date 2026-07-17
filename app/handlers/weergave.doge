@@ -9,9 +9,7 @@ such nav:
     such items = ""
     for l in LINKS:
         very items = items + html.link(l[0], l[1]) + " "
-    such knop = html.knop("Uitloggen")
-    such uit = "<form action=\"/logout\" method=\"post\" class=\"inline\">{knop}</form>"
-    return "<nav>{items}{uit}</nav>"
+    return "<nav>{items}</nav>"
 wow
 
 # Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output.
