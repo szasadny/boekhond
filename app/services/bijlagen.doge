@@ -79,4 +79,23 @@ such koppel much store, bijlage_id, post_id:
     store.bewaar("bijlagen", lijst)
     return b
 wow
+
+# Scan de gemounte data/import/-map: elk bestand wordt via bewaar een inbox-bijlage
+# (bron "import"), waarna de bronfile weg gaat zodat een tweede scan niets dubbel doet
+# (Hard Rule 2 via bronfile-verwijdering — bijlagen zijn geen boekingen, geen stored key).
+# Een ongeldig bestand (ext/leeg/te groot) blijft staan en komt in overgeslagen met reden.
+such scan_import much store:
+    such geimporteerd = 0
+    such overgeslagen = []
+    for naam in store.import_lijst():
+        pls
+            such data = store.laad_bestand("import/{naam}")
+            such part = {"filename": naam, "data": data}
+            bewaar(store, part, "import")
+            store.import_verwijder(naam)
+            very geimporteerd = geimporteerd + 1
+        oh no err!
+            overgeslagen.append({"naam": naam, "reden": err.message})
+    return {"geimporteerd": geimporteerd, "overgeslagen": overgeslagen}
+wow
 wow

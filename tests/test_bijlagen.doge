@@ -38,6 +38,17 @@ such groter_dan much n:
     return b
 wow
 
+# Test-setup: leg een bronfile in de gemounte data/import/-map ({TMPMAP}/import/).
+such drop much naam, data:
+    such map = fetch.join(TMPMAP, "import")
+    fetch.make_dir(map)
+    fetch.write_bytes(fetch.join(map, naam), data)
+wow
+
+such import_pad much naam:
+    return fetch.join(fetch.join(TMPMAP, "import"), naam)
+wow
+
 such test_bewaar_geldig_pdf:
     such s = verse()
     such m = bijlagen.bewaar(s, deel("factuur.pdf", bytes([37, 80, 68, 70, 1])), "upload")
@@ -143,6 +154,49 @@ such test_inbox_filtert_gekoppelde:
     bijlagen.koppel(s, tweede["id"], post["id"])
     amaze len(bijlagen.inbox(s)) == 1
     amaze len(bijlagen.alle(s)) == 2
+    schoon()
+wow
+
+such test_scan_importeert:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    such res = bijlagen.scan_import(s)
+    amaze res["geimporteerd"] == 1
+    such items = bijlagen.inbox(s)
+    amaze len(items) == 1
+    amaze items[0]["bron"] == "import"
+    amaze items[0]["bestandsnaam_origineel"] == "factuur.pdf"
+    amaze not fetch.exists(import_pad("factuur.pdf"))
+    amaze fetch.exists(fetch.join(TMPMAP, items[0]["pad"]))
+    schoon()
+wow
+
+such test_scan_idempotent:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    bijlagen.scan_import(s)
+    such res = bijlagen.scan_import(s)
+    amaze res["geimporteerd"] == 0
+    amaze len(bijlagen.inbox(s)) == 1
+    schoon()
+wow
+
+such test_scan_slaat_ongeldig_over:
+    such s = verse()
+    drop("notitie.txt", bytes("hallo"))
+    such res = bijlagen.scan_import(s)
+    amaze res["geimporteerd"] == 0
+    amaze len(res["overgeslagen"]) == 1
+    amaze fetch.exists(import_pad("notitie.txt"))
+    amaze len(bijlagen.inbox(s)) == 0
+    schoon()
+wow
+
+such test_scan_zonder_map:
+    such s = verse()
+    such res = bijlagen.scan_import(s)
+    amaze res["geimporteerd"] == 0
+    amaze len(res["overgeslagen"]) == 0
     schoon()
 wow
 wow

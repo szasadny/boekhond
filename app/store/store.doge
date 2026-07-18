@@ -3,6 +3,8 @@ so fetch
 so nap
 so strings
 
+so IMPORT_MAP = "import"
+
 # Enige toegang tot data/ (Hard Rule 4): atomic writes + audit-append.
 # Bedragen komen hier altijd als Str binnen — dson.emit van een Decimal is een TypeError.
 many Store:
@@ -46,6 +48,27 @@ many Store:
 
     such laad_bestand much relpad:
         return fetch.read_bytes(fetch.join(self.dir, relpad))
+    wow
+
+    # De gemounte import-drop-map (data/import/). Alleen bestanden, gesorteerd;
+    # een ontbrekende mount geeft [] i.p.v. een IOError. Staging, geen collectie.
+    such import_lijst:
+        such p = fetch.join(self.dir, IMPORT_MAP)
+        if not fetch.exists(p):
+            return []
+        such namen = []
+        for naam in fetch.list(p):
+            such st = fetch.stat(fetch.join(p, naam))
+            if not st["is_dir"]:
+                namen.append(naam)
+        return namen
+    wow
+
+    # Verwijder een verwerkte bronfile uit de import-map. Dit raakt nooit een
+    # opgeslagen bijlage (uploads/) — enkel de transiënte drop-file (Hard Rule 7).
+    such import_verwijder much naam:
+        such map = fetch.join(self.dir, IMPORT_MAP)
+        fetch.delete(fetch.join(map, naam))
     wow
 
     # Append-only, vóór elke bewaar-aanroep door de caller (bewaarplicht).

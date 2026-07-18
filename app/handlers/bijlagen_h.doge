@@ -81,7 +81,36 @@ such inbox_inhoud much store, melding:
         very leeg = "<p>De inbox is leeg.</p>"
     such tabel = "<table><thead><tr><th>Bestand</th><th>Koppelen aan post</th></tr></thead><tbody>{body}</tbody></table>"
     such up = html.link("/upload", "Bewijs uploaden")
-    return "{melding}<h1>Import-inbox</h1><p>{up}</p>{leeg}{tabel}"
+    such scanknop = html.knop("Scan importmap")
+    such scan_form = "<form action=\"/inbox/scan\" method=\"post\" class=\"inline\">{scanknop}</form>"
+    return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}"
+wow
+
+# Bouwt een resultaat-melding voor de import-scan; overgeslagen namen/redenen ge-escaped.
+such scan_melding much res:
+    such n = res["geimporteerd"]
+    such over = res["overgeslagen"]
+    such k = len(over)
+    such m = "{n} geïmporteerd"
+    if k > 0:
+        such regels = ""
+        for o in over:
+            such nm = html.escape(o["naam"])
+            such rd = html.escape(o["reden"])
+            very regels = regels + "<li>{nm}: {rd}</li>"
+        very m = m + ", {k} overgeslagen<ul>{regels}</ul>"
+    return "<p>{m}</p>"
+wow
+
+such scan much req:
+    such store = req["ctx"]["store"]
+    such melding = ""
+    pls
+        such res = bijlagen.scan_import(store)
+        very melding = scan_melding(res)
+    oh no err!
+        very melding = weergave.fout(err.message)
+    return http.html_response(weergave.render("Inbox", inbox_inhoud(store, melding)))
 wow
 
 such inbox much req:

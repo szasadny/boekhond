@@ -117,6 +117,7 @@ such maak_router:
     r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
     r.voeg_toe("POST", "/upload", bijlagen_h.upload)
     r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)
+    r.voeg_toe("POST", "/inbox/scan", bijlagen_h.scan)
     r.voeg_toe("POST", "/koppel", bijlagen_h.koppel)
     r.voeg_toe("GET", "/bijlagen/\{id\}", bijlagen_h.download)
     return r
