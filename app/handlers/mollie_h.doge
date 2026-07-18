@@ -1,0 +1,61 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/mollie.doge"
+so "../../lib/geld.doge"
+so weergave
+
+# Mollie-overzicht: laatste sync, reeds geboekte Mollie-posten, en een handmatige
+# "sync nu"-knop. De echte sync-logica zit in app/services/mollie.doge.
+
+such mollie_posten much store:
+    such uit = []
+    for p in store.laad("journaal", []):
+        if p["bron"] == "mollie":
+            uit.append(p)
+    return uit
+wow
+
+such overzicht_inhoud much store, cfg, melding:
+    such heeft_key = cfg.has("mollie_key") and cfg["mollie_key"] != none
+    such ls = mollie.laatste_sync(store)
+    such lstxt = "nog niet gesynct"
+    if ls != none:
+        very lstxt = html.escape(ls)
+    such rijen = []
+    for p in mollie_posten(store):
+        such pid = ""
+        if p.has("mollie_payment_id"):
+            very pid = p["mollie_payment_id"]
+        such incl = geld.formatteer(geld.bedrag(p["regels"][0]["debet"]))
+        rijen.append([p["datum"], p["omschrijving"], incl, pid])
+    such tabel = html.tabel(["Datum", "Omschrijving", "Bedrag", "Payment"], rijen)
+    such actie = ""
+    if heeft_key:
+        such kn = html.knop("Sync nu")
+        very actie = "<form action=\"/mollie/sync\" method=\"post\">{kn}</form>"
+    else:
+        very actie = "<p class=\"fout\">Geen MOLLIE_API_KEY geconfigureerd (.env).</p>"
+    return "{melding}<h1>Mollie</h1><p>Laatste sync: {lstxt}</p>{actie}{tabel}"
+wow
+
+such overzicht much req:
+    such store = req["ctx"]["store"]
+    such cfg = req["ctx"]["config"]
+    return http.html_response(weergave.render("Mollie", overzicht_inhoud(store, cfg, "")))
+wow
+
+such sync much req:
+    such store = req["ctx"]["store"]
+    such cfg = req["ctx"]["config"]
+    such key = cfg["mollie_key"]
+    pls
+        if key == none:
+            bonk "geen MOLLIE_API_KEY geconfigureerd"
+        mollie.sync(store, key)
+        return http.redirect("/mollie")
+    oh no err!
+        such m = weergave.fout(err.message)
+        return http.html_response(weergave.render("Mollie", overzicht_inhoud(store, cfg, m)))
+wow
+wow

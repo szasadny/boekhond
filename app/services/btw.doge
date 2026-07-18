@@ -51,6 +51,18 @@ such bedrag_incl much bedrag_ex, code:
     return bedrag_ex + btw_bedrag(bedrag_ex, code)
 wow
 
+# Inverse van bedrag_incl: splits een inclusief bedrag in [ex, btw]. btw = incl - ex (de
+# rest), zodat ex + btw == incl exact — een post op deze splitsing balanceert. Voor de
+# Mollie-import, die inclusieve bedragen levert. Afronding blijft hier (Hard Rule 5).
+such splits_incl much bedrag_incl, code:
+    such c = info(code)
+    if c["pct"] == 0:
+        return [bedrag_incl, dec("0")]
+    such ex = geld.rond2(bedrag_incl * 100 / (100 + c["pct"]))
+    such btw = bedrag_incl - ex
+    return [ex, btw]
+wow
+
 # Aangifte in hele euro's; afronden in eigen voordeel is toegestaan:
 # verschuldigde btw naar beneden, voorbelasting naar boven.
 such euro_af much bedrag:

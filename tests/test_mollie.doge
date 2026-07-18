@@ -1,0 +1,80 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/mollie.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../app/services/btw.doge"
+
+so TMPMAP = "tmp_test_mollie"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse_store:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+# Sample betaalde payment (incl 12,10 -> ex 10,00 + btw 2,10).
+such betaling much id, waarde:
+    return {"id": id, "status": "paid", "amount": {"value": waarde, "currency": "EUR"}, "paidAt": "2026-07-15T10:00:00+00:00", "description": "SaaS abonnement", "amountRefunded": {"value": "0.00", "currency": "EUR"}}
+wow
+
+such test_betaling_naar_post_balanceert:
+    such p = mollie.betaling_naar_post(betaling("tr_1", "12.10"))
+    amaze p["bron"] == "mollie"
+    amaze p["mollie_payment_id"] == "tr_1"
+    amaze p["datum"] == "2026-07-15"
+    amaze journaal.balans_klopt(p["regels"])
+    amaze dec(p["regels"][0]["debet"]) == dec("12.10")
+    amaze dec(p["regels"][1]["credit"]) == dec("10.00")
+    amaze dec(p["regels"][2]["credit"]) == dec("2.10")
+    amaze p["regels"][1]["btw_code"] == "hoog_21"
+wow
+
+such test_boeking_rubriek_1a:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 10
+    amaze r["rubrieken"]["1a"]["btw"] == 2
+    amaze r["saldo"] == 2
+    schoon()
+wow
+
+such test_idempotent:
+    such s = verse_store()
+    such lijst = [betaling("tr_1", "12.10"), betaling("tr_2", "24.20")]
+    such een = mollie.boek_betalingen(s, lijst)
+    amaze een["geboekt"] == 2
+    such twee = mollie.boek_betalingen(s, lijst)
+    amaze twee["geboekt"] == 0
+    amaze twee["overgeslagen"] == 2
+    amaze len(s.laad("journaal", [])) == 2
+    schoon()
+wow
+
+such test_niet_betaald_overgeslagen:
+    such s = verse_store()
+    such open = {"id": "tr_9", "status": "open", "amount": {"value": "5.00", "currency": "EUR"}, "paidAt": none, "description": "x", "amountRefunded": {"value": "0.00", "currency": "EUR"}}
+    such res = mollie.boek_betalingen(s, [open])
+    amaze res["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_refund_draait_1a_terug:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such refund = {"id": "re_1", "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-07-20T10:00:00+00:00"}
+    journaal.bewaar(s, mollie.refund_naar_post(refund))
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 0
+    amaze r["rubrieken"]["1a"]["btw"] == 0
+    schoon()
+wow
+wow

@@ -40,7 +40,9 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
                              btw_code alleen op regels met fiscale betekenis
                              (omzet-/kostenregels = grondslag)
     bron                     "mollie" | "terugkerend" | "handmatig" | "bank" | "memoriaal"
-    mollie_payment_id        gezet bij bron "mollie" — idempotentie-sleutel (§4.2)
+    mollie_payment_id        gezet bij bron "mollie" (betaling) — idempotentie-sleutel (§4.2);
+                             geld-been op Bank (1100), omzet 21% -> rubriek 1a
+    mollie_refund_id         gezet bij een Mollie-refund-tegenboeking — idempotentie-sleutel (§4.3)
     terugkerend_id           gezet bij bron "terugkerend" — welk kostensjabloon
     bijlage_ids              [bijlage-id, …]
     storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §4.4)
@@ -116,6 +118,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 - **saldo** = 5a − 5b — positief: te betalen; negatief: terug te vragen.
 - **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal).
 - Btw per journaalregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
+- Inclusieve bedragen (Mollie levert incl) splitsen naar `[ex, btw]` via `btw.splits_incl`
+  (`btw = incl − ex`, zodat de post exact balanceert) — afronding blijft in `btw.doge` (Hard Rule 5).
 
 ---
 
@@ -135,7 +139,7 @@ Enforced in services, elk met een test (Hard Rule 9):
 0. **Elke journaalpost balanceert:** som(debet) == som(credit), op de cent (Decimal). Een niet-balancerende post wordt geweigerd, nooit "rechtgetrokken".
 1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in.
 2. **Import is idempotent, elke bron precies één keer geboekt:** een Mollie-payment wordt hoogstens één journaalpost (uniek `mollie_payment_id`), een kostensjabloon hoogstens één post per maand (uniek `terugkerend_id` + maand). Dubbel draaien van de sync/scheduler boekt nooit dubbel; elke import is een audit-event (Hard Rule 2).
-3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking.
+3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking (gespiegelde omzet-post, gedateerd op `createdAt`), idempotent per `mollie_refund_id` — dubbel syncen boekt 'm nooit dubbel.
 4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren). Koppelen is symmetrisch en gaat via `journaal.koppel_bijlage` (de enige schrijver van journaalposten): het zet `journaalpost_id` op de Bijlage én voegt het bijlage-id toe aan `bijlage_ids` van de post — en wordt geweigerd als de post in een ingediend tijdvak valt (§3.3, invariant 3).
 5. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
 6. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.

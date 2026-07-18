@@ -88,4 +88,13 @@ such test_post_effect:
     amaze btw.post_effect(maak("2026-01-01", "voorbelasting_hoog", "100")) == dec("-21")
     amaze btw.post_effect(maak("2026-01-01", "import_buiten_eu", "100")) == dec("0")
 wow
+
+such test_splits_incl:
+    such s = btw.splits_incl(dec("12.10"), "hoog_21")
+    amaze s[0] == dec("10.00")
+    amaze s[1] == dec("2.10")
+    such g = btw.splits_incl(dec("100"), "geen_btw")
+    amaze g[0] == dec("100")
+    amaze g[1] == dec("0")
+wow
 wow

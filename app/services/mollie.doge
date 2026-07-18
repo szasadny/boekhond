@@ -1,0 +1,136 @@
+so howl
+so json
+so journaal
+so btw
+so rekeningen
+so "../../lib/geld.doge"
+so "../../lib/datum.doge"
+
+# Mollie-import: betaalde payments (+ refunds) ophalen en als gebalanceerde omzet-posten
+# boeken (21% -> rubriek 1a), idempotent per mollie_payment_id / mollie_refund_id (§4.2/4.3).
+# Netwerk zit in de haal_*-functies; de mapping + boeking zijn puur/store-only en getest.
+# Getriggerd door de handmatige knop (mollie_h) en straks de scheduler-pup (Fase 5).
+
+so BASIS = "https://api.mollie.com/v2"
+so TEGENREKENING = "1100"
+
+# --- Netwerk (impure; niet unit-getest) ---
+such haal_json much key, url:
+    such opts = {"headers": {"Authorization": "Bearer {key}"}}
+    such resp = howl.request("GET", url, opts)
+    such st = resp["status"]
+    if st != 200:
+        bonk "Mollie API gaf status {st}"
+    return json.parse(resp["body"])
+wow
+
+such haal_betalingen much key:
+    such data = haal_json(key, "{BASIS}/payments?limit=250")
+    such emb = data["_embedded"]
+    return emb["payments"]
+wow
+
+such haal_refunds much key, payment_id:
+    such data = haal_json(key, "{BASIS}/payments/{payment_id}/refunds")
+    such emb = data["_embedded"]
+    return emb["refunds"]
+wow
+
+# --- Pure mapping ---
+such datum_van much iso:
+    return iso[0:10]
+wow
+
+# Betaalde payment -> omzet-post: incl op de bank-kant (debet), ex als omzet-grondslag
+# (credit, hoog_21), btw op af te dragen (credit). btw = incl - ex, dus balans exact.
+such betaling_naar_post much betaling:
+    such incl = dec(betaling["amount"]["value"])
+    such split = btw.splits_incl(incl, "hoog_21")
+    such ex = split[0]
+    such vat = split[1]
+    such d = datum_van(betaling["paidAt"])
+    such pid = betaling["id"]
+    such regels = [{"rekening": TEGENREKENING, "debet": str(incl), "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": str(ex), "btw_code": "hoog_21"}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(vat), "btw_code": none}]
+    return {"datum": d, "omschrijving": betaling["description"], "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_payment_id": pid, "bijlage_ids": []}
+wow
+
+# Refund -> tegenboeking: gespiegeld t.o.v. de omzet-post (geld eraf, omzet + btw terug).
+# hoog_21 op de debet-kant -> regel_grondslag negatief -> trekt af van rubriek 1a.
+such refund_naar_post much refund:
+    such incl = dec(refund["amount"]["value"])
+    such split = btw.splits_incl(incl, "hoog_21")
+    such ex = split[0]
+    such vat = split[1]
+    such d = datum_van(refund["createdAt"])
+    such rid = refund["id"]
+    such regels = [{"rekening": TEGENREKENING, "debet": "", "credit": str(incl), "btw_code": none}, {"rekening": "8000", "debet": str(ex), "credit": "", "btw_code": "hoog_21"}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": str(vat), "credit": "", "btw_code": none}]
+    return {"datum": d, "omschrijving": "Refund {rid}", "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_refund_id": rid, "bijlage_ids": []}
+wow
+
+# --- Idempotente boeking (store-only, getest) ---
+such geboekte_sleutels much store, veld:
+    such uit = []
+    for p in store.laad("journaal", []):
+        if p.has(veld) and p[veld] != none:
+            uit.append(p[veld])
+    return uit
+wow
+
+such boek_betalingen much store, betalingen:
+    such gezien = geboekte_sleutels(store, "mollie_payment_id")
+    such geboekt = 0
+    such overgeslagen = 0
+    for b in betalingen:
+        such pid = b["id"]
+        if b["status"] != "paid" or gezien.contains(pid):
+            very overgeslagen = overgeslagen + 1
+            continue
+        journaal.bewaar(store, betaling_naar_post(b))
+        gezien.append(pid)
+        very geboekt = geboekt + 1
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+wow
+
+such boek_refunds much store, key, betalingen:
+    such gezien = geboekte_sleutels(store, "mollie_refund_id")
+    such geboekt = 0
+    such overgeslagen = 0
+    for b in betalingen:
+        such ar = b["amountRefunded"]
+        if geld.bedrag(ar["value"]) <= dec("0"):
+            continue
+        for r in haal_refunds(key, b["id"]):
+            such rid = r["id"]
+            if r["status"] != "refunded" or gezien.contains(rid):
+                very overgeslagen = overgeslagen + 1
+                continue
+            journaal.bewaar(store, refund_naar_post(r))
+            gezien.append(rid)
+            very geboekt = geboekt + 1
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+wow
+
+# --- Cursor (instellingen.dson, geen secret) ---
+such onthoud_sync much store:
+    such inst = store.laad("instellingen", {})
+    inst["mollie_laatste_sync"] = datum.vandaag()
+    store.audit("mollie-sync", "instellingen", "instellingen", inst)
+    store.bewaar("instellingen", inst)
+wow
+
+such laatste_sync much store:
+    such inst = store.laad("instellingen", {})
+    if inst.has("mollie_laatste_sync"):
+        return inst["mollie_laatste_sync"]
+    return none
+wow
+
+# --- Orchestratie (netwerk; door knop + scheduler aangeroepen) ---
+such sync much store, key:
+    such betalingen = haal_betalingen(key)
+    such pres = boek_betalingen(store, betalingen)
+    such rres = boek_refunds(store, key, betalingen)
+    onthoud_sync(store)
+    return {"betalingen": pres, "refunds": rres}
+wow
+wow

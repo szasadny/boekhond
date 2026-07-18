@@ -13,6 +13,7 @@ so "app/handlers/dashboard_h.doge"
 so "app/handlers/bijlagen_h.doge"
 so "app/handlers/aangifte_h.doge"
 so "app/handlers/rapporten_h.doge"
+so "app/handlers/mollie_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
 # het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
@@ -69,7 +70,8 @@ such config:
     such data_dir = haal("DATA_DIR", envd)
     if data_dir == none:
         very data_dir = "data"
-    return {"poort": int(poort), "data_dir": data_dir}
+    such mollie_key = haal("MOLLIE_API_KEY", envd)
+    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key}
 wow
 
 such health much req:
@@ -105,6 +107,8 @@ such maak_router:
     r.voeg_toe("GET", "/rapporten/winst-verlies.csv", rapporten_h.winst_verlies_csv)
     r.voeg_toe("GET", "/rapporten/jaaroverzicht", rapporten_h.jaaroverzicht)
     r.voeg_toe("GET", "/rapporten/jaaroverzicht.csv", rapporten_h.jaaroverzicht_csv)
+    r.voeg_toe("GET", "/mollie", mollie_h.overzicht)
+    r.voeg_toe("POST", "/mollie/sync", mollie_h.sync)
     r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
     r.voeg_toe("POST", "/upload", bijlagen_h.upload)
     r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)

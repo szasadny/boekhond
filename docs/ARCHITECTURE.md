@@ -23,7 +23,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | Anything that computes btw (tarief, rubriek, afronding) | `app/services/btw.doge` — the only file that knows fiscal math (Hard Rule 5) |
 | Journaalpost-creation, balans-invariant, sjabloonflows (inkoop/bank/privé/memoriaal) | `app/services/journaal.doge` — the only place that writes journaalposten |
 | Rekeningschema: seed, lookup, unique-nummer validation, deactiveren | `app/services/rekeningen.doge` — master-data; owns the `REK_*` constants `journaal.doge` binds to |
-| Mollie-inkomsten ophalen + boeken (idempotent per `mollie_payment_id`) | `app/services/mollie.doge` — bouwt gebalanceerde omzet-posten, roept `journaal.doge` |
+| Mollie-inkomsten ophalen + boeken (idempotent per `mollie_payment_id`; refunds als tegenboeking, idempotent per `mollie_refund_id`) | `app/services/mollie.doge` — bouwt gebalanceerde omzet-posten (geld-been op Bank 1100), roept `journaal.doge` |
 | Terugkerende maandkosten genereren | `app/services/terugkerend.doge` — kostensjablonen → maandpost via `journaal.doge` |
 | Bijlagen: upload-validatie (ext-allowlist + size-cap), opslag `uploads/{jaar}/{id}{ext}`, import-inbox, koppelen | `app/services/bijlagen.doge` — owns de allow-list/size-cap/mime-constanten; roept `journaal.koppel_bijlage` voor de post-kant (single writer) |
 | Een `multipart/form-data` body (binaire upload) parsen | `web/multipart.doge` — domeinvrij; native `bytes.find`/`split`; input = rauwe Bytes-body + boundary uit Content-Type |
