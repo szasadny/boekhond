@@ -1,5 +1,5 @@
 name = "executor"
-description = "Implements an approved Boekhond plan exactly, in Doge, leaves-first, keeping doge check/fmt/test green after each step. Use to build a plan produced by the planner agent."
+description = "Implements one well-scoped Boekhond plan step from the root orchestrator, in Doge, leaves-first, keeping doge check/fmt/test green after each step."
 model = "gpt-5.6-luna"
 model_reasoning_effort = "high"
 sandbox_mode = "workspace-write"

@@ -1,0 +1,44 @@
+so "../../web/http.doge"
+so "../services/mollie.doge"
+so "../services/terugkerend.doge"
+so "../services/bijlagen.doge"
+so "../../lib/datum.doge"
+so crypto
+so strings
+
+# Interne scheduler-endpoint (§5.2): de pack.zoom-pup POSTt hier dagelijks ~06:00. Draait op
+# de main-loop, dus deelt wél de store. Guard = alleen INTERN_TOKEN via crypto.same (constant-
+# time); een loopback-peer-check kan niet in howl v0.3.3 -> stopgap for doge#71. De drie stappen
+# zijn elk idempotent (Hard Rule 2) en lopen elk in pls/oh no zodat één fout de rest niet stopt.
+such run_recurring much req:
+    such cfg = req["ctx"]["config"]
+    such store = req["ctx"]["store"]
+    such verwacht = cfg["intern_token"]
+    such kop = req["headers"]
+    such gekregen = ""
+    if kop.has("x-intern-token"):
+        very gekregen = kop["x-intern-token"][0]
+    if verwacht == none or not crypto.same(verwacht, gekregen):
+        return http.tekst_response(403, "verboden")
+    such regels = []
+    if cfg["mollie_key"] != none:
+        pls
+            mollie.sync(store, cfg["mollie_key"])
+            regels.append("mollie ok")
+        oh no err!
+            regels.append("mollie fout: {err.message}")
+    pls
+        such tr = terugkerend.genereer(store, datum.vandaag())
+        such tg = tr["geboekt"]
+        regels.append("terugkerend {tg} geboekt")
+    oh no err!
+        regels.append("terugkerend fout: {err.message}")
+    pls
+        such sr = bijlagen.scan_import(store)
+        such sg = sr["geimporteerd"]
+        regels.append("scan {sg} geimporteerd")
+    oh no err!
+        regels.append("scan fout: {err.message}")
+    return http.tekst_response(200, strings.join(regels, "; "))
+wow
+wow

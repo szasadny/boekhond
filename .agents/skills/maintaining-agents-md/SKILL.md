@@ -26,7 +26,7 @@ Check related discovery rules when applicable:
 - Canonical repo skills live in `.agents/skills/`.
 - Shared Claude Code skills are name-matching relative symlinks in `.claude/skills/`.
 - `.claude/CLAUDE.md` contains only the Boekhond heading and `@../AGENTS.md` import.
-- Planner and executor are sibling children of the root session because `.codex/config.toml` sets `max_depth = 1`.
+- The executor is a direct child of the Sol root orchestrator and cannot delegate because `.codex/config.toml` sets `max_depth = 1`.
 
 Identify additions, removals, renames, repurposed folders, and statements that no longer match the codebase. Adding a file inside an existing folder normally does not require a Project map change.
 

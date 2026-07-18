@@ -2,6 +2,9 @@ so env
 so fetch
 so strings
 so howl
+so pack
+so nap
+so "lib/datum.doge"
 so "web/http.doge"
 so "web/router.doge"
 so "web/static.doge"
@@ -15,6 +18,7 @@ so "app/handlers/aangifte_h.doge"
 so "app/handlers/rapporten_h.doge"
 so "app/handlers/mollie_h.doge"
 so "app/handlers/terugkerend_h.doge"
+so "app/handlers/intern_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
 # het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
@@ -72,7 +76,11 @@ such config:
     if data_dir == none:
         very data_dir = "data"
     such mollie_key = haal("MOLLIE_API_KEY", envd)
-    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key}
+    such intern_token = haal("INTERN_TOKEN", envd)
+    such bind_host = haal("BIND_HOST", envd)
+    if bind_host == none:
+        very bind_host = "127.0.0.1"
+    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key, "intern_token": intern_token, "bind_host": bind_host}
 wow
 
 such health much req:
@@ -114,6 +122,7 @@ such maak_router:
     r.voeg_toe("POST", "/terugkerend", terugkerend_h.toevoegen)
     r.voeg_toe("POST", "/terugkerend/\{id\}/deactiveer", terugkerend_h.deactiveer)
     r.voeg_toe("POST", "/terugkerend/genereer", terugkerend_h.genereer)
+    r.voeg_toe("POST", "/internal/run-recurring", intern_h.run_recurring)
     r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
     r.voeg_toe("POST", "/upload", bijlagen_h.upload)
     r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)
@@ -152,14 +161,38 @@ such afhandel much conn, r, winkel, cfg:
             bark "kon 500 niet sturen: " + err2.message
 wow
 
+# Scheduler-pup (§5.2): eigen thread, deelt geen state — loopback-HTTP is het enige kanaal.
+# Slaapt tot het volgende 06:00 en POSTt dan /internal/run-recurring met het INTERN_TOKEN.
+# De handler draait op de main-loop (deelt dus wél de store) en doet de drie idempotente
+# stappen. Fouten blijven binnen de lus zodat de pup nooit sneuvelt.
+such scheduler_lus much cfg:
+    such poort = cfg["poort"]
+    such token = cfg["intern_token"]
+    while true:
+        nap.rest(datum.seconden_tot_uur(6))
+        pls
+            such url = "http://127.0.0.1:{poort}/internal/run-recurring"
+            such opts = {"headers": {"X-Intern-Token": token}}
+            such resp = howl.request("POST", url, opts)
+            such st = resp["status"]
+            bark "scheduler: run-recurring status {st}"
+        oh no err!
+            bark "scheduler-fout: {err.message}"
+wow
+
 such start:
     such cfg = config()
     such winkel = store.Store(cfg["data_dir"])
     rekeningen.seed(winkel)
     such r = maak_router()
-    such listener = howl.listen("127.0.0.1", cfg["poort"])
+    such host = cfg["bind_host"]
+    such listener = howl.listen(host, cfg["poort"])
     such p = cfg["poort"]
-    bark "boekhond luistert op 127.0.0.1:{p}"
+    bark "boekhond luistert op {host}:{p}"
+    if cfg["intern_token"] != none:
+        pack.zoom(scheduler_lus, [cfg])
+    else:
+        bark "geen INTERN_TOKEN: scheduler-pup niet gestart"
     while true:
         such conn = howl.accept(listener)
         afhandel(conn, r, winkel, cfg)

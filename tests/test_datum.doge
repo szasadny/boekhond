@@ -57,4 +57,12 @@ wow
 such test_vandaag_vorm:
     amaze datum.is_geldig(datum.vandaag())
 wow
+
+such test_seconden_tot_uur:
+    amaze datum.seconden_tot_uur_vanaf("2026-07-18T05:00:00Z", 6) == 3600
+    amaze datum.seconden_tot_uur_vanaf("2026-07-18T06:00:00Z", 6) == 86400
+    amaze datum.seconden_tot_uur_vanaf("2026-07-18T07:30:00Z", 6) == 81000
+    amaze datum.seconden_tot_uur_vanaf("2026-07-18T00:00:00Z", 6) == 21600
+    amaze datum.seconden_tot_uur_vanaf("2026-07-18T23:59:59Z", 6) == 21601
+wow
 wow

@@ -54,8 +54,8 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
 - **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`).
-- **Scheduler:** one `pack.zoom` pup POSTs loopback `/internal/run-recurring` (Mollie-sync + terugkerende kosten; pups share no state — loopback HTTP is the only channel).
-- **Deploy:** `doge build` → single binary in a Docker container inside a VM (`data/` as volume), LAN/VPN only.
+- **Scheduler:** one `pack.zoom` pup (daily ~06:00) POSTs loopback `/internal/run-recurring` — token-guarded (`INTERN_TOKEN` via `crypto.same`), runs Mollie-sync + terugkerende kosten + import-scan (each idempotent). Pups share no state — loopback HTTP is the only channel.
+- **Deploy:** `doge build` → single binary in a Docker container inside a VM (`data/` as volume), LAN/VPN only. The container binds `0.0.0.0` via `BIND_HOST` (compose overrides the loopback default) so the published port reaches it.
 
 ## Project map
 
@@ -76,7 +76,7 @@ data/                   # runtime state (gitignored): *.dson, uploads/, import/,
 docs/                   # ARCHITECTURE, DATA-MODEL, PLAN — the on-demand reference set
 .agents/skills/         # canonical repo skills: writing-doge, modern-web-guidance, maintaining-agents-md
 .claude/                # CLAUDE.md imports AGENTS.md; skills/ symlinks to .agents/skills/
-.codex/                 # config.toml + agents/ (planner, executor)
+.codex/                 # config.toml + agents/ (executor)
 ```
 
 ## Conventions

@@ -85,4 +85,21 @@ such vandaag:
     such stempel = nap.stamp(nap.now())
     return stempel[0:10]
 wow
+
+# Seconden tot het volgende voorkomen van doeluur (0-23) vanaf een ISO-stempel
+# ("YYYY-MM-DDTHH:MM:SSZ"). Pure variant zodat de scheduler-timing testbaar is
+# zonder de klok. Is het doeluur vandaag al geweest, dan telt hij door naar morgen.
+such seconden_tot_uur_vanaf much stempel, doeluur:
+    such uur = int(stempel[11:13])
+    such minuut = int(stempel[14:16])
+    such sec = int(stempel[17:19])
+    such delta = doeluur * 3600 - (uur * 3600 + minuut * 60 + sec)
+    if delta <= 0:
+        very delta = delta + 86400
+    return delta
+wow
+
+such seconden_tot_uur much doeluur:
+    return seconden_tot_uur_vanaf(nap.stamp(nap.now()), doeluur)
+wow
 wow

@@ -4,13 +4,13 @@
 # Treat the repo root (this .git dir) as the project root; skip parent search.
 project_root_markers = [".git", "doge.toml"]
 
-# Default the root session to the planner model. For a change, root starts the
-# `planner` and then the `executor` as sibling agents; children cannot delegate.
+# Default the orchestrator session to Sol. It plans the change, delegates each
+# well-scoped implementation step to the `executor`, and reviews the result.
 # Override per session with `codex -m <slug>` or a personal profile.
 model = "gpt-5.6-sol"
 model_reasoning_effort = "high"
 
 [agents]
-# Root session spawns direct children only (planner and executor are siblings).
+# The executor is a direct child of the orchestrator and cannot delegate.
 # Default is 1; stated here so nobody turns the flow into nested fan-out.
 max_depth = 1

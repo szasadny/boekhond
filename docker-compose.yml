@@ -1,4 +1,4 @@
-# Boekhond draait in een VM en is alleen via LAN/VPN bereikbaar (zie .claude/ARCHITECTURE.md §2).
+# Boekhond draait in een VM en is alleen via LAN/VPN bereikbaar (zie docs/ARCHITECTURE.md §2).
 # data/ is de volledige administratie — backup dat pad extern (bewaarplicht: 7 jaar).
 services:
   boekhond:
@@ -8,4 +8,9 @@ services:
     volumes:
       - ./data:/app/data
     env_file: .env
+    # In de container op alle interfaces binden (wint van .env), anders bereikt de
+    # gepubliceerde poort de op loopback gebonden listener niet. De netwerkgrens blijft
+    # LAN/VPN + reverse-proxy; /internal/* is daarbovenop token-guarded.
+    environment:
+      - BIND_HOST=0.0.0.0
     restart: unless-stopped

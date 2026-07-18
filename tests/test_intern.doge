@@ -1,0 +1,62 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/bijlagen.doge"
+so "../app/services/rekeningen.doge"
+so "../app/handlers/intern_h.doge"
+
+so TMPMAP = "tmp_test_intern"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+# Test-setup: leg een bronfile in de gemounte import-map ({TMPMAP}/import/).
+such drop much naam, data:
+    such map = fetch.join(TMPMAP, "import")
+    fetch.make_dir(map)
+    fetch.write_bytes(fetch.join(map, naam), data)
+wow
+
+# Bouw een request-Dict zoals de router er een aanlevert. Headers zijn lowercase keys met
+# list-waarden (net als web/http.doge parse); mollie_key none zodat die stap wordt overgeslagen.
+such maak_req much s, headers:
+    such cfg = {"poort": 8085, "data_dir": TMPMAP, "mollie_key": none, "intern_token": "geheim", "bind_host": "127.0.0.1"}
+    return {"ctx": {"store": s, "config": cfg}, "headers": headers, "path": "/internal/run-recurring", "method": "POST"}
+wow
+
+such test_intern_juiste_token_draait_stappen:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    such req = maak_req(s, {"x-intern-token": ["geheim"]})
+    such resp = intern_h.run_recurring(req)
+    amaze resp["status"] == 200
+    amaze len(bijlagen.inbox(s)) == 1
+    schoon()
+wow
+
+such test_intern_verkeerd_token:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    such req = maak_req(s, {"x-intern-token": ["fout"]})
+    such resp = intern_h.run_recurring(req)
+    amaze resp["status"] == 403
+    amaze len(bijlagen.inbox(s)) == 0
+    schoon()
+wow
+
+such test_intern_ontbrekend_token:
+    such s = verse()
+    such req = maak_req(s, {})
+    such resp = intern_h.run_recurring(req)
+    amaze resp["status"] == 403
+    schoon()
+wow
+wow
