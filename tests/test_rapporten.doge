@@ -1,0 +1,71 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/rapporten.doge"
+so "../app/services/aangifte.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../lib/geld.doge"
+
+so TMPMAP = "tmp_test_rapporten"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse_store:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+such test_balans_balanceert:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.prive_post("2026-02-01", "inbreng", "1100", "500", "storting"))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))
+    such b = rapporten.balans(s, 2026, "")
+    amaze b["klopt"] == true
+    amaze geld.rond2(b["totaal_activa"]) == geld.rond2(b["totaal_passiva_ev"])
+    schoon()
+wow
+
+such test_winst_verlies:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "verkoop", "", [{"rekening": "1300", "debet": "1000", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": none}]))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-03-02", "kosten", "", [{"rekening": "4200", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "1600", "debet": "", "credit": "100", "btw_code": none}]))
+    such wv = rapporten.winst_verlies(s, 2026)
+    amaze wv["totaal_omzet"] == dec("1000")
+    amaze wv["totaal_kosten"] == dec("100")
+    amaze wv["resultaat"] == dec("900")
+    schoon()
+wow
+
+such test_jaaroverzicht:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-02-01", "q1", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-05-01", "vrij", "", [{"rekening": "1300", "debet": "300", "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": "300", "btw_code": "vrijgesteld"}]))
+    such jo = rapporten.jaaroverzicht(s, 2026)
+    amaze len(jo["kwartalen"]) == 4
+    amaze jo["kwartalen"][0]["saldo"] == 210
+    amaze jo["jaar_saldo"] == 210
+    amaze jo["vrijgestelde_omzet"] == dec("300")
+    schoon()
+wow
+
+# Ingediend Q1 toont in het jaaroverzicht zijn bevroren snapshot; een storno in Q2 raakt
+# alleen Q2 (gelijk aan de aangiftepagina).
+such test_jaaroverzicht_gebruikt_snapshot:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-01-15", "q1 verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))
+    aangifte.dien_in(s, 2026, 1)
+    such orig = journaal.zoek_post(s.laad("journaal", []), "j-1")
+    journaal.bewaar(s, journaal.storno_post(orig, "2026-04-01"))
+    such jo = rapporten.jaaroverzicht(s, 2026)
+    amaze jo["kwartalen"][0]["saldo"] == 210
+    amaze jo["kwartalen"][0]["status"] == "ingediend"
+    amaze jo["kwartalen"][1]["saldo"] == -210
+    amaze jo["jaar_saldo"] == 0
+    schoon()
+wow
+wow

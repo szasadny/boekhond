@@ -1,0 +1,128 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/aangifte.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../app/services/btw.doge"
+
+so TMPMAP = "tmp_test_aangifte"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse_store:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+# Verkooppost hoog_21 (ex 1000, btw 210, incl 1210) op datum d.
+such verkoop21 much d:
+    return journaal.memoriaal_post(d, "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}])
+wow
+
+# Verkooppost laag_9 met grondslag ex op datum d (btw = rond2(ex*9/100)).
+such verkoop9 much d, ex, btw_s, incl_s:
+    return journaal.memoriaal_post(d, "verkoop laag", "", [{"rekening": "1300", "debet": incl_s, "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": ex, "btw_code": "laag_9"}, {"rekening": "1510", "debet": "", "credit": btw_s, "btw_code": none}])
+wow
+
+such test_overzicht_open:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    such ov = aangifte.overzicht(s, 2026, 3)
+    amaze ov["status"] == "open"
+    amaze ov["rubrieken"]["1a"]["bedrag"] == 1000
+    amaze ov["rubrieken"]["1a"]["btw"] == 210
+    amaze ov["saldo"] == 210
+    amaze ov["icp"] == false
+    schoon()
+wow
+
+such test_dien_in_snapshot:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    such rec = aangifte.dien_in(s, 2026, 3)
+    amaze rec["id"] == "a-1"
+    amaze rec["status"] == "ingediend"
+    amaze rec["saldo"] == 210
+    amaze len(rec["ingediend_op"]) == 20
+    amaze journaal.tijdvak_open(s.laad("aangiften", []), "2026-08-01") == false
+    schoon()
+wow
+
+such test_dubbel_indienen_weigert:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    aangifte.dien_in(s, 2026, 3)
+    such gevangen = false
+    pls
+        aangifte.dien_in(s, 2026, 3)
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze len(s.laad("aangiften", [])) == 1
+    schoon()
+wow
+
+such test_overzicht_toont_snapshot_na_indienen:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    aangifte.dien_in(s, 2026, 3)
+    such ov = aangifte.overzicht(s, 2026, 3)
+    amaze ov["status"] == "ingediend"
+    amaze ov["saldo"] == 210
+    amaze len(ov["ingediend_op"]) == 20
+    schoon()
+wow
+
+such test_icp_flag:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-07-15", "EU-levering", "", [{"rekening": "1300", "debet": "500", "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": "500", "btw_code": "levering_eu"}]))
+    such ov = aangifte.overzicht(s, 2026, 3)
+    amaze ov["icp"] == true
+    amaze ov["rubrieken"]["3b"]["bedrag"] == 500
+    schoon()
+wow
+
+# Grens: btw exact 1000.00 => niet verplicht (strikt >). ex 11111.11 -> rond2(999.9999)=1000.00.
+such test_suppletie_op_de_grens:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop9("2026-01-15", "11111.11", "1000.00", "12111.11"))
+    aangifte.dien_in(s, 2026, 1)
+    such orig = journaal.zoek_post(s.laad("journaal", []), "j-1")
+    journaal.bewaar(s, journaal.storno_post(orig, "2026-04-01"))
+    such sig = aangifte.suppletie_signaal(s, 2026, 2)
+    amaze sig["bedrag"] == dec("1000.00")
+    amaze sig["verplicht"] == false
+    amaze sig["aantal"] == 1
+    schoon()
+wow
+
+# Boven de grens: hoog_21 verkoop 10000 -> btw 2100 > 1000 => verplicht.
+such test_suppletie_boven_grens:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-01-15", "grote verkoop", "", [{"rekening": "1300", "debet": "12100", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "10000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "2100", "btw_code": none}]))
+    aangifte.dien_in(s, 2026, 1)
+    such orig = journaal.zoek_post(s.laad("journaal", []), "j-1")
+    journaal.bewaar(s, journaal.storno_post(orig, "2026-04-01"))
+    such sig = aangifte.suppletie_signaal(s, 2026, 2)
+    amaze sig["bedrag"] == dec("2100")
+    amaze sig["verplicht"] == true
+    schoon()
+wow
+
+# Storno van een post in een NIET-ingediend tijdvak telt niet mee.
+such test_suppletie_negeert_open_origineel:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-01-15"))
+    such orig = journaal.zoek_post(s.laad("journaal", []), "j-1")
+    journaal.bewaar(s, journaal.storno_post(orig, "2026-04-01"))
+    such sig = aangifte.suppletie_signaal(s, 2026, 2)
+    amaze sig["bedrag"] == dec("0")
+    amaze sig["aantal"] == 0
+    schoon()
+wow
+wow

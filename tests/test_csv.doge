@@ -1,0 +1,17 @@
+so "../lib/csv.doge"
+
+such test_eenvoudig:
+    amaze csv.bouw(["a", "b"], [["1", "2"]]) == "a;b\r\n1;2\r\n"
+wow
+
+such test_quoting:
+    amaze csv.veld_escape("plain") == "plain"
+    amaze csv.veld_escape("a;b") == "\"a;b\""
+    amaze csv.veld_escape("a\"b") == "\"a\"\"b\""
+    amaze csv.veld_escape("regel\nnieuw") == "\"regel\nnieuw\""
+wow
+
+such test_nl_bedrag_blijft_heel:
+    amaze csv.veld_escape("1.234,56") == "1.234,56"
+wow
+wow

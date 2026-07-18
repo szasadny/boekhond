@@ -1,0 +1,36 @@
+so strings
+
+# Generieke CSV-writer (RFC 4180-stijl). Scheidingsteken is ';' — NL-bedragen dragen een
+# komma als decimaalteken ("1.234,56"), dus ';' houdt geldkolommen heel en opent native
+# in Excel-NL. Domeinvrij: de aanroepende service formatteert bedragen zelf (geld.formatteer).
+so SCHEIDING = ";"
+so REGELEINDE = "\r\n"
+
+# Eén veld: quote alleen als het scheidingsteken, een quote of een newline erin zit;
+# interne quotes verdubbeld.
+such veld_escape much waarde:
+    such s = str(waarde)
+    such moet = strings.contains(s, SCHEIDING) or strings.contains(s, "\"")
+    very moet = moet or strings.contains(s, "\n") or strings.contains(s, "\r")
+    if not moet:
+        return s
+    such g = strings.replace(s, "\"", "\"\"")
+    return "\"{g}\""
+wow
+
+# Eén rij cellen naar een CSV-regel (zonder regeleinde).
+such rij much cellen:
+    such uit = []
+    for c in cellen:
+        uit.append(veld_escape(c))
+    return strings.join(uit, SCHEIDING)
+wow
+
+# Volledige CSV: koppenrij + datarijen, elk met REGELEINDE afgesloten.
+such bouw much koppen, rijen:
+    such uit = rij(koppen) + REGELEINDE
+    for r in rijen:
+        very uit = uit + rij(r) + REGELEINDE
+    return uit
+wow
+wow

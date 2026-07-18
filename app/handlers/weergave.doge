@@ -3,7 +3,7 @@ so "../../web/html.doge"
 # Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
 # Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
 
-so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"]]
+so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/aangifte", "Aangifte"], ["/rapporten/balans", "Rapporten"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"]]
 
 such nav:
     such items = ""
@@ -20,5 +20,11 @@ wow
 # Rode foutmelding; bericht = tekst (ge-escaped).
 such fout much bericht:
     return "<p class=\"fout\">{html.escape(bericht)}</p>"
+wow
+
+# Nav-loze schil voor printversies.
+such kaal much titel, inhoud:
+    such body = "<main>\n{inhoud}\n</main>"
+    return html.pagina(titel, body)
 wow
 wow

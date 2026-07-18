@@ -1,0 +1,141 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/aangifte.doge"
+so "../services/btw.doge"
+so "../../lib/geld.doge"
+so "../../lib/datum.doge"
+so "../../lib/csv.doge"
+so weergave
+
+# Aangifte-overzicht per tijdvak: rubrieken + saldo, ICP-/suppletie-banner, markeer-ingediend,
+# CSV- en printexport. Boekhond dient niet in — dit levert de cijfers voor Mijn Belastingdienst.
+
+such huidig_jkw much req:
+    such vandaag = datum.vandaag()
+    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
+    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    return [j, kw]
+wow
+
+such rubriek_rijen much ov:
+    such rub = ov["rubrieken"]
+    such body = ""
+    for code in btw.RUBRIEKEN:
+        such rb = rub[code]
+        such bedrag = rb["bedrag"]
+        such vat = rb["btw"]
+        very body = body + "<tr><td>{code}</td><td>{bedrag}</td><td>{vat}</td></tr>"
+    return body
+wow
+
+such banners much ov:
+    such uit = ""
+    if ov["icp"]:
+        very uit = uit + "<p class=\"banner\">ICP-opgaaf vereist</p>"
+    such supp = ov["suppletie"]
+    if supp["verplicht"]:
+        such b = geld.formatteer(supp["bedrag"])
+        very uit = uit + "<p class=\"banner\">Suppletie vereist: gecorrigeerde btw {b} boven het drempelbedrag</p>"
+    elif supp["bedrag"] > 0:
+        such b2 = geld.formatteer(supp["bedrag"])
+        very uit = uit + "<p>Correcties verrekend: {b2}</p>"
+    return uit
+wow
+
+such overzicht_inhoud much ov, melding:
+    such kw = ov["kwartaal"]
+    such j = ov["jaar"]
+    such rijen = rubriek_rijen(ov)
+    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
+    such r5a = ov["5a"]
+    such r5b = ov["5b"]
+    such saldo = ov["saldo"]
+    such totalen = "<p>5a (verschuldigd): {r5a} · 5b (voorbelasting): {r5b} · <strong>Saldo: {saldo}</strong></p>"
+    such ban = banners(ov)
+    such actie = ""
+    if ov["status"] == "ingediend":
+        such op = html.escape(ov["ingediend_op"])
+        very actie = "<p><strong>Ingediend op {op}</strong></p>"
+    else:
+        such kn = html.knop("Markeer ingediend")
+        such vj = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
+        such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
+        very actie = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{kn}</form>"
+    such csvhref = "/aangifte/export.csv?j={j}&kw={kw}"
+    such printhref = "/aangifte/print?j={j}&kw={kw}"
+    such lcsv = html.link(csvhref, "CSV")
+    such lprint = html.link(printhref, "Printversie")
+    such links = "<p>{lcsv} · {lprint}</p>"
+    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{ban}{tabel}{totalen}{actie}{links}"
+wow
+
+such overzicht much req:
+    such store = req["ctx"]["store"]
+    such jk = huidig_jkw(req)
+    such ov = aangifte.overzicht(store, jk[0], jk[1])
+    return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, "")))
+wow
+
+such dien_in much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    such j = int(forms.enkel(v, "j", "0"))
+    such kw = int(forms.enkel(v, "kw", "0"))
+    pls
+        aangifte.dien_in(store, j, kw)
+        such loc = "/aangifte?j={j}&kw={kw}"
+        return http.redirect(loc)
+    oh no err!
+        such ov = aangifte.overzicht(store, j, kw)
+        return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, weergave.fout(err.message))))
+wow
+
+such export_csv much req:
+    such store = req["ctx"]["store"]
+    such jk = huidig_jkw(req)
+    such j = jk[0]
+    such kw = jk[1]
+    such ov = aangifte.overzicht(store, j, kw)
+    such rub = ov["rubrieken"]
+    such rijen = []
+    for code in btw.RUBRIEKEN:
+        such rb = rub[code]
+        rijen.append([code, str(rb["bedrag"]), str(rb["btw"])])
+    rijen.append(["5a", "", str(ov["5a"])])
+    rijen.append(["5b", "", str(ov["5b"])])
+    rijen.append(["saldo", "", str(ov["saldo"])])
+    such body = csv.bouw(["rubriek", "bedrag", "btw"], rijen)
+    such naam = "aangifte-Q{kw}-{j}.csv"
+    return http.csv_response(naam, body)
+wow
+
+such print_view much req:
+    such store = req["ctx"]["store"]
+    such jk = huidig_jkw(req)
+    such ov = aangifte.overzicht(store, jk[0], jk[1])
+    such kw = ov["kwartaal"]
+    such j = ov["jaar"]
+    such rijen = rubriek_rijen(ov)
+    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
+    such r5a = ov["5a"]
+    such r5b = ov["5b"]
+    such saldo = ov["saldo"]
+    such totalen = "<p>5a: {r5a} · 5b: {r5b} · Saldo: {saldo}</p>"
+    such inhoud = "<h1>Aangifte Q{kw}-{j}</h1>{tabel}{totalen}"
+    such titel = "Aangifte Q{kw}-{j}"
+    return http.html_response(weergave.kaal(titel, inhoud))
+wow
+
+such lijst much req:
+    such store = req["ctx"]["store"]
+    such rijen = []
+    for a in aangifte.alle(store):
+        such tv = a["tijdvak"]
+        such j = a["jaar"]
+        rijen.append(["{tv}-{j}", a["ingediend_op"], str(a["saldo"])])
+    such tabel = html.tabel(["Tijdvak", "Ingediend op", "Saldo"], rijen)
+    such inhoud = "<h1>Aangiften</h1>{tabel}"
+    return http.html_response(weergave.render("Aangiften", inhoud))
+wow
+wow

@@ -11,6 +11,8 @@ so "app/handlers/rekeningen_h.doge"
 so "app/handlers/journaal_h.doge"
 so "app/handlers/dashboard_h.doge"
 so "app/handlers/bijlagen_h.doge"
+so "app/handlers/aangifte_h.doge"
+so "app/handlers/rapporten_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
 # het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
@@ -89,6 +91,20 @@ such maak_router:
     r.voeg_toe("POST", "/journaal/bank", journaal_h.bank)
     r.voeg_toe("GET", "/journaal/memoriaal", journaal_h.memoriaal_form)
     r.voeg_toe("POST", "/journaal/memoriaal", journaal_h.memoriaal)
+    r.voeg_toe("GET", "/journaal/storno", journaal_h.storno_form)
+    r.voeg_toe("POST", "/journaal/storno", journaal_h.storno)
+    r.voeg_toe("GET", "/journaal/export.csv", journaal_h.export_csv)
+    r.voeg_toe("GET", "/aangifte", aangifte_h.overzicht)
+    r.voeg_toe("POST", "/aangifte/dien-in", aangifte_h.dien_in)
+    r.voeg_toe("GET", "/aangifte/export.csv", aangifte_h.export_csv)
+    r.voeg_toe("GET", "/aangifte/print", aangifte_h.print_view)
+    r.voeg_toe("GET", "/aangiften", aangifte_h.lijst)
+    r.voeg_toe("GET", "/rapporten/balans", rapporten_h.balans)
+    r.voeg_toe("GET", "/rapporten/balans.csv", rapporten_h.balans_csv)
+    r.voeg_toe("GET", "/rapporten/winst-verlies", rapporten_h.winst_verlies)
+    r.voeg_toe("GET", "/rapporten/winst-verlies.csv", rapporten_h.winst_verlies_csv)
+    r.voeg_toe("GET", "/rapporten/jaaroverzicht", rapporten_h.jaaroverzicht)
+    r.voeg_toe("GET", "/rapporten/jaaroverzicht.csv", rapporten_h.jaaroverzicht_csv)
     r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
     r.voeg_toe("POST", "/upload", bijlagen_h.upload)
     r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)

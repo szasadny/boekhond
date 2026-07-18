@@ -82,4 +82,10 @@ such test_storno_telt_negatief:
     amaze r["rubrieken"]["1a"]["btw"] == 0
     amaze r["saldo"] == 0
 wow
+
+such test_post_effect:
+    amaze btw.post_effect(maak("2026-01-01", "hoog_21", "1000")) == dec("210")
+    amaze btw.post_effect(maak("2026-01-01", "voorbelasting_hoog", "100")) == dec("-21")
+    amaze btw.post_effect(maak("2026-01-01", "import_buiten_eu", "100")) == dec("0")
+wow
 wow

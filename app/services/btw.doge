@@ -111,4 +111,40 @@ such rubrieken much posten, j, kw:
     such r5b = euro_op(voorbelasting)
     return {"rubrieken": per_rubriek, "5a": r5a, "5b": r5b, "saldo": r5a - r5b}
 wow
+
+# Netto btw-effect van één post op de cent (Decimal): verschuldigde btw minus voorbelasting.
+# Een storno (gespiegelde regels) nettoot vanzelf negatief. Voor het suppletie-signaal in
+# aangifte.doge — btw-rekenwerk blijft hier.
+such post_effect much post:
+    such verschuldigd = dec("0")
+    such voor = dec("0")
+    for regel in post["regels"]:
+        if not regel.has("btw_code") or regel["btw_code"] == none:
+            continue
+        such code = regel["btw_code"]
+        such c = info(code)
+        such ex = regel_grondslag(regel, c["soort"])
+        such bb = btw_bedrag(ex, code)
+        if c["btw"] != none:
+            very verschuldigd = verschuldigd + bb
+        if c["aftrek"]:
+            very voor = voor + bb
+    return verschuldigd - voor
+wow
+
+# Som van de grondslag (Decimal) over alle regels met deze btw_code in jaar j. Voor de
+# vrijgestelde-omzet-noot op het jaaroverzicht (vrijgesteld valt buiten RUBRIEKEN).
+such grondslag_voor_code much posten, j, code:
+    such c = info(code)
+    such som = dec("0")
+    for p in posten:
+        if datum.jaar(p["datum"]) != j:
+            continue
+        for regel in p["regels"]:
+            if not regel.has("btw_code") or regel["btw_code"] == none:
+                continue
+            if regel["btw_code"] == code:
+                very som = som + regel_grondslag(regel, c["soort"])
+    return som
+wow
 wow

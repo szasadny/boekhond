@@ -8,6 +8,7 @@ so forms
 so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "500": "500 Internal Server Error"}
 so HTML = "text/html; charset=utf-8"
 so PLAIN = "text/plain; charset=utf-8"
+so CSV = "text/csv; charset=utf-8"
 so CRLF = "\r\n"
 
 # Body als tekst behandelen? Binaire content-types (upload, beeld, pdf) blijven Bytes.
@@ -127,5 +128,11 @@ wow
 
 such redirect much locatie:
     return {"status": 303, "headers": {"Location": locatie}, "body": ""}
+wow
+
+# Download-response voor een CSV-export. bestandsnaam = vaste, veilige naam (geen user-input).
+such csv_response much bestandsnaam, body:
+    such disp = "attachment; filename=\"{bestandsnaam}\""
+    return {"status": 200, "headers": {"Content-Type": CSV, "Content-Disposition": disp}, "body": body}
 wow
 wow

@@ -98,4 +98,27 @@ such test_rubrieken_uit_geboekte_inkoop:
     amaze r["saldo"] == 0
     schoon()
 wow
+
+such test_storno_spiegelt:
+    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", "100", "voorbelasting_hoog", "4200")
+    such p2 = post
+    p2["id"] = "j-9"
+    such sp = journaal.storno_post(p2, "2026-10-01")
+    amaze sp["storno_van"] == "j-9"
+    amaze journaal.balans_klopt(sp["regels"])
+    amaze sp["regels"][0]["credit"] == post["regels"][0]["debet"]
+wow
+
+such test_storno_nettoot_rubriek_naar_nul:
+    such s = verse_store()
+    such post = journaal.memoriaal_post("2026-04-10", "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}])
+    such bewaard = journaal.bewaar(s, post)
+    such sp = journaal.storno_post(bewaard, "2026-05-10")
+    journaal.bewaar(s, sp)
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 2)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 0
+    amaze r["rubrieken"]["1a"]["btw"] == 0
+    amaze r["saldo"] == 0
+    schoon()
+wow
 wow

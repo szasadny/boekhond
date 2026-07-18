@@ -121,4 +121,29 @@ wow
 such memoriaal_post much datum_s, omschrijving, relatie, regels:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": relatie, "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
 wow
+
+# De post met dit id uit een lijst, of none.
+such zoek_post much lijst, id:
+    for p in lijst:
+        if p["id"] == id:
+            return p
+    return none
+wow
+
+# Tegenboeking (storno) van een bestaande post: elke regel gespiegeld (debet<->credit),
+# btw_code behouden zodat de rubriek terugdraait. Gedateerd in het OPEN tijdvak; bewaar()
+# dwingt balans + tijdvak-lock af. Zo corrigeer je een vergrendeld tijdvak (Hard Rule 3).
+such storno_post much oorspronkelijke_post, datum_s:
+    such oid = oorspronkelijke_post["id"]
+    such regels = []
+    for r in oorspronkelijke_post["regels"]:
+        such code = none
+        if r.has("btw_code"):
+            very code = r["btw_code"]
+        regels.append({"rekening": r["rekening"], "debet": r["credit"], "credit": r["debet"], "btw_code": code})
+    such rel = ""
+    if oorspronkelijke_post.has("relatie"):
+        very rel = oorspronkelijke_post["relatie"]
+    return {"datum": datum_s, "omschrijving": "Storno van {oid}", "relatie": rel, "regels": regels, "bron": "memoriaal", "bijlage_ids": [], "storno_van": oid}
+wow
 wow

@@ -6,6 +6,7 @@ so "../services/rekeningen.doge"
 so "../services/btw.doge"
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
+so "../../lib/csv.doge"
 so weergave
 
 # Journaal: lijst per tijdvak + de sjabloonflows (inkoop, bank/privé) en de
@@ -212,5 +213,78 @@ such memoriaal much req:
         return http.redirect("/journaal")
     oh no err!
         return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message))))
+wow
+
+# --- storno (tegenboeking van een bestaande post) ---
+
+such storno_inhoud much store, post_id, melding:
+    such posten = store.laad("journaal", [])
+    such orig = journaal.zoek_post(posten, post_id)
+    if orig == none:
+        such e = html.escape(post_id)
+        return "{melding}<p>Onbekende post: {e}</p>"
+    such d = html.escape(orig["datum"])
+    such oms = html.escape(orig["omschrijving"])
+    such pid = html.escape(post_id)
+    such info = "<p>Storno van {pid}: {d} — {oms}</p>"
+    such vid = "<input type=\"hidden\" name=\"id\" value=\"{pid}\">"
+    such vd = html.veld("datum", "Datum storno", "date", datum.vandaag())
+    such kn = html.knop("Storneer")
+    such form = "<form action=\"/journaal/storno\" method=\"post\">{vid}{vd}{kn}</form>"
+    return "{melding}<h1>Storno</h1>{info}{form}"
+wow
+
+such storno_form much req:
+    such store = req["ctx"]["store"]
+    such id = forms.enkel(req["query"], "id", "")
+    return http.html_response(weergave.render("Storno", storno_inhoud(store, id, "")))
+wow
+
+such storno much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    such id = forms.enkel(v, "id", "")
+    pls
+        such posten = store.laad("journaal", [])
+        such orig = journaal.zoek_post(posten, id)
+        if orig == none:
+            bonk "onbekende journaalpost: {id}"
+        such sp = journaal.storno_post(orig, forms.enkel(v, "datum", datum.vandaag()))
+        journaal.bewaar(store, sp)
+        return http.redirect("/journaal")
+    oh no err!
+        return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.fout(err.message))))
+wow
+
+# --- journaal-CSV per tijdvak ---
+
+such export_csv much req:
+    such store = req["ctx"]["store"]
+    such vandaag = datum.vandaag()
+    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
+    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    such rijen = []
+    for p in store.laad("journaal", []):
+        if not datum.in_kwartaal(p["datum"], j, kw):
+            continue
+        such pid = p["id"]
+        such pd = p["datum"]
+        such poms = p["omschrijving"]
+        such pbron = p["bron"]
+        for r in p["regels"]:
+            such deb = ""
+            if r["debet"] != "":
+                very deb = geld.formatteer(geld.bedrag(r["debet"]))
+            such cred = ""
+            if r["credit"] != "":
+                very cred = geld.formatteer(geld.bedrag(r["credit"]))
+            such code = ""
+            if r.has("btw_code") and r["btw_code"] != none:
+                very code = r["btw_code"]
+            rijen.append([pd, pid, poms, r["rekening"], deb, cred, code, pbron])
+    such koppen = ["datum", "post", "omschrijving", "rekening", "debet", "credit", "btw_code", "bron"]
+    such body = csv.bouw(koppen, rijen)
+    such naam = "journaal-Q{kw}-{j}.csv"
+    return http.csv_response(naam, body)
 wow
 wow

@@ -1,0 +1,118 @@
+so rekeningen
+so btw
+so aangifte
+so "../../lib/datum.doge"
+so "../../lib/geld.doge"
+
+# Balans + winst & verlies + jaaroverzicht, afgeleid uit de journaalposten (+ rekeningtype).
+# Leest het journaal, schrijft nooit (ARCHITECTURE §0). Bedragen blijven Decimal tot de handler.
+
+# nummer -> netto Decimal (debet - credit) over posten met datum.sleutel in [van, tot].
+such netto_per_rekening much posten, van, tot:
+    such saldi = {}
+    for p in posten:
+        such s = datum.sleutel(p["datum"])
+        if s < van or s > tot:
+            continue
+        for r in p["regels"]:
+            such nr = r["rekening"]
+            such netto = geld.bedrag(r["debet"]) - geld.bedrag(r["credit"])
+            if saldi.has(nr):
+                saldi[nr] = saldi[nr] + netto
+            else:
+                saldi[nr] = netto
+    return saldi
+wow
+
+such rek_map much store:
+    such m = {}
+    for r in rekeningen.alle(store):
+        m[r["nummer"]] = r
+    return m
+wow
+
+# Winst & verlies over jaar j: omzet (credit-debet) en kosten (debet-credit).
+such winst_verlies much store, j:
+    such g1 = datum.kwartaal_grenzen(j, 1)
+    such g4 = datum.kwartaal_grenzen(j, 4)
+    such saldi = netto_per_rekening(store.laad("journaal", []), datum.sleutel(g1[0]), datum.sleutel(g4[1]))
+    such m = rek_map(store)
+    such omzet = []
+    such kosten = []
+    such totaal_omzet = dec("0")
+    such totaal_kosten = dec("0")
+    for nr in saldi:
+        if not m.has(nr):
+            continue
+        such rk = m[nr]
+        such netto = saldi[nr]
+        such naam = rk["naam"]
+        if rk["type"] == "omzet":
+            such bedrag = 0 - netto
+            omzet.append({"nummer": nr, "naam": naam, "bedrag": bedrag})
+            very totaal_omzet = totaal_omzet + bedrag
+        elif rk["type"] == "kosten":
+            kosten.append({"nummer": nr, "naam": naam, "bedrag": netto})
+            very totaal_kosten = totaal_kosten + netto
+    such resultaat = totaal_omzet - totaal_kosten
+    return {"omzet": omzet, "totaal_omzet": totaal_omzet, "kosten": kosten, "totaal_kosten": totaal_kosten, "resultaat": resultaat}
+wow
+
+# Balans per einddatum (tot_datum "" => jaareinde j). Activa positief (debet-credit),
+# passiva/EV positief (credit-debet); het jaarresultaat vouwt in het eigen vermogen.
+such balans much store, j, tot_datum:
+    such eind = tot_datum
+    if eind == "":
+        such g = datum.kwartaal_grenzen(j, 4)
+        very eind = g[1]
+    such saldi = netto_per_rekening(store.laad("journaal", []), 0, datum.sleutel(eind))
+    such m = rek_map(store)
+    such activa = []
+    such passiva = []
+    such ev = []
+    such totaal_activa = dec("0")
+    such totaal_passiva_ev = dec("0")
+    for nr in saldi:
+        such netto = saldi[nr]
+        if geld.rond2(netto) == dec("0"):
+            continue
+        if not m.has(nr):
+            continue
+        such rk = m[nr]
+        such naam = rk["naam"]
+        such type = rk["type"]
+        if type == "activa":
+            activa.append({"nummer": nr, "naam": naam, "bedrag": netto})
+            very totaal_activa = totaal_activa + netto
+        elif type == "passiva":
+            such b = 0 - netto
+            passiva.append({"nummer": nr, "naam": naam, "bedrag": b})
+            very totaal_passiva_ev = totaal_passiva_ev + b
+        elif type == "eigen_vermogen":
+            such b2 = 0 - netto
+            ev.append({"nummer": nr, "naam": naam, "bedrag": b2})
+            very totaal_passiva_ev = totaal_passiva_ev + b2
+    such resultaat = winst_verlies(store, j)["resultaat"]
+    very totaal_passiva_ev = totaal_passiva_ev + resultaat
+    such klopt = geld.rond2(totaal_activa) == geld.rond2(totaal_passiva_ev)
+    return {"activa": activa, "passiva": passiva, "eigen_vermogen": ev, "resultaat": resultaat, "totaal_activa": totaal_activa, "totaal_passiva_ev": totaal_passiva_ev, "klopt": klopt}
+wow
+
+# Jaaroverzicht: per kwartaal de rubriektotalen + jaarsaldo, W&V, en vrijgestelde omzet.
+# Per kwartaal via aangifte.cijfers — ingediende tijdvakken tonen hun bevroren snapshot,
+# gelijk aan de aangiftepagina; open tijdvakken worden live berekend.
+such jaaroverzicht much store, j:
+    such posten = store.laad("journaal", [])
+    such kwartalen = []
+    such jaar_saldo = 0
+    such kw = 1
+    while kw <= 4:
+        such c = aangifte.cijfers(store, j, kw)
+        kwartalen.append({"kwartaal": kw, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "status": c["status"]})
+        very jaar_saldo = jaar_saldo + c["saldo"]
+        very kw = kw + 1
+    such wv = winst_verlies(store, j)
+    such vrij = btw.grondslag_voor_code(posten, j, "vrijgesteld")
+    return {"jaar": j, "kwartalen": kwartalen, "wv": wv, "vrijgestelde_omzet": vrij, "jaar_saldo": jaar_saldo}
+wow
+wow

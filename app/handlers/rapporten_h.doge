@@ -1,0 +1,119 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/rapporten.doge"
+so "../../lib/geld.doge"
+so "../../lib/datum.doge"
+so "../../lib/csv.doge"
+so weergave
+
+# Rapporten uit het journaal: balans, winst & verlies (+ CSV). Leest via rapporten.doge;
+# alle bedragen via geld.formatteer, alle cellen via html.escape (Hard Rule 6).
+
+such jaar_uit much req:
+    such vandaag = datum.vandaag()
+    return int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
+wow
+
+such regels_tabel much data:
+    such body = ""
+    for row in data:
+        such nr = html.escape(row["nummer"])
+        such naam = html.escape(row["naam"])
+        such b = html.escape(geld.formatteer(row["bedrag"]))
+        very body = body + "<tr><td>{nr}</td><td>{naam}</td><td>{b}</td></tr>"
+    return body
+wow
+
+such balans much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such b = rapporten.balans(store, j, "")
+    such act = regels_tabel(b["activa"])
+    such pas = regels_tabel(b["passiva"])
+    such ev = regels_tabel(b["eigen_vermogen"])
+    such res = html.escape(geld.formatteer(b["resultaat"]))
+    such ta = html.escape(geld.formatteer(b["totaal_activa"]))
+    such tp = html.escape(geld.formatteer(b["totaal_passiva_ev"]))
+    such klopt = "ja" if b["klopt"] else "NEE"
+    such inhoud = "<h1>Balans {j}</h1><h2>Activa</h2><table>{act}</table><p>Totaal activa: {ta}</p><h2>Passiva</h2><table>{pas}</table><h2>Eigen vermogen</h2><table>{ev}</table><p>Resultaat boekjaar: {res}</p><p>Totaal passiva + eigen vermogen: {tp}</p><p>Balans klopt: {klopt}</p>"
+    return http.html_response(weergave.render("Balans", inhoud))
+wow
+
+such balans_csv much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such b = rapporten.balans(store, j, "")
+    such rijen = []
+    for row in b["activa"]:
+        rijen.append(["activa", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    for row in b["passiva"]:
+        rijen.append(["passiva", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    for row in b["eigen_vermogen"]:
+        rijen.append(["eigen_vermogen", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    rijen.append(["resultaat", "", "Resultaat boekjaar", geld.formatteer(b["resultaat"])])
+    such body = csv.bouw(["groep", "nummer", "naam", "bedrag"], rijen)
+    such naam = "balans-{j}.csv"
+    return http.csv_response(naam, body)
+wow
+
+such winst_verlies much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such wv = rapporten.winst_verlies(store, j)
+    such omz = regels_tabel(wv["omzet"])
+    such kos = regels_tabel(wv["kosten"])
+    such to = html.escape(geld.formatteer(wv["totaal_omzet"]))
+    such tk = html.escape(geld.formatteer(wv["totaal_kosten"]))
+    such res = html.escape(geld.formatteer(wv["resultaat"]))
+    such inhoud = "<h1>Winst en verlies {j}</h1><h2>Omzet</h2><table>{omz}</table><p>Totaal omzet: {to}</p><h2>Kosten</h2><table>{kos}</table><p>Totaal kosten: {tk}</p><p><strong>Resultaat: {res}</strong></p>"
+    return http.html_response(weergave.render("Winst en verlies", inhoud))
+wow
+
+such winst_verlies_csv much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such wv = rapporten.winst_verlies(store, j)
+    such rijen = []
+    for row in wv["omzet"]:
+        rijen.append(["omzet", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    for row in wv["kosten"]:
+        rijen.append(["kosten", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    rijen.append(["resultaat", "", "Resultaat", geld.formatteer(wv["resultaat"])])
+    such body = csv.bouw(["groep", "nummer", "naam", "bedrag"], rijen)
+    such naam = "winst-verlies-{j}.csv"
+    return http.csv_response(naam, body)
+wow
+
+such jaaroverzicht much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such jo = rapporten.jaaroverzicht(store, j)
+    such body = ""
+    for k in jo["kwartalen"]:
+        such kw = k["kwartaal"]
+        such a = k["5a"]
+        such vb = k["5b"]
+        such sal = k["saldo"]
+        very body = body + "<tr><td>Q{kw}</td><td>{a}</td><td>{vb}</td><td>{sal}</td></tr>"
+    such tabel = "<table><thead><tr><th>Tijdvak</th><th>5a</th><th>5b</th><th>Saldo</th></tr></thead><tbody>{body}</tbody></table>"
+    such js = jo["jaar_saldo"]
+    such res = html.escape(geld.formatteer(jo["wv"]["resultaat"]))
+    such vrij = html.escape(geld.formatteer(jo["vrijgestelde_omzet"]))
+    such inhoud = "<h1>Jaaroverzicht {j}</h1>{tabel}<p>Jaarsaldo btw: {js}</p><p>Resultaat: {res}</p><p>Vrijgestelde omzet: {vrij}</p>"
+    return http.html_response(weergave.render("Jaaroverzicht", inhoud))
+wow
+
+such jaaroverzicht_csv much req:
+    such store = req["ctx"]["store"]
+    such j = jaar_uit(req)
+    such jo = rapporten.jaaroverzicht(store, j)
+    such rijen = []
+    for k in jo["kwartalen"]:
+        such kw = k["kwartaal"]
+        rijen.append(["Q{kw}", str(k["5a"]), str(k["5b"]), str(k["saldo"])])
+    such body = csv.bouw(["tijdvak", "5a", "5b", "saldo"], rijen)
+    such naam = "jaaroverzicht-{j}.csv"
+    return http.csv_response(naam, body)
+wow
+wow

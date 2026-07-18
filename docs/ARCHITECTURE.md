@@ -28,7 +28,8 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | Bijlagen: upload-validatie (ext-allowlist + size-cap), opslag `uploads/{jaar}/{id}{ext}`, import-inbox, koppelen | `app/services/bijlagen.doge` — owns de allow-list/size-cap/mime-constanten; roept `journaal.koppel_bijlage` voor de post-kant (single writer) |
 | Een `multipart/form-data` body (binaire upload) parsen | `web/multipart.doge` — domeinvrij; native `bytes.find`/`split`; input = rauwe Bytes-body + boundary uit Content-Type |
 | Een geüploade bijlage terugserveren (download) | een router-route (`app/handlers/bijlagen_h.doge` `download`), **nooit** onder `/static/` — leest de bytes uit de `bijlagen.dson`-metadata (§5.6) |
-| Balans / winst & verlies aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
+| Aangifte-lifecycle: markeer ingediend (snapshot + tijdvak-lock), storno/suppletie-signaal | `app/services/aangifte.doge` — schrijft het Aangifte-record, leest rubrieken uit `btw.doge`, storno via `journaal.storno_post` |
+| Balans / winst & verlies / jaaroverzicht aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
 | A new page or form endpoint | `app/handlers/<resource>_h.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. Shared view-schil (nav, foutbanner) in `app/handlers/weergave.doge`. |
 | A route registration | `main.doge` route table — handlers never self-register |
 | A read/write of any `data/` file | `app/store/store.doge` (atomic write + audit append) — Hard Rule 4 |
@@ -133,7 +134,7 @@ Pages stay server-rendered (`web/html.doge`); client-side gedrag is progressive 
 
 ### 5.4 Exports
 
-All exports are GET endpoints rendering from the same services that render pages: aangifte-overzicht (print-CSS HTML + CSV), journaal-CSV per tijdvak, balans + winst & verlies (`rapporten.doge`), jaaroverzicht.
+All exports are GET endpoints rendering from the same services that render pages, met `lib/csv.doge` (generieke writer, `;`-gescheiden voor Excel-NL) en `http.csv_response` als download-schil: aangifte-overzicht (`/aangifte`, print-view `/aangifte/print` + `/aangifte/export.csv`), journaal-CSV per tijdvak (`/journaal/export.csv`), balans + winst & verlies + jaaroverzicht (`rapporten.doge`, `/rapporten/balans|winst-verlies|jaaroverzicht` elk met een `.csv`-variant).
 
 ### 5.5 Config
 

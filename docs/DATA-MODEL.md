@@ -72,7 +72,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     id, jaar, tijdvak        "Q1".."Q4"
     status                   "open" | "ingediend"
     ingediend_op
-    rubrieken                snapshot bij indienen: {rubriek: {omzet, btw}} (§2)
+    rubrieken                snapshot bij indienen: {rubriek: {bedrag, btw}} — de btw.rubrieken()-motorvorm (§2)
+    5a, 5b                   verschuldigd / voorbelasting (hele euro's), samen met de snapshot bevroren
     saldo                    5a − 5b (te betalen; negatief = terug te vragen)
 
 ─── audit.dsonl (append-only, geen collectie) ────────────────
@@ -123,7 +124,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 1. Een kwartaaltijdvak (`Q1`..`Q4`) is **open** zolang er geen Aangifte met status `ingediend` voor bestaat; rubrieken worden live berekend uit de journaalposten met `datum` in het tijdvak.
 2. De ondernemer neemt de berekende rubrieken over in **Mijn Belastingdienst Zakelijk** (handmatig — geen publieke API; Digipoort is out of scope) en markeert het tijdvak **ingediend** → Aangifte-record met rubrieken-snapshot + `ingediend_op`.
 3. Vanaf dat moment is het tijdvak **vergrendeld** (Hard Rule 3): journaalposten met een datum in een ingediend tijdvak zijn immutable; nieuwe posten kunnen er niet in gedateerd worden.
-4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte).
+4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`). De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het btw-effect per storno leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het effect via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5).
 
 ---
 

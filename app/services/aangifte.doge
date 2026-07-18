@@ -1,0 +1,97 @@
+so btw
+so journaal
+so nap
+so "../../lib/datum.doge"
+so "../../lib/geld.doge"
+
+# Aangifte-lifecycle: live overzicht, markeer ingediend (snapshot + vergrendeling) en het
+# suppletie-signaal. store komt als parameter binnen (nooit geïmporteerd). Btw-rekenwerk via
+# btw.doge (Hard Rule 5); de tijdvak-lock zit in journaal.doge (Hard Rule 3).
+
+so SUPPLETIE_DREMPEL = dec("1000")
+
+such vind much aangiften, j, kw:
+    such tv = "Q{kw}"
+    for a in aangiften:
+        if a["jaar"] == j and a["tijdvak"] == tv:
+            return a
+    return none
+wow
+
+such is_ingediend much aangiften, j, kw:
+    such a = vind(aangiften, j, kw)
+    return a != none and a["status"] == "ingediend"
+wow
+
+# Som van het absolute btw-effect van storno's in dit open tijdvak die een post in een AL
+# INGEDIEND eerder tijdvak terugdraaien. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
+such suppletie_signaal much store, j, kw:
+    such posten = store.laad("journaal", [])
+    such aangiften = store.laad("aangiften", [])
+    such som = dec("0")
+    such aantal = 0
+    for p in posten:
+        if not datum.in_kwartaal(p["datum"], j, kw):
+            continue
+        if not p.has("storno_van") or p["storno_van"] == none:
+            continue
+        such orig = journaal.zoek_post(posten, p["storno_van"])
+        if orig == none:
+            continue
+        such oj = datum.jaar(orig["datum"])
+        such okw = datum.kwartaal(orig["datum"])
+        if not is_ingediend(aangiften, oj, okw):
+            continue
+        such e = btw.post_effect(p)
+        if e < 0:
+            very e = 0 - e
+        very som = som + e
+        very aantal = aantal + 1
+    such verplicht = som > SUPPLETIE_DREMPEL
+    return {"bedrag": som, "aantal": aantal, "verplicht": verplicht}
+wow
+
+# Cijfers voor één tijdvak: de bevroren snapshot als het tijdvak ingediend is, anders live
+# uit de journaalposten. Eén bron van waarheid voor de aangiftepagina én het jaaroverzicht —
+# een ingediend tijdvak toont altijd wat er is aangegeven, nooit een herberekening.
+such cijfers much store, j, kw:
+    such aangiften = store.laad("aangiften", [])
+    such a = vind(aangiften, j, kw)
+    if a != none and a["status"] == "ingediend":
+        return {"rubrieken": a["rubrieken"], "5a": a["5a"], "5b": a["5b"], "saldo": a["saldo"], "status": "ingediend", "ingediend_op": a["ingediend_op"]}
+    such r = btw.rubrieken(store.laad("journaal", []), j, kw)
+    return {"rubrieken": r["rubrieken"], "5a": r["5a"], "5b": r["5b"], "saldo": r["saldo"], "status": "open", "ingediend_op": none}
+wow
+
+# Paginamodel voor één tijdvak: de cijfers (snapshot of live) + ICP- en suppletie-signaal.
+such overzicht much store, j, kw:
+    such c = cijfers(store, j, kw)
+    such rub = c["rubrieken"]
+    such drieb = rub["3b"]
+    such icp = drieb["bedrag"] > 0
+    such supp = suppletie_signaal(store, j, kw)
+    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp}
+wow
+
+# Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
+# Weigert dubbel indienen en een nog-niet-begonnen tijdvak. Audit vóór de state-write.
+such dien_in much store, j, kw:
+    such aangiften = store.laad("aangiften", [])
+    if is_ingediend(aangiften, j, kw):
+        bonk "tijdvak Q{kw}-{j} is al ingediend"
+    such grenzen = datum.kwartaal_grenzen(j, kw)
+    if datum.sleutel(datum.vandaag()) < datum.sleutel(grenzen[0]):
+        bonk "tijdvak Q{kw}-{j} is nog niet begonnen"
+    such snap = btw.rubrieken(store.laad("journaal", []), j, kw)
+    such id = store.nieuw_id("a")
+    such record = {"id": id, "jaar": j, "tijdvak": "Q{kw}", "status": "ingediend", "ingediend_op": nap.stamp(nap.now()), "rubrieken": snap["rubrieken"], "5a": snap["5a"], "5b": snap["5b"], "saldo": snap["saldo"]}
+    store.audit("ingediend", "aangifte", id, record)
+    aangiften.append(record)
+    store.bewaar("aangiften", aangiften)
+    return record
+wow
+
+such alle much store:
+    return store.laad("aangiften", [])
+wow
+wow
