@@ -30,12 +30,8 @@ such maak_post much s:
     return journaal.bewaar(s, post)
 wow
 
-# doge#70: geen str*int, dus een grote Bytes bouwen we via verdubbelen.
 such groter_dan much n:
-    such b = bytes([0])
-    while len(b) <= n:
-        very b = b + b
-    return b
+    return bytes([0] * (n + 1))
 wow
 
 # Test-setup: leg een bronfile in de gemounte data/import/-map ({TMPMAP}/import/).

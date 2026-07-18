@@ -2,7 +2,7 @@
 
 Signatures for every builtin, collection method, and stdlib module member. Names in
 doge-speak are unguessable, so look them up here rather than inventing them. This
-mirrors the pinned [Doge v0.3.3 STDLIB specification](https://github.com/DogeLanguage/doge/blob/v0.3.3/docs/STDLIB.md); read that for full semantics and edge cases. Every failure
+mirrors the pinned [Doge v0.3.4 STDLIB specification](https://github.com/DogeLanguage/doge/blob/v0.3.4/docs/STDLIB.md); read that for full semantics and edge cases. Every failure
 below is a **catchable** error (`pls`/`oh no`), never a crash.
 
 ## Builtins (always in scope, no import)
@@ -82,7 +82,7 @@ OS failures are `IOError`; `join`/`basename`/`ext` are pure string ops.
 
 ### `howl` — TCP sockets + HTTP client
 `listen(host, port)`→Socket (port 0 = OS-chosen) · `connect(host, port)`→Socket ·
-`accept(listener)`→Socket · `port(sock)`→Int · `send(conn, text)` · `send_bytes(conn, bytes)` ·
+`accept(listener)`→Socket · `port(sock)`→Int · `peer(sock)`→`{host: Str, port: Int}` (remote endpoint; `TypeError` on a listener) · `send(conn, text)` · `send_bytes(conn, bytes)` ·
 `recv(conn, max)`→Str|none · `recv_bytes(conn, max)`→Bytes|none (binary-safe, byte-accurate) ·
 `recv_line(conn)`→Str|none · `close(sock)` · `get(url)`→`{status, body, headers}` ·
 `post(url, body)`→`{status, body, headers}` ·

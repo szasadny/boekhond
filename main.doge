@@ -151,6 +151,7 @@ such afhandel much conn, r, winkel, cfg:
             very resp = static.bedien(STATIC_ROOT, pad[7:])
         else:
             req["ctx"] = {"store": winkel, "config": cfg}
+            req["peer_host"] = http.peer_host(conn)
             very resp = r.verwerk(req)
         howl.send_bytes(conn, http.bouw_response(resp))
     oh no err!

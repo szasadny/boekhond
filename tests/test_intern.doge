@@ -27,9 +27,14 @@ wow
 
 # Bouw een request-Dict zoals de router er een aanlevert. Headers zijn lowercase keys met
 # list-waarden (net als web/http.doge parse); mollie_key none zodat die stap wordt overgeslagen.
+# peer_host default loopback zodat de token-tests de token-dimensie isoleren.
 such maak_req much s, headers:
+    return maak_req_van(s, headers, "127.0.0.1")
+wow
+
+such maak_req_van much s, headers, peer:
     such cfg = {"poort": 8085, "data_dir": TMPMAP, "mollie_key": none, "intern_token": "geheim", "bind_host": "127.0.0.1"}
-    return {"ctx": {"store": s, "config": cfg}, "headers": headers, "path": "/internal/run-recurring", "method": "POST"}
+    return {"ctx": {"store": s, "config": cfg}, "headers": headers, "peer_host": peer, "path": "/internal/run-recurring", "method": "POST"}
 wow
 
 such test_intern_juiste_token_draait_stappen:
@@ -57,6 +62,16 @@ such test_intern_ontbrekend_token:
     such req = maak_req(s, {})
     such resp = intern_h.run_recurring(req)
     amaze resp["status"] == 403
+    schoon()
+wow
+
+such test_intern_niet_loopback_peer:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    such req = maak_req_van(s, {"x-intern-token": ["geheim"]}, "10.0.0.5")
+    such resp = intern_h.run_recurring(req)
+    amaze resp["status"] == 403
+    amaze len(bijlagen.inbox(s)) == 0
     schoon()
 wow
 wow

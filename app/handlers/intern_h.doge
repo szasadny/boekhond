@@ -7,12 +7,15 @@ so crypto
 so strings
 
 # Interne scheduler-endpoint (§5.2): de pack.zoom-pup POSTt hier dagelijks ~06:00. Draait op
-# de main-loop, dus deelt wél de store. Guard = alleen INTERN_TOKEN via crypto.same (constant-
-# time); een loopback-peer-check kan niet in howl v0.3.3 -> stopgap for doge#71. De drie stappen
+# de main-loop, dus deelt wél de store. Guard = INTERN_TOKEN via crypto.same (constant-time)
+# plus een loopback-peer-check (howl.peer): de call moet van dezelfde host komen. De drie stappen
 # zijn elk idempotent (Hard Rule 2) en lopen elk in pls/oh no zodat één fout de rest niet stopt.
 such run_recurring much req:
     such cfg = req["ctx"]["config"]
     such store = req["ctx"]["store"]
+    such vanaf = req["peer_host"]
+    if vanaf == none or not http.is_loopback(vanaf):
+        return http.tekst_response(403, "verboden")
     such verwacht = cfg["intern_token"]
     such kop = req["headers"]
     such gekregen = ""

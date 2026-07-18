@@ -65,4 +65,26 @@ such test_tekst_response:
     amaze strings.contains(txt, "Content-Type: text/plain")
     amaze strings.contains(txt, "{CRLF}{CRLF}weg")
 wow
+
+such test_is_loopback:
+    amaze http.is_loopback("127.0.0.1")
+    amaze http.is_loopback("::1")
+    amaze http.is_loopback("localhost")
+    amaze not http.is_loopback("10.0.0.5")
+    amaze not http.is_loopback("192.168.1.9")
+    amaze not http.is_loopback("example.com")
+wow
+
+# peer_host leest het remote-adres van een echte loopback-verbinding via howl.peer.
+such test_peer_host_loopback:
+    such server = howl.listen("127.0.0.1", 0)
+    such poort = howl.port(server)
+    such client = howl.connect("127.0.0.1", poort)
+    such conn = howl.accept(server)
+    such host = http.peer_host(conn)
+    howl.close(conn)
+    howl.close(client)
+    howl.close(server)
+    amaze http.is_loopback(host)
+wow
 wow
