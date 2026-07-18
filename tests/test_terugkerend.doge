@@ -1,0 +1,115 @@
+so fetch
+so "../app/store/store.doge"
+so "../app/services/terugkerend.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../app/services/btw.doge"
+
+so TMPMAP = "tmp_test_terugkerend"
+
+such schoon:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
+
+such verse_store:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    return s
+wow
+
+# Sjabloon-dict zoals de handler het bouwt (bedrag als dec-parseable Str).
+such sjabloon much bedrag, dag, vanaf:
+    return {"leverancier": "Testleverancier", "omschrijving": "Maandabonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": bedrag, "dag": dag, "vanaf": vanaf}
+wow
+
+such test_genereer_boekt_4a_5b:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    such res = terugkerend.genereer(s, "2026-07-15")
+    amaze res["geboekt"] == 1
+    such posten = s.laad("journaal", [])
+    amaze len(posten) == 1
+    amaze posten[0]["bron"] == "terugkerend"
+    amaze posten[0]["datum"] == "2026-07-01"
+    amaze journaal.balans_klopt(posten[0]["regels"])
+    such r = btw.rubrieken(posten, 2026, 3)
+    amaze r["rubrieken"]["4a"]["bedrag"] == 20
+    amaze r["rubrieken"]["4a"]["btw"] == 4
+    amaze r["5b"] == 5
+    schoon()
+wow
+
+such test_idempotent:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    such een = terugkerend.genereer(s, "2026-07-15")
+    amaze een["geboekt"] == 1
+    such twee = terugkerend.genereer(s, "2026-07-20")
+    amaze twee["geboekt"] == 0
+    amaze twee["overgeslagen"] == 1
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_voor_de_dag_niet:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 15, "2026-01"))
+    such res = terugkerend.genereer(s, "2026-07-01")
+    amaze res["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_inactief_overgeslagen:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    terugkerend.deactiveer(s, sj["id"])
+    such res = terugkerend.genereer(s, "2026-07-15")
+    amaze res["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_vanaf_toekomst_niet:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-12"))
+    such res = terugkerend.genereer(s, "2026-07-15")
+    amaze res["geboekt"] == 0
+    schoon()
+wow
+
+such test_validatie_dag_te_hoog:
+    such s = verse_store()
+    such mislukt = false
+    pls
+        terugkerend.voeg_toe(s, sjabloon("20.00", 31, "2026-01"))
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+    schoon()
+wow
+
+such test_validatie_onbekende_btw:
+    such s = verse_store()
+    such mislukt = false
+    pls
+        terugkerend.voeg_toe(s, {"leverancier": "X", "omschrijving": "Y", "kosten_rek": "4000", "btw_code": "bestaat_niet", "bedrag_ex": "20.00", "dag": 1, "vanaf": "2026-01"})
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+    schoon()
+wow
+
+such test_validatie_onbekende_rekening:
+    such s = verse_store()
+    such mislukt = false
+    pls
+        terugkerend.voeg_toe(s, {"leverancier": "X", "omschrijving": "Y", "kosten_rek": "9999", "btw_code": "import_buiten_eu", "bedrag_ex": "20.00", "dag": 1, "vanaf": "2026-01"})
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+    schoon()
+wow
+wow

@@ -1,0 +1,112 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/forms.doge"
+so "../services/terugkerend.doge"
+so "../services/rekeningen.doge"
+so "../services/btw.doge"
+so "../../lib/datum.doge"
+so "../../lib/geld.doge"
+so weergave
+
+# Kostensjablonen tonen + beheren + de "genereer nu"-knop. Alle dynamische waarden
+# ge-escaped (Hard Rule 6); de generator- en boekingslogica zit in de service.
+
+such kosten_opties much store:
+    such o = [["", "(kies kostenrekening)"]]
+    for r in rekeningen.alle(store):
+        if r["actief"] and r["type"] == "kosten":
+            such nr = r["nummer"]
+            such naam = r["naam"]
+            o.append([nr, "{nr} {naam}"])
+    return o
+wow
+
+such btw_opties:
+    such o = []
+    for c in btw.CODES:
+        if btw.CODES[c]["soort"] == "inkoop":
+            o.append([c, c])
+    return o
+wow
+
+such bedrag_str much rauw:
+    if rauw == "":
+        return ""
+    return str(geld.rond2(geld.parse(rauw)))
+wow
+
+such toevoeg_formulier much store:
+    such vlev = html.veld("leverancier", "Leverancier", "text", "")
+    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", "")
+    such srek = html.select("kosten_rek", kosten_opties(store), "")
+    such vrek = "<label>Kostenrekening {srek}</label>"
+    such sbtw = html.select("btw_code", btw_opties(), "import_buiten_eu")
+    such vbtw = "<label>Btw-code {sbtw}</label>"
+    such vdag = html.veld("dag", "Dag van de maand (1-28)", "number", "1")
+    such vvanaf = html.veld("vanaf", "Vanaf (maand)", "month", datum.vandaag()[0:7])
+    return html.formulier("/terugkerend", "post", [vlev, voms, vbedrag, vrek, vbtw, vdag, vvanaf, html.knop("Toevoegen")])
+wow
+
+such rij much s:
+    such lev = html.escape(s["leverancier"])
+    such oms = html.escape(s["omschrijving"])
+    such bedrag = html.escape(geld.formatteer(geld.bedrag(s["bedrag_ex"])))
+    such rek = html.escape(s["kosten_rek"])
+    such code = html.escape(s["btw_code"])
+    such dag = html.escape(s["dag"])
+    such vanaf = html.escape(s["vanaf"])
+    such actie = "inactief"
+    if s["actief"]:
+        such id = html.escape(s["id"])
+        such knop = html.knop("Deactiveren")
+        very actie = "<form action=\"/terugkerend/{id}/deactiveer\" method=\"post\" class=\"inline\">{knop}</form>"
+    return "<tr><td>{lev}</td><td>{oms}</td><td>{bedrag}</td><td>{rek}</td><td>{code}</td><td>{dag}</td><td>{vanaf}</td><td>{actie}</td></tr>"
+wow
+
+such inhoud_van much store, melding:
+    such body = ""
+    for s in terugkerend.alle(store):
+        very body = body + rij(s)
+    such tabel = "<table><thead><tr><th>Leverancier</th><th>Omschrijving</th><th>Bedrag ex</th><th>Rekening</th><th>Btw-code</th><th>Dag</th><th>Vanaf</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
+    such gk = html.knop("Genereer nu")
+    such genform = "<form action=\"/terugkerend/genereer\" method=\"post\">{gk}</form>"
+    such form = toevoeg_formulier(store)
+    return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{form}"
+wow
+
+such lijst much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render("Kosten", inhoud_van(store, "")))
+wow
+
+such toevoegen much req:
+    such store = req["ctx"]["store"]
+    such v = forms.decode(req["body"])
+    pls
+        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "dag": int(forms.enkel(v, "dag", "1")), "vanaf": forms.enkel(v, "vanaf", "")}
+        terugkerend.voeg_toe(store, sjabloon)
+        return http.redirect("/terugkerend")
+    oh no err!
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+wow
+
+such deactiveer much req:
+    such store = req["ctx"]["store"]
+    such id = req["params"]["id"]
+    pls
+        terugkerend.deactiveer(store, id)
+    oh no err!
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+    return http.redirect("/terugkerend")
+wow
+
+such genereer much req:
+    such store = req["ctx"]["store"]
+    pls
+        terugkerend.genereer(store, datum.vandaag())
+        return http.redirect("/terugkerend")
+    oh no err!
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+wow
+wow

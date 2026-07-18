@@ -1,0 +1,115 @@
+so journaal
+so rekeningen
+so btw
+so "../../lib/datum.doge"
+
+# Terugkerende kosten: vaste maandlasten (bv. abonnementen van buiten de EU, btw
+# verlegd -> rubriek 4a + 5b) als kostensjabloon beheren en per maand automatisch
+# boeken. De generator bouwt met journaal.inkoop_post en persisteert via journaal.bewaar
+# (single writer, Hard Rule 4); de btw-splitsing hangt aan de btw_code (Hard Rule 5).
+# Idempotent per sjabloon+maand via het terugkerend_sleutel-veld (Hard Rule 2) — exact
+# het mollie-patroon. store komt als parameter binnen; nooit geïmporteerd (testbaar).
+# Bedragen zijn instance-data en leven in data/terugkerend.dson, nooit in source.
+
+such alle much store:
+    return store.laad("terugkerend", [])
+wow
+
+such zoek much lijst, id:
+    for s in lijst:
+        if s["id"] == id:
+            return s
+    return none
+wow
+
+# YYYY-MM zonder een {}-quantifier (die zou als interpolatie gelezen worden).
+such geldige_maand much m:
+    if len(m) != 7 or m[4] != "-":
+        return false
+    pls
+        such jj = int(m[0:4])
+        such mm = int(m[5:7])
+        return mm >= 1 and mm <= 12
+    oh no err!
+        return false
+wow
+
+# Alle terugkerend_sleutel-waarden die al op een journaalpost staan (idempotentie-scan).
+such geboekte_sleutels much store, veld:
+    such uit = []
+    for p in store.laad("journaal", []):
+        if p.has(veld) and p[veld] != none:
+            uit.append(p[veld])
+    return uit
+wow
+
+# Valideer + persisteer een sjabloon. Weigert (bonk) bij een onbekende/inactieve
+# kostenrekening, onbekende btw-code, niet-positief bedrag, een dag buiten 1..28
+# (28-cap houdt de boekdatum geldig in korte maanden) of een ongeldige vanaf-maand.
+such voeg_toe much store, sjabloon:
+    such rek = rekeningen.zoek(rekeningen.alle(store), sjabloon["kosten_rek"])
+    if rek == none:
+        such nr = sjabloon["kosten_rek"]
+        bonk "onbekende kostenrekening: {nr}"
+    if not rek["actief"]:
+        such nr2 = sjabloon["kosten_rek"]
+        bonk "kostenrekening is inactief: {nr2}"
+    if not btw.bestaat(sjabloon["btw_code"]):
+        such code = sjabloon["btw_code"]
+        bonk "onbekende btw-code: {code}"
+    if dec(sjabloon["bedrag_ex"]) <= dec("0"):
+        bonk "bedrag moet groter dan nul zijn"
+    such dag = sjabloon["dag"]
+    if dag < 1 or dag > 28:
+        bonk "dag van de maand moet tussen 1 en 28 liggen"
+    if not geldige_maand(sjabloon["vanaf"]):
+        such vf = sjabloon["vanaf"]
+        bonk "ongeldige vanaf-maand (JJJJ-MM): {vf}"
+    such lijst = store.laad("terugkerend", [])
+    such id = store.nieuw_id("s")
+    sjabloon["id"] = id
+    sjabloon["actief"] = true
+    store.audit("aangemaakt", "kostensjabloon", id, sjabloon)
+    lijst.append(sjabloon)
+    store.bewaar("terugkerend", lijst)
+    return sjabloon
+wow
+
+# Nooit verwijderen (Hard Rule 3) — deactiveren bewaart de historie.
+such deactiveer much store, id:
+    such lijst = store.laad("terugkerend", [])
+    such s = zoek(lijst, id)
+    if s == none:
+        bonk "onbekend kostensjabloon: {id}"
+    s["actief"] = false
+    store.audit("gedeactiveerd", "kostensjabloon", id, s)
+    store.bewaar("terugkerend", lijst)
+wow
+
+# Boek de kostenpost van de huidige maand voor elk actief sjabloon dat aan de beurt is:
+# op/na zijn dag, niet vóór zijn vanaf-maand, en nog niet geboekt deze maand. Alleen de
+# lopende maand (geen backfill van gemiste maanden). Getriggerd door de knop en straks
+# de scheduler-pup (Fase 5c). Retourneert {geboekt, overgeslagen}.
+such genereer much store, vandaag:
+    such maand = vandaag[0:7]
+    such dagnu = datum.dag(vandaag)
+    such gezien = geboekte_sleutels(store, "terugkerend_sleutel")
+    such geboekt = 0
+    such overgeslagen = 0
+    for s in store.laad("terugkerend", []):
+        such sid = s["id"]
+        such sleutel = "{sid}-{maand}"
+        if not s["actief"] or maand < s["vanaf"] or dagnu < s["dag"] or gezien.contains(sleutel):
+            very overgeslagen = overgeslagen + 1
+            continue
+        such dg = datum.pad2(s["dag"])
+        such datum_post = "{maand}-{dg}"
+        such post = journaal.inkoop_post(datum_post, s["leverancier"], s["omschrijving"], s["bedrag_ex"], s["btw_code"], s["kosten_rek"])
+        post["bron"] = "terugkerend"
+        post["terugkerend_sleutel"] = sleutel
+        journaal.bewaar(store, post)
+        gezien.append(sleutel)
+        very geboekt = geboekt + 1
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+wow
+wow

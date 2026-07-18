@@ -14,6 +14,7 @@ so "app/handlers/bijlagen_h.doge"
 so "app/handlers/aangifte_h.doge"
 so "app/handlers/rapporten_h.doge"
 so "app/handlers/mollie_h.doge"
+so "app/handlers/terugkerend_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
 # het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
@@ -109,6 +110,10 @@ such maak_router:
     r.voeg_toe("GET", "/rapporten/jaaroverzicht.csv", rapporten_h.jaaroverzicht_csv)
     r.voeg_toe("GET", "/mollie", mollie_h.overzicht)
     r.voeg_toe("POST", "/mollie/sync", mollie_h.sync)
+    r.voeg_toe("GET", "/terugkerend", terugkerend_h.lijst)
+    r.voeg_toe("POST", "/terugkerend", terugkerend_h.toevoegen)
+    r.voeg_toe("POST", "/terugkerend/\{id\}/deactiveer", terugkerend_h.deactiveer)
+    r.voeg_toe("POST", "/terugkerend/genereer", terugkerend_h.genereer)
     r.voeg_toe("GET", "/upload", bijlagen_h.upload_form)
     r.voeg_toe("POST", "/upload", bijlagen_h.upload)
     r.voeg_toe("GET", "/inbox", bijlagen_h.inbox)
