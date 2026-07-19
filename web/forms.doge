@@ -1,8 +1,5 @@
 so strings
 
-# application/x-www-form-urlencoded decode — domeinvrij, alleen stdlib.
-# Wordt door http.doge hergebruikt voor de query-string.
-
 # Decode één component: '+' -> spatie, '%XX' -> byte. Bouwt eerst een Bytes-buffer
 # en decodeert die in één keer, zodat multi-byte UTF-8 (bv. %E2%82%AC = "€") klopt.
 # Een kapotte %XX wordt lenient als letterlijke '%' behandeld.
@@ -29,8 +26,6 @@ such decode_component much s:
     return buf.decode()
 wow
 
-# Decode een hele body naar Dict Str -> List<Str> (multi-value getrouw).
-# Splitst op '&', elk paar op de eerste '=' (waarde mag verdere '=' bevatten).
 such decode much body:
     such velden = {}
     if body == "":
@@ -50,7 +45,6 @@ such decode much body:
     return velden
 wow
 
-# Gemak: eerste waarde voor een sleutel, of standaard als die ontbreekt.
 such enkel much velden, sleutel, standaard:
     if velden.has(sleutel) and len(velden[sleutel]) > 0:
         return velden[sleutel][0]

@@ -26,7 +26,7 @@ such bedrag much s:
     return dec(s)
 wow
 
-# NL-invoer naar Decimal: "1.234,56", "19,99", "1234.56", "€ 12,50".
+# Accepteert NL-invoer zoals "1.234,56", "19,99", "1234.56" en "€ 12,50".
 such parse much tekst:
     such t = strings.trim(tekst)
     very t = strings.replace(t, "€", "")
@@ -39,7 +39,7 @@ such parse much tekst:
     return dec(t)
 wow
 
-# Decimal naar NL-weergave met duizendtallen en altijd 2 decimalen: "1.234,50".
+# Geeft altijd twee decimalen met duizendtallen terug, bv. "1.234,50".
 such formatteer much bedrag:
     such b = rond2(bedrag)
     such neg = b < 0

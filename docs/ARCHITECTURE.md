@@ -1,6 +1,6 @@
 # Boekhond — Architecture
 
-Authoritative reference for the system's shape. Jump to the section you need and **update it when you change what it describes**. The data model lives in [DATA-MODEL.md](./DATA-MODEL.md); phasing and language-blockers in [PLAN.md](./PLAN.md).
+Authoritative reference for the system's shape. Jump to the section you need and **update it when you change what it describes**. The data model lives in [DATA-MODEL.md](./DATA-MODEL.md).
 
 | § | Contents |
 | --- | --- |
@@ -44,7 +44,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | A user-facing (Dutch) error or label string | constants at the top of the owning handler/service — one home per string, no duplicates |
 | A config value / secret | `.env`, read once at boot in `main.doge` into a config Dict passed down — never `env.get` scattered through the code |
 | A background/periodic action | the scheduler pup in `main.doge` → loopback POST `/internal/<naam>` handler (§5.2) — never a sleep loop inside the request path |
-| A language-gap stopgap | `lib/` with a `# stopgap for doge#NN` comment + PLAN.md §3 row (Hard Rule 10) |
+| A language-gap stopgap | `lib/` with a `# stopgap for doge#NN` comment (Hard Rule 10) |
 | A test | `tests/test_<module>.doge` — table-driven for fiscal rules |
 
 ---

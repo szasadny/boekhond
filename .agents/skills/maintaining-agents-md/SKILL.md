@@ -1,6 +1,6 @@
 ---
 name: maintaining-agents-md
-description: Keep Boekhond's root AGENTS.md and its dependent agent-facing inventory accurate and lean. Use after adding, removing, renaming, or repurposing folders; changing repo-scoped skills or agent workflow; changing facts described by AGENTS.md; or when the routing table, Project map, docs/PLAN.md skill inventory, README structure, or Claude import bridge feels stale.
+description: Keep Boekhond's root AGENTS.md and its dependent agent-facing inventory accurate and lean. Use after adding, removing, renaming, or repurposing folders; changing repo-scoped skills or agent workflow; changing facts described by AGENTS.md; or when the routing table, Project map, README structure, or Claude import bridge feels stale.
 ---
 
 # Maintaining AGENTS.md
@@ -15,7 +15,7 @@ Read the root `AGENTS.md` in full. Identify the exact section whose claims may b
 
 - Load `writing-doge` before any `.doge` work.
 - Use `modern-web-guidance` before adding a UI element.
-- Read `docs/DATA-MODEL.md`, `docs/ARCHITECTURE.md`, or `docs/PLAN.md` when the routing table requires it.
+- Read `docs/DATA-MODEL.md` or `docs/ARCHITECTURE.md` when the routing table requires it.
 
 ### 2. Compare claims with the repository
 
@@ -43,7 +43,7 @@ When the change affects entities or layer boundaries, update the routed referenc
 Avoid duplicated instruction bodies:
 
 - Keep `.claude/CLAUDE.md` import-only.
-- If the skill inventory changed, update `docs/PLAN.md` §5 and the skill lines in `AGENTS.md` and `README.md`.
+- If the skill inventory changed, update the skill lines in `AGENTS.md` and `README.md`.
 - If the repository layout changed, update the corresponding structure line in `README.md` when present.
 - Keep canonical skill content in `.agents/skills/`; Claude Code gets the same content through name-matching symlinks.
 

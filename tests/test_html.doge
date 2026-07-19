@@ -6,7 +6,6 @@ such test_escape_tags:
 wow
 
 such test_escape_ampersand_eerst:
-    # één amp, niet dubbel-escaped
     amaze html.escape("a&b") == "a&amp;b"
     amaze html.escape("&lt;") == "&amp;lt;"
 wow
@@ -37,10 +36,8 @@ such test_pagina_bevat_titel_en_body:
 wow
 
 such test_pagina_laadt_deferred_script:
-    # progressive enhancement: boekhond.js wordt deferred geladen, vóór </body>
     such p = html.pagina("Overzicht", "<p>hoi</p>")
     amaze strings.contains(p, "<script src=\"/static/js/boekhond.js\" defer></script>")
-    # de script-tag staat vlak vóór </body> (na de inhoud)
     amaze strings.contains(p, "boekhond.js\" defer></script>\n</body>")
 wow
 
@@ -61,7 +58,6 @@ wow
 such test_formulier_enctype:
     such f = html.formulier("/upload", "post", [html.bestand("bewijs", "Bewijs")], "multipart/form-data")
     amaze strings.contains(f, "method=\"post\" enctype=\"multipart/form-data\"")
-    # zonder enctype-arg blijft de form onveranderd (backward compatible)
     such g = html.formulier("/x", "post", [])
     amaze strings.contains(g, "<form action=\"/x\" method=\"post\">")
 wow
@@ -77,19 +73,16 @@ wow
 such test_link_klasse:
     such a = html.link("/journaal", "Journaal", "actief")
     amaze strings.contains(a, "<a href=\"/journaal\" class=\"actief\">Journaal</a>")
-    # zonder klasse-arg blijft de link onveranderd (backward compatible)
     such b = html.link("/x", "y")
     amaze b == "<a href=\"/x\">y</a>"
 wow
 
 such test_tabel_rechts_uitlijning:
     such t = html.tabel(["Naam", "Bedrag"], [["kabosu", "12,50"]], [1])
-    # kolom 1 (Bedrag) krijgt class="num" op th en td, kolom 0 niet
     amaze strings.contains(t, "<th class=\"num\">Bedrag</th>")
     amaze strings.contains(t, "<td class=\"num\">12,50</td>")
     amaze strings.contains(t, "<th>Naam</th>")
     amaze strings.contains(t, "<td>kabosu</td>")
-    # zonder rechts-arg krijgt geen enkele cel een class (backward compatible)
     such u = html.tabel(["Naam"], [["kabosu"]])
     amaze not strings.contains(u, "class=\"num\"")
 wow
@@ -101,10 +94,8 @@ such test_staafgrafiek:
     amaze strings.contains(g, "style=\"width:100%\"")
     amaze strings.contains(g, "class=\"balk negatief\"")
     amaze strings.contains(g, "jan")
-    # labels ge-escaped
     such x = html.staafgrafiek("t", [["<b>", 10, "v", ""]])
     amaze strings.contains(x, "&lt;b&gt;")
-    # lege data crasht niet
     such leeg = html.staafgrafiek("Leeg", [])
     amaze strings.contains(leeg, "<figure class=\"grafiek\">")
 wow

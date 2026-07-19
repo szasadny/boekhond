@@ -14,7 +14,6 @@ such test_seed_idempotent:
     such s = store.Store(TMPMAP)
     such een = rekeningen.seed(s)
     amaze len(een) == len(rekeningen.STANDAARD)
-    # tweede seed mag niet dubbelen
     rekeningen.seed(s)
     such alle = rekeningen.alle(s)
     amaze len(alle) == len(rekeningen.STANDAARD)

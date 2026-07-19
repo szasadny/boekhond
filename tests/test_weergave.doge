@@ -1,13 +1,11 @@
 so strings
 so "../app/handlers/weergave.doge"
 
-# De btw-legenda rendert leesbare labels + uitleg, uitklapbaar, en filtert op soort.
 such test_btw_legenda_inkoop:
     such h = weergave.btw_legenda("inkoop")
     amaze strings.contains(h, "<details class=\"legenda\">")
     amaze strings.contains(h, "Inkoop buiten EU (btw verlegd)")
     amaze strings.contains(h, "Btw verlegd naar jou")
-    # een verkoop-only label hoort er niet in bij soort "inkoop"
     amaze not strings.contains(h, "Omzet 21%")
 wow
 
@@ -17,11 +15,9 @@ such test_btw_legenda_alle:
     amaze strings.contains(h, "Geen btw")
 wow
 
-# De nav markeert de actieve sectie server-side (geen JS).
 such test_nav_actief:
     such n = weergave.nav("/journaal")
     amaze strings.contains(n, "<a href=\"/journaal\" class=\"actief\">Journaal</a>")
-    # niet-actieve links blijven zonder class
     amaze strings.contains(n, "<a href=\"/mollie\">Inkomsten</a>")
 wow
 wow

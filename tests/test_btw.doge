@@ -118,7 +118,6 @@ such test_legenda_filtert_op_soort:
         amaze btw.CODES[e["code"]]["soort"] == "inkoop"
     such alle = btw.legenda("alle")
     amaze len(alle) == len(btw.CODES)
-    # inkoop is een strikte subset van alle
     amaze len(ink) < len(alle)
 wow
 

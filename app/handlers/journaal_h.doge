@@ -15,8 +15,6 @@ so weergave
 
 so MEMO_RIJEN = 6
 
-# --- kleine helpers ---
-
 such lijst_van much velden, sleutel:
     if velden.has(sleutel):
         return velden[sleutel]
@@ -60,8 +58,6 @@ such bedrag_str much rauw:
     return str(geld.rond2(geld.parse(rauw)))
 wow
 
-# --- lijst per tijdvak ---
-
 such lijst much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
@@ -90,8 +86,6 @@ such lijst much req:
     such inhoud = "<h1>Journaal Q{kw}-{j}</h1>{acties}{tabel}"
     return http.html_response(weergave.render("Journaal", inhoud))
 wow
-
-# --- inkoop ---
 
 such inkoop_inhoud much store, melding:
     such vd = html.veld("datum", "Datum", "date", datum.vandaag())
@@ -124,8 +118,6 @@ such inkoop much req:
         return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message))))
 wow
 
-# --- bank / privé ---
-
 such bank_inhoud much store, melding:
     such vd = html.veld("datum", "Datum", "date", datum.vandaag())
     such voms = html.veld("omschrijving", "Omschrijving", "text", "")
@@ -155,8 +147,6 @@ such bank much req:
     oh no err!
         return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message))))
 wow
-
-# --- vrije memoriaalpost (vaste MEMO_RIJEN rijen, geen JS) ---
 
 such memoriaal_rij much store:
     such rk = html.select("regel_rekening", rekening_opties(store), "")
@@ -220,8 +210,6 @@ such memoriaal much req:
         return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message))))
 wow
 
-# --- storno (tegenboeking van een bestaande post) ---
-
 such storno_inhoud much store, post_id, melding:
     such posten = store.laad("journaal", [])
     such orig = journaal.zoek_post(posten, post_id)
@@ -260,8 +248,6 @@ such storno much req:
     oh no err!
         return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.fout(err.message))))
 wow
-
-# --- journaal-CSV per tijdvak ---
 
 such export_csv much req:
     such store = req["ctx"]["store"]

@@ -46,7 +46,6 @@ such alle much store:
     return store.laad("rekeningen", STANDAARD)
 wow
 
-# De rekening met dit nummer, of none.
 such zoek much lijst, nummer:
     for r in lijst:
         if r["nummer"] == nummer:

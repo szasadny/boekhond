@@ -15,8 +15,7 @@ many Router:
         self.routes.append([methode, patroon, handler])
     wow
 
-    # Match op path. Bij een treffer: {"handler", "params"}.
-    # Geen path-match -> 404-response; wel path maar verkeerde methode -> 405.
+    # Geen path-match geeft 404; een verkeerde methode op een bestaand path geeft 405.
     such match much methode, path:
         such padsegs = strings.split(path, "/")
         such pad_matcht = false
@@ -49,7 +48,6 @@ many Router:
         return {"response": http.tekst_response(404, "niet gevonden")}
     wow
 
-    # Match + roep de handler positioneel aan met de request-Dict.
     such verwerk much req:
         such m = self.match(req["method"], req["path"])
         if m.has("response"):

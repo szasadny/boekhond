@@ -24,7 +24,6 @@ Match the task, do the action **before** reading code or writing anything:
 | `AGENTS.md`, repo layout, or skill inventory is stale | Load the **`maintaining-agents-md`** skill — keep dependent inventories and the Claude import bridge aligned |
 | Entities, btw-codes, or rubriek-mapping | Read [docs/DATA-MODEL.md](docs/DATA-MODEL.md) — and update it in the same change |
 | A change crossing layers or a new shared module | Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §0/§2/§5 — and update it in the same change |
-| Roadmap, phasing, "what's blocked on the language" | Read [docs/PLAN.md](docs/PLAN.md) |
 | Where any new piece of code belongs | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) §0 lookup table — every concern has exactly one home |
 | Adding/removing a folder | Update the Project map below in the same change |
 
@@ -41,7 +40,7 @@ Never acceptable to break — including during debugging or hot fixes.
 7. **Uploads are validated** (extension allow-list, size cap) and stored under a generated name; the original filename is metadata only, never a path.
 8. **Secrets and instance config in `.env` only** — never in source, not even as fallback defaults.
 9. **Everything the wet touches gets a test with a known-good outcome** — rubriek sums, afronding, import-idempotentie, tijdvak boundaries. `doge test tests` must stay green.
-10. **A Doge language gap becomes a ticket on DogeLanguage/doge, plus the smallest possible userland stopgap** — clearly marked `# stopgap for doge#NN` so it can be deleted when the ticket lands. Never silently build a permanent workaround for something that belongs in the language. Open gaps: [docs/PLAN.md](docs/PLAN.md) §3.
+10. **A Doge language gap becomes a ticket on DogeLanguage/doge, plus the smallest possible userland stopgap** — clearly marked `# stopgap for doge#NN` so it can be deleted when the ticket lands. Never silently build a permanent workaround for something that belongs in the language.
 
 ## Domain in one screen
 
@@ -73,7 +72,7 @@ lib/                    # domain-free helpers: datum, geld, csv
 static/djs/ , static/js/, static/   # Dogescript source, compiled output (gitignored), css/favicon
 tests/                  # doge test — mirrors app/: test_btw.doge, test_store.doge, …
 data/                   # runtime state (gitignored): *.dson, uploads/, import/, audit.dsonl
-docs/                   # ARCHITECTURE, DATA-MODEL, PLAN — the on-demand reference set
+docs/                   # ARCHITECTURE, DATA-MODEL — the on-demand reference set
 .agents/skills/         # canonical repo skills: writing-doge, modern-web-guidance, maintaining-agents-md
 .claude/                # CLAUDE.md imports AGENTS.md; skills/ symlinks to .agents/skills/
 .codex/                 # config.toml + agents/ (executor)

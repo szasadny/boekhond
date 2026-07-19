@@ -117,7 +117,6 @@ such vroegste_post_sleutel much posten:
     return vroegste
 wow
 
-# Heeft dit tijdvak minstens één journaalpost?
 such heeft_posten much posten, j, kw:
     for p in posten:
         if datum.in_kwartaal(p["datum"], j, kw):

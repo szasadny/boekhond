@@ -19,7 +19,6 @@ such verse_store:
     return s
 wow
 
-# Sjabloon-dict zoals de handler het bouwt (bedrag als dec-parseable Str).
 such sjabloon much bedrag, dag, vanaf:
     return {"leverancier": "Testleverancier", "omschrijving": "Maandabonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": bedrag, "dag": dag, "vanaf": vanaf}
 wow
