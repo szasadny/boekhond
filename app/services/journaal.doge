@@ -49,9 +49,8 @@ such bewaar much store, post:
     post["created_at"] = nap.stamp(nap.now())
     if not post.has("bijlage_ids"):
         post["bijlage_ids"] = []
-    store.audit("aangemaakt", "journaalpost", id, post)
     lijst.append(post)
-    store.bewaar("journaal", lijst)
+    store.commit("journaal", lijst, "aangemaakt", "journaalpost", id, post)
     return post
 wow
 
@@ -74,8 +73,7 @@ such koppel_bijlage much store, post_id, bijlage_id:
         post["bijlage_ids"] = []
     if not post["bijlage_ids"].contains(bijlage_id):
         post["bijlage_ids"].append(bijlage_id)
-    store.audit("bijlage_gekoppeld", "journaalpost", post_id, {"bijlage_id": bijlage_id})
-    store.bewaar("journaal", lijst)
+    store.commit("journaal", lijst, "bijlage_gekoppeld", "journaalpost", post_id, {"bijlage_id": bijlage_id})
     return post
 wow
 

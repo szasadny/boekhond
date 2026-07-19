@@ -155,6 +155,6 @@ wow
 such test_splits_incl_niet_rond:
     such sp = btw.splits_incl(dec("9.99"), "hoog_21")
     amaze sp[0] == dec("8.26")
-    amaze sp[0] + sp[1] == dec("9.99")
+    amaze sp[1] == btw.btw_bedrag(sp[0], "hoog_21")
 wow
 wow

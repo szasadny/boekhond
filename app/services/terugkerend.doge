@@ -69,9 +69,8 @@ such voeg_toe much store, sjabloon:
     such id = store.nieuw_id("s")
     sjabloon["id"] = id
     sjabloon["actief"] = true
-    store.audit("aangemaakt", "kostensjabloon", id, sjabloon)
     lijst.append(sjabloon)
-    store.bewaar("terugkerend", lijst)
+    store.commit("terugkerend", lijst, "aangemaakt", "kostensjabloon", id, sjabloon)
     return sjabloon
 wow
 
@@ -82,8 +81,7 @@ such deactiveer much store, id:
     if s == none:
         bonk "onbekend kostensjabloon: {id}"
     s["actief"] = false
-    store.audit("gedeactiveerd", "kostensjabloon", id, s)
-    store.bewaar("terugkerend", lijst)
+    store.commit("terugkerend", lijst, "gedeactiveerd", "kostensjabloon", id, s)
 wow
 
 # Boek de kostenpost van de huidige maand voor elk actief sjabloon dat aan de beurt is:

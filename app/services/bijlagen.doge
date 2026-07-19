@@ -58,10 +58,9 @@ such bewaar much store, part, bron:
     such pad = "uploads/{jaar}/{id}.{ext}"
     such meta = {"id": id, "journaalpost_id": none, "bron": bron, "bestandsnaam_origineel": part["filename"], "pad": pad, "mime": MIME[ext], "grootte_bytes": grootte, "geupload_op": geupload_op}
     such lijst = store.laad("bijlagen", [])
-    store.audit("geupload", "bijlage", id, meta)
     store.bewaar_bestand(pad, part["data"])
     lijst.append(meta)
-    store.bewaar("bijlagen", lijst)
+    store.commit("bijlagen", lijst, "geupload", "bijlage", id, meta)
     return meta
 wow
 
@@ -75,8 +74,7 @@ such koppel much store, bijlage_id, post_id:
         bonk "onbekende bijlage: {bijlage_id}"
     journaal.koppel_bijlage(store, post_id, bijlage_id)
     b["journaalpost_id"] = post_id
-    store.audit("gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": post_id})
-    store.bewaar("bijlagen", lijst)
+    store.commit("bijlagen", lijst, "gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": post_id})
     return b
 wow
 

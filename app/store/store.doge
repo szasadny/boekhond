@@ -77,6 +77,11 @@ many Store:
         fetch.append(fetch.join(self.dir, "audit.dsonl"), regel + "\n")
     wow
 
+    such commit much naam, waarde, actie, entiteit, id, data:
+        self.audit(actie, entiteit, id, data)
+        self.bewaar(naam, waarde)
+    wow
+
     # Doorlopende id-uitgifte per prefix: "b-1", "b-2", … (nooit hergebruikt).
     such nieuw_id much prefix:
         such tellers = self.laad("tellers", {})

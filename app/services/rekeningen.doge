@@ -10,6 +10,7 @@ so REK_BANK = "1100"
 so REK_AF_TE_DRAGEN = "1510"
 so REK_VOORBELASTING = "1520"
 so REK_CREDITEUREN = "1600"
+so REK_AFRONDING = "8900"
 
 # Standaardschema voor een NL-eenmanszaak (RGS-geïnspireerd). Bij eerste boot
 # geseed; uitbreidbaar via de UI. nummer is uniek en onwijzigbaar.
@@ -30,6 +31,7 @@ so STANDAARD = [
     {"nummer": "4500", "naam": "Overige algemene kosten", "type": "kosten", "btw_code": "voorbelasting_hoog", "actief": true},
     {"nummer": "8000", "naam": "Omzet 21%", "type": "omzet", "btw_code": "hoog_21", "actief": true},
     {"nummer": "8100", "naam": "Omzet overig", "type": "omzet", "btw_code": none, "actief": true},
+    {"nummer": "8900", "naam": "Afrondingsverschillen", "type": "kosten", "btw_code": none, "actief": true},
 ]
 
 # Idempotent: alleen seeden als de collectie nog leeg is.
@@ -37,8 +39,7 @@ such seed much store:
     such huidig = store.laad("rekeningen", [])
     if len(huidig) > 0:
         return huidig
-    store.audit("geseed", "rekeningen", "*", {"aantal": len(STANDAARD)})
-    store.bewaar("rekeningen", STANDAARD)
+    store.commit("rekeningen", STANDAARD, "geseed", "rekeningen", "*", {"aantal": len(STANDAARD)})
     return STANDAARD
 wow
 
@@ -62,9 +63,8 @@ such voeg_toe much store, rekening:
         such c = rekening["btw_code"]
         bonk "onbekende btw-code: {c}"
     rekening["actief"] = true
-    store.audit("aangemaakt", "rekening", rekening["nummer"], rekening)
     lijst.append(rekening)
-    store.bewaar("rekeningen", lijst)
+    store.commit("rekeningen", lijst, "aangemaakt", "rekening", rekening["nummer"], rekening)
     return rekening
 wow
 
@@ -75,7 +75,6 @@ such deactiveer much store, nummer:
     if r == none:
         bonk "onbekende rekening: {nummer}"
     r["actief"] = false
-    store.audit("gedeactiveerd", "rekening", nummer, r)
-    store.bewaar("rekeningen", lijst)
+    store.commit("rekeningen", lijst, "gedeactiveerd", "rekening", nummer, r)
 wow
 wow

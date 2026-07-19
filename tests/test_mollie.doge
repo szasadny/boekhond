@@ -82,6 +82,15 @@ such refund_sample much id:
     return {"id": id, "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-07-20T10:00:00+00:00"}
 wow
 
+such test_afdracht_matcht_aangifte:
+    such p = mollie.betaling_naar_post(betaling("tr_x", "100.00"))
+    amaze journaal.balans_klopt(p["regels"])
+    such ex = dec(p["regels"][1]["credit"])
+    such vat = dec(p["regels"][2]["credit"])
+    amaze vat == btw.btw_bedrag(ex, "hoog_21")
+    amaze len(p["regels"]) == 4
+wow
+
 such test_refund_idempotent:
     such s = verse_store()
     mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])

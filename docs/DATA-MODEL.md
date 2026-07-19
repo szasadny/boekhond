@@ -130,7 +130,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 - **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal).
 - Btw per journaalregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
 - Inclusieve bedragen (Mollie levert incl) splitsen naar `[ex, btw]` via `btw.splits_incl`
-  (`btw = incl − ex`, zodat de post exact balanceert) — afronding blijft in `btw.doge` (Hard Rule 5).
+  (`btw = btw_bedrag(ex)`, gelijk aan de aangifte-afleiding); een afrondingsverschil boekt op
+  rekening 8900 (Afrondingsverschillen) — afronding blijft in `btw.doge` (Hard Rule 5).
 
 ---
 

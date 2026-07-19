@@ -84,9 +84,8 @@ such dien_in much store, j, kw:
     such snap = btw.rubrieken(store.laad("journaal", []), j, kw)
     such id = store.nieuw_id("a")
     such record = {"id": id, "jaar": j, "tijdvak": "Q{kw}", "status": "ingediend", "ingediend_op": nap.stamp(nap.now()), "rubrieken": snap["rubrieken"], "5a": snap["5a"], "5b": snap["5b"], "saldo": snap["saldo"]}
-    store.audit("ingediend", "aangifte", id, record)
     aangiften.append(record)
-    store.bewaar("aangiften", aangiften)
+    store.commit("aangiften", aangiften, "ingediend", "aangifte", id, record)
     return record
 wow
 
