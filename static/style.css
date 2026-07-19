@@ -1,27 +1,327 @@
-/* Boekhond — basisstijl volgt in fase 2 (webinterface). */
+/* Boekhond — sober zakelijk licht, met een licht doge-accent.
+   Server-rendered, geen framework, geen web-fonts (LAN/VPN-only, geen externe requests).
+   Selectors zijn vrijwel allemaal element/structureel: de HTML is class-loos op een
+   handvol hooks na (.fout, .banner, form.inline + de JS-gezette progressive-enhancement
+   classes). */
 
-/* Progressive enhancement (static/js/boekhond.js). Zonder JS zijn deze classes
+:root {
+    /* Doge-accent: een warme Shiba-tint, ingetogen toegepast. */
+    --accent: #e8a33d;
+    --accent-donker: #b9781f;
+    --accent-zacht: #fdf3e3;
+
+    --tekst: #1f2328;
+    --tekst-zacht: #57606a;
+    --rand: #d0d7de;
+    --bg: #ffffff;
+    --bg-zacht: #f6f8fa;
+    --fout: #b00020;
+
+    --radius: 6px;
+    --ruimte: 1rem;
+    --breedte: 60rem;
+}
+
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    -webkit-text-size-adjust: 100%;
+}
+
+body {
+    margin: 0;
+    color: var(--tekst);
+    background: var(--bg-zacht);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.55;
+}
+
+/* Layout-shell: header > nav, main. */
+header {
+    background: var(--bg);
+    border-bottom: 3px solid var(--accent);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+header nav {
+    max-width: var(--breedte);
+    margin: 0 auto;
+    padding: 0 var(--ruimte);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+/* Doge-knipoog: een klein hondje als merkteken vóór de nav-links. */
+header nav::before {
+    content: "🐕";
+    margin-right: 0.5rem;
+    font-size: 1.25rem;
+    line-height: 1;
+}
+
+header nav a {
+    padding: 0.85rem 0.75rem;
+    color: var(--tekst-zacht);
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+}
+
+header nav a:hover {
+    color: var(--tekst);
+    border-bottom-color: var(--accent);
+}
+
+main {
+    max-width: var(--breedte);
+    margin: 0 auto;
+    padding: calc(var(--ruimte) * 1.5) var(--ruimte) calc(var(--ruimte) * 3);
+}
+
+/* Koppen (komen uit de handler-inhoud, niet uit de shell). */
+h1 {
+    font-size: 1.6rem;
+    margin: 0 0 var(--ruimte);
+}
+
+h2 {
+    font-size: 1.2rem;
+    margin: calc(var(--ruimte) * 1.5) 0 0.5rem;
+    padding-bottom: 0.25rem;
+    border-bottom: 1px solid var(--rand);
+}
+
+a {
+    color: var(--accent-donker);
+}
+
+a:hover {
+    color: var(--tekst);
+}
+
+p {
+    margin: 0.5rem 0;
+}
+
+/* Tabellen — nette lijnen, subtiele zebra, cijferkolommen met tabular-nums. */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: var(--ruimte) 0;
+    background: var(--bg);
+    border: 1px solid var(--rand);
+    border-radius: var(--radius);
+    overflow: hidden;
+    font-variant-numeric: tabular-nums;
+}
+
+thead th {
+    text-align: left;
+    background: var(--bg-zacht);
+    color: var(--tekst-zacht);
+    font-weight: 600;
+    font-size: 0.85rem;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+}
+
+th,
+td {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--rand);
+}
+
+tbody tr:nth-child(even) {
+    background: var(--bg-zacht);
+}
+
+tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Formulieren — leesbare veld-spacing, accent-focus, warme primaire knop. */
+form {
+    margin: var(--ruimte) 0;
+}
+
+form label {
+    display: block;
+    margin: 0.6rem 0;
+    color: var(--tekst-zacht);
+    font-size: 0.95rem;
+}
+
+input,
+select,
+textarea {
+    display: block;
+    width: 100%;
+    max-width: 22rem;
+    margin-top: 0.2rem;
+    padding: 0.45rem 0.55rem;
+    font: inherit;
+    color: var(--tekst);
+    background: var(--bg);
+    border: 1px solid var(--rand);
+    border-radius: var(--radius);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-zacht);
+}
+
+button {
+    font: inherit;
+    font-weight: 600;
+    padding: 0.5rem 1rem;
+    color: #3a2a08;
+    background: var(--accent);
+    border: 1px solid var(--accent-donker);
+    border-radius: var(--radius);
+    cursor: pointer;
+}
+
+button:hover {
+    background: var(--accent-donker);
+    color: #fff;
+}
+
+button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--accent-zacht);
+}
+
+/* Inline mini-forms in tabel-actiecellen: compact, geen block-marges. */
+form.inline {
+    display: inline;
+    margin: 0;
+}
+
+form.inline label {
+    display: inline;
+    margin: 0;
+}
+
+form.inline input,
+form.inline select {
+    display: inline-block;
+    width: auto;
+    margin: 0 0.25rem 0 0;
+}
+
+form.inline button {
+    padding: 0.3rem 0.7rem;
+    font-size: 0.9rem;
+}
+
+/* Semantische hooks. */
+.fout {
+    color: var(--fout);
+    font-weight: 500;
+}
+
+.banner {
+    margin: var(--ruimte) 0;
+    padding: 0.6rem 0.85rem;
+    background: var(--accent-zacht);
+    border: 1px solid var(--accent);
+    border-left-width: 4px;
+    border-radius: var(--radius);
+    color: #6b4a12;
+}
+
+/* Progressive enhancement (static/js/boekhond.js). Zonder JS worden deze classes
    nooit gezet en verandert er niets aan de server-rendered baseline. */
 .regel-toevoegen {
     margin: 0.5rem 0;
+    background: var(--bg);
+    color: var(--accent-donker);
+    border-style: dashed;
+}
+
+.regel-toevoegen:hover {
+    background: var(--accent-zacht);
+    color: var(--accent-donker);
 }
 
 label.dropzone {
     display: block;
-    padding: 0.75rem;
-    border: 1px dashed #999;
-    border-radius: 4px;
+    max-width: 22rem;
+    padding: 1rem;
+    text-align: center;
+    color: var(--tekst-zacht);
+    border: 2px dashed var(--rand);
+    border-radius: var(--radius);
+    background: var(--bg);
 }
 
 label.dropzone.sleep {
-    border-color: #0b57d0;
-    background: #eef3fd;
+    border-color: var(--accent);
+    background: var(--accent-zacht);
+    color: var(--tekst);
 }
 
 .upload-status {
     margin: 0.25rem 0;
+    color: var(--tekst-zacht);
+    font-size: 0.9rem;
 }
 
 .upload-status.fout {
-    color: #b00020;
+    color: var(--fout);
+}
+
+/* Doge-knipoog in de voet: licht, gemuteerd, doge-speak. Puur CSS, geen HTML nodig. */
+body::after {
+    content: "🐕 much boekhouden · zo btw · wow";
+    display: block;
+    max-width: var(--breedte);
+    margin: 0 auto;
+    padding: var(--ruimte);
+    color: var(--tekst-zacht);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+/* Printversie: /aangifte/print draait op de nav-loze kaal-shell maar laadt dezelfde CSS.
+   Verberg de chrome en zet alles neutraal zwart-op-wit. */
+@media print {
+    body {
+        background: #fff;
+    }
+
+    header nav,
+    body::after {
+        display: none;
+    }
+
+    main {
+        max-width: none;
+        padding: 0;
+    }
+
+    table {
+        border-color: #000;
+    }
+
+    th,
+    td {
+        border-bottom-color: #000;
+    }
+
+    .banner {
+        background: none;
+        border-color: #000;
+        color: #000;
+    }
 }
