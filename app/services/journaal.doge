@@ -117,6 +117,22 @@ such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": "", "regels": regels, "bron": "bank", "bijlage_ids": []}
 wow
 
+# Privégebruik: btw-correctie over privégebruik van zakelijke goederen/diensten. Economisch
+# verhuist alleen de btw (per saldo: debet privé, credit af te dragen); de grondslag (privé-waarde)
+# staat als self-nettend memo-paar op REK_PRIVE zodat btw.rubrieken 1d + 5a kan afleiden zonder de
+# omzet te vervuilen (btw-rekenwerk via btw.doge, Hard Rule 5). Boekdatum in Q4 (laatste aangifte
+# van het jaar); bewaar() bewaakt balans + tijdvak-lock.
+such privegebruik_post much datum_s, grondslag_ex, omschrijving:
+    such ex = geld.rond2(dec(grondslag_ex))
+    such bb = btw.btw_bedrag(ex, "prive_gebruik")
+    such totaal = geld.rond2(ex + bb)
+    such regels = []
+    regels.append({"rekening": rekeningen.REK_PRIVE, "debet": str(totaal), "credit": "", "btw_code": none})
+    regels.append({"rekening": rekeningen.REK_PRIVE, "debet": "", "credit": str(ex), "btw_code": "prive_gebruik"})
+    regels.append({"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(bb), "btw_code": none})
+    return {"datum": datum_s, "omschrijving": omschrijving, "relatie": "", "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
+wow
+
 # Vrije memoriaalpost: rauwe regels erin; bewaar() dwingt de balans-invariant af.
 such memoriaal_post much datum_s, omschrijving, relatie, regels:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": relatie, "regels": regels, "bron": "memoriaal", "bijlage_ids": []}

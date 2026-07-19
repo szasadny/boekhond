@@ -107,19 +107,42 @@ such deadline much j, kw:
     return datum.laatste_dag_van_maand(nj, m)
 wow
 
-# Het tijdvak dat nu "te doen" is: het meest recente AFGELOPEN kwartaal dat nog niet is
-# ingediend. Loopt vanaf het lopende kwartaal terug; niets open -> val terug op het lopende
-# kwartaal. Retourneert [j, kw]. De terugloop is begrensd zodat hij altijd termineert.
+# Sleutel van de vroegste journaalpost (de start van de administratie), of none bij geen posten.
+such vroegste_post_sleutel much posten:
+    such vroegste = none
+    for p in posten:
+        such s = datum.sleutel(p["datum"])
+        if vroegste == none or s < vroegste:
+            very vroegste = s
+    return vroegste
+wow
+
+# Heeft dit tijdvak minstens één journaalpost?
+such heeft_posten much posten, j, kw:
+    for p in posten:
+        if datum.in_kwartaal(p["datum"], j, kw):
+            return true
+    return false
+wow
+
+# Het tijdvak dat nu "te doen" is: het meest recente AFGELOPEN kwartaal MET boekingen dat nog niet
+# is ingediend. Loopt vanaf het lopende kwartaal terug tot vóór de eerste boeking; lege kwartalen
+# (ook die van vóór de administratie begon) worden overgeslagen. Niets open -> val terug op het
+# lopende kwartaal. Retourneert [j, kw]. De ondergrens (vroegste post) garandeert terminatie.
 such te_doen_tijdvak much store, vandaag:
     such aangiften = store.laad("aangiften", [])
+    such posten = store.laad("journaal", [])
+    such vloer = vroegste_post_sleutel(posten)
     such j = datum.jaar(vandaag)
     such kw = datum.kwartaal(vandaag)
     such vsleutel = datum.sleutel(vandaag)
     such pogingen = 0
-    while pogingen < 8:
+    while pogingen < 40:
         such grenzen = datum.kwartaal_grenzen(j, kw)
+        if vloer == none or datum.sleutel(grenzen[1]) < vloer:
+            return [datum.jaar(vandaag), datum.kwartaal(vandaag)]
         such afgelopen = datum.sleutel(grenzen[1]) < vsleutel
-        if afgelopen and not is_ingediend(aangiften, j, kw):
+        if afgelopen and heeft_posten(posten, j, kw) and not is_ingediend(aangiften, j, kw):
             return [j, kw]
         very kw = kw - 1
         if kw < 1:

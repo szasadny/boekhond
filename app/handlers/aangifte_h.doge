@@ -3,10 +3,18 @@ so "../../web/html.doge"
 so "../../web/forms.doge"
 so "../services/aangifte.doge"
 so "../services/btw.doge"
+so "../services/mollie.doge"
+so "../services/bijlagen.doge"
+so "../services/journaal.doge"
 so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 so "../../lib/csv.doge"
 so weergave
+
+# Portaalvelden van Mijn Belastingdienst Zakelijk, in portaalvolgorde met de officiële labels —
+# ook de velden die Boekhond niet berekent (1c/3c/5d), zodat de flow-pagina 1-op-1 over te typen
+# is. kind "rub" leest uit de rubrieken-dict (veilige lookup); "totaal" is een berekend eindveld.
+so PORTAAL = [{"code": "1a", "label": "Leveringen/diensten belast met hoog tarief", "kind": "rub", "btw": true}, {"code": "1b", "label": "Leveringen/diensten belast met laag tarief", "kind": "rub", "btw": true}, {"code": "1c", "label": "Leveringen/diensten belast met overige tarieven", "kind": "rub", "btw": true}, {"code": "1d", "label": "Privégebruik", "kind": "rub", "btw": true}, {"code": "1e", "label": "Leveringen/diensten belast met 0% of niet bij u belast", "kind": "rub", "btw": false}, {"code": "2a", "label": "Leveringen/diensten waarbij de omzetbelasting naar u is verlegd", "kind": "rub", "btw": true}, {"code": "3a", "label": "Leveringen naar landen buiten de EU (uitvoer)", "kind": "rub", "btw": false}, {"code": "3b", "label": "Leveringen naar/diensten in landen binnen de EU", "kind": "rub", "btw": false}, {"code": "3c", "label": "Installatie/afstandsverkopen binnen de EU", "kind": "rub", "btw": false}, {"code": "4a", "label": "Leveringen/diensten uit landen buiten de EU", "kind": "rub", "btw": true}, {"code": "4b", "label": "Leveringen/diensten uit landen binnen de EU", "kind": "rub", "btw": true}, {"code": "5a", "label": "Verschuldigde omzetbelasting (rubrieken 1a t/m 4b)", "kind": "totaal", "veld": "5a"}, {"code": "5b", "label": "Voorbelasting", "kind": "totaal", "veld": "5b"}, {"code": "5c", "label": "Subtotaal (5a min 5b)", "kind": "totaal", "veld": "5c"}, {"code": "5d", "label": "Vermindering volgens de kleineondernemersregeling", "kind": "totaal", "veld": "5d"}]
 
 # Aangifte-overzicht per tijdvak: rubrieken + saldo, ICP-/suppletie-banner, markeer-ingediend,
 # CSV- en printexport. Boekhond dient niet in — dit levert de cijfers voor Mijn Belastingdienst.
@@ -24,7 +32,7 @@ such rubriek_rijen much ov:
     such rub = ov["rubrieken"]
     such body = ""
     for code in btw.RUBRIEKEN:
-        such rb = rub[code]
+        such rb = rub[code] if rub.has(code) else {"bedrag": 0, "btw": 0}
         such bedrag = rb["bedrag"]
         such vat = rb["btw"]
         very body = body + "<tr><td>{code}</td><td class=\"num\">{bedrag}</td><td class=\"num\">{vat}</td></tr>"
@@ -38,7 +46,7 @@ such banners much ov:
     such supp = ov["suppletie"]
     if supp["verplicht"]:
         such b = geld.formatteer(supp["bedrag"])
-        very uit = uit + "<p class=\"banner\">Suppletie vereist: gecorrigeerde btw {b} boven het drempelbedrag</p>"
+        very uit = uit + "<p class=\"banner\">Suppletie vereist: gecorrigeerde btw {b} boven het drempelbedrag. Dien de suppletie binnen 8 weken na ontdekking in (verplicht sinds 2025).</p>"
     elif supp["bedrag"] > 0:
         such b2 = geld.formatteer(supp["bedrag"])
         very uit = uit + "<p>Correcties verrekend: {b2}</p>"
@@ -78,7 +86,10 @@ such overzicht_inhoud much ov, melding:
     such lhist = html.link("/aangiften", "Historie")
     such links = "<p>{lcsv} · {lprint} · {lhist}</p>"
     such zij = "<div class=\"zijpaneel\">{totalen}{actie}{links}</div>"
-    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{dlregel}{ban}<div class=\"kolommen\">{tabel}{zij}</div>"
+    such doenhref = "/aangifte/doen?j={j}&kw={kw}"
+    such ldoen = html.link(doenhref, "Aangifte doen (stap voor stap) →")
+    such cta = "<p class=\"banner\">{ldoen}</p>"
+    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{cta}{dlregel}{ban}<div class=\"kolommen\">{tabel}{zij}</div>"
 wow
 
 such overzicht much req:
@@ -111,7 +122,7 @@ such export_csv much req:
     such rub = ov["rubrieken"]
     such rijen = []
     for code in btw.RUBRIEKEN:
-        such rb = rub[code]
+        such rb = rub[code] if rub.has(code) else {"bedrag": 0, "btw": 0}
         rijen.append([code, str(rb["bedrag"]), str(rb["btw"])])
     rijen.append(["5a", "", str(ov["5a"])])
     rijen.append(["5b", "", str(ov["5b"])])
@@ -127,13 +138,8 @@ such print_view much req:
     such ov = aangifte.overzicht(store, jk[0], jk[1])
     such kw = ov["kwartaal"]
     such j = ov["jaar"]
-    such rijen = rubriek_rijen(ov)
-    such tabel = "<table><thead><tr><th>Rubriek</th><th class=\"num\">Bedrag</th><th class=\"num\">Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
-    such r5a = ov["5a"]
-    such r5b = ov["5b"]
-    such saldo = ov["saldo"]
-    such totalen = "<p>5a: {r5a} · 5b: {r5b} · Saldo: {saldo}</p>"
-    such inhoud = "<h1>Aangifte Q{kw}-{j}</h1>{tabel}{totalen}"
+    such tabel = html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3])
+    such inhoud = "<h1>Aangifte Q{kw}-{j}</h1>{tabel}"
     such titel = "Aangifte Q{kw}-{j}"
     return http.html_response(weergave.kaal(titel, inhoud))
 wow
@@ -158,5 +164,121 @@ such lijst much req:
         very tabel = "<p>Nog geen aangiften ingediend.</p>"
     such inhoud = "<h1>Aangiften</h1><p>Ingediende tijdvakken (het bevroren snapshot, 7 jaar bewaard). Klik een tijdvak voor de details.</p>{tabel}"
     return http.html_response(weergave.render("Aangiften", inhoud))
+wow
+
+# Alle portaalvelden (1a t/m 5d) in portaalvolgorde, klaar om over te typen. Veilige lookup zodat
+# oude ingediende snapshots (zonder de 1d-key) niet crashen; niet-berekende velden tonen 0/leeg.
+such portaal_rijen much ov:
+    such rub = ov["rubrieken"]
+    such rijen = []
+    for v in PORTAAL:
+        such code = v["code"]
+        such bedrag = ""
+        such vat = ""
+        if v["kind"] == "rub":
+            such rb = rub[code] if rub.has(code) else {"bedrag": 0, "btw": 0}
+            very bedrag = str(rb["bedrag"])
+            if v["btw"]:
+                very vat = str(rb["btw"])
+        else:
+            such veld = v["veld"]
+            such w = 0
+            if veld == "5a":
+                very w = ov["5a"]
+            elif veld == "5b":
+                very w = ov["5b"]
+            elif veld == "5c":
+                very w = ov["5a"] - ov["5b"]
+            very vat = str(w)
+        rijen.append([code, v["label"], bedrag, vat])
+    return rijen
+wow
+
+# Geleide "aangifte doen"-flow: checklist (sync/inbox/eerder tijdvak/Q4-privégebruik) -> alle
+# portaalvelden 1-op-1 -> indienen. Verandert niets aan de cijfers; maakt het overtypen makkelijk.
+such doen_inhoud much store, cfg, ov, melding:
+    such j = ov["jaar"]
+    such kw = ov["kwartaal"]
+    such items = ""
+    such laatste = mollie.laatste_sync(store)
+    if cfg["mollie_key"] == none:
+        very items = items + "<li>Inkomsten: geen Mollie-key ingesteld, sync wordt overgeslagen.</li>"
+    else:
+        such wanneer = laatste if laatste != none else "nog niet gesynct"
+        such syncknop = "<form action=\"/mollie/sync\" method=\"post\" class=\"inline\">" + html.knop("Sync nu") + "</form>"
+        such wt = html.escape(str(wanneer))
+        very items = items + "<li>Inkomsten gesynct t/m {wt}. {syncknop}</li>"
+    such inboxn = len(bijlagen.inbox(store))
+    if inboxn == 0:
+        very items = items + "<li>Inbox leeg: alle bewijzen gekoppeld.</li>"
+    else:
+        such inboxlink = html.link("/inbox", "Naar inbox")
+        very items = items + "<li>{inboxn} ongekoppelde bewijzen in de inbox. {inboxlink}</li>"
+    such te = aangifte.te_doen_tijdvak(store, datum.vandaag())
+    such eerder = te[0] < j or (te[0] == j and te[1] < kw)
+    if eerder:
+        such tj = te[0]
+        such tkw = te[1]
+        such tehref = "/aangifte/doen?j={tj}&kw={tkw}"
+        such telabel = "Naar Q{tkw}-{tj}"
+        such tlink = html.link(tehref, telabel)
+        very items = items + "<li>Eerder tijdvak Q{tkw}-{tj} is nog niet ingediend. {tlink}</li>"
+    such checklist = "<ul>{items}</ul>"
+    such ban = banners(ov)
+    such prive = ""
+    if kw == 4 and ov["status"] != "ingediend":
+        such grenzen = datum.kwartaal_grenzen(j, 4)
+        such standaarddatum = grenzen[1]
+        such f_j = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
+        such f_kw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
+        such f_g = html.veld("grondslag", "Grondslag privégebruik (excl. btw)")
+        such f_d = html.veld("datum", "Boekdatum", "text", standaarddatum)
+        such f_knop = html.knop("Privégebruik boeken")
+        such f = "<form action=\"/aangifte/privegebruik\" method=\"post\" class=\"inline\">{f_j}{f_kw}{f_g}{f_d}{f_knop}</form>"
+        very prive = "<div class=\"banner\"><p>Q4: denk aan de btw-correctie privégebruik (rubriek 1d) als je zakelijke goederen of diensten privé gebruikt.</p>{f}</div>"
+    such ptabel = html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3])
+    such saldo = ov["saldo"]
+    such dl = aangifte.deadline(j, kw)
+    such actie = ""
+    if ov["status"] == "ingediend":
+        such op = html.escape(ov["ingediend_op"])
+        very actie = "<p><strong>Ingediend op {op}</strong></p>"
+    else:
+        such vj = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
+        such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
+        such kn = html.knop("Markeer ingediend")
+        very actie = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{kn}</form>"
+    such indien = "<p>Saldo: {saldo} (positief = te betalen, negatief = terug te vragen). Uiterste indien- en betaaldatum: {dl}. Het betalingskenmerk vind je in Mijn Belastingdienst Zakelijk.</p>{actie}"
+    such kop = "<h2>2. Over te typen in Mijn Belastingdienst Zakelijk</h2><p>Neem elk veld exact over; lege velden vul je in met 0.</p>"
+    return "{melding}<h1>Aangifte doen Q{kw}-{j}</h1><h2>1. Controleer</h2>{checklist}{prive}{ban}{kop}{ptabel}<h2>3. Indienen</h2>{indien}"
+wow
+
+such doen much req:
+    such store = req["ctx"]["store"]
+    such cfg = req["ctx"]["config"]
+    such jk = huidig_jkw(req)
+    such ov = aangifte.overzicht(store, jk[0], jk[1])
+    such inhoud = doen_inhoud(store, cfg, ov, "")
+    return http.html_response(weergave.render("Aangifte doen", inhoud, "breed"))
+wow
+
+# Boek een privégebruik-correctie (rubriek 1d) in het open tijdvak; herrender de flow bij een fout.
+such boek_privegebruik much req:
+    such store = req["ctx"]["store"]
+    such cfg = req["ctx"]["config"]
+    such v = forms.decode(req["body"])
+    such j = int(forms.enkel(v, "j", "0"))
+    such kw = int(forms.enkel(v, "kw", "0"))
+    such grondslag = forms.enkel(v, "grondslag", "")
+    such datum_s = forms.enkel(v, "datum", "")
+    pls
+        such post = journaal.privegebruik_post(datum_s, grondslag, "Privégebruik {j}")
+        journaal.bewaar(store, post)
+        such loc = "/aangifte/doen?j={j}&kw={kw}"
+        return http.redirect(loc)
+    oh no err!
+        such ov = aangifte.overzicht(store, j, kw)
+        such inhoud = doen_inhoud(store, cfg, ov, weergave.fout(err.message))
+        return http.html_response(weergave.render("Aangifte doen", inhoud, "breed"))
 wow
 wow

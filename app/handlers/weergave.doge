@@ -8,7 +8,7 @@ so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/terugkerend", "Kos
 
 # Paginatitel → nav-sectie (href in LINKS), voor de actief-markering. Titels zonder entry
 # krijgen geen actieve link (veilige default: printversies, onbekende pagina's).
-so SECTIE = {"Overzicht": "/", "Journaal": "/journaal", "Inkoop": "/journaal", "Bank": "/journaal", "Memoriaal": "/journaal", "Storno": "/journaal", "Kosten": "/terugkerend", "Inkomsten": "/mollie", "Aangifte": "/aangifte", "Aangiften": "/aangifte", "Rekeningen": "/rekeningen", "Uploaden": "/inbox", "Inbox": "/inbox", "Balans": "/rapporten/balans", "Winst en verlies": "/rapporten/balans", "Jaaroverzicht": "/rapporten/balans"}
+so SECTIE = {"Overzicht": "/", "Journaal": "/journaal", "Inkoop": "/journaal", "Bank": "/journaal", "Memoriaal": "/journaal", "Storno": "/journaal", "Kosten": "/terugkerend", "Inkomsten": "/mollie", "Aangifte": "/aangifte", "Aangifte doen": "/aangifte", "Aangiften": "/aangifte", "Rekeningen": "/rekeningen", "Uploaden": "/inbox", "Inbox": "/inbox", "Balans": "/rapporten/balans", "Winst en verlies": "/rapporten/balans", "Jaaroverzicht": "/rapporten/balans"}
 
 such nav much actief:
     such items = ""

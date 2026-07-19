@@ -3,8 +3,10 @@
 services:
   boekhond:
     build: .
+    # Alleen op de host-loopback publiceren: een reverse-proxy op de host (of een SSH-tunnel)
+    # bereikt de app, maar de poort staat niet open op alle host-interfaces.
     ports:
-      - "8085:8085"
+      - "127.0.0.1:8085:8085"
     volumes:
       - ./data:/app/data
     env_file: .env

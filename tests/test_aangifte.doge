@@ -4,6 +4,7 @@ so "../app/services/aangifte.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
+so "../app/handlers/aangifte_h.doge"
 
 so TMPMAP = "tmp_test_aangifte"
 
@@ -134,18 +135,42 @@ such test_deadline_per_kwartaal:
     amaze aangifte.deadline(2026, 4) == "2027-01-31"
 wow
 
-# Lege administratie op 19 juli 2026 (Q3): het te-doen tijdvak is het afgelopen Q2.
+# Lege administratie op 19 juli 2026 (Q3): geen boekingen -> niets openstaand -> lopende kwartaal.
 such test_te_doen_tijdvak_leeg:
     such s = verse_store()
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
+    amaze tv[0] == 2026
+    amaze tv[1] == 3
+    schoon()
+wow
+
+# Boeking in Q2 2026 op 19 juli (Q3): het afgelopen Q2 met posten is het te-doen tijdvak.
+such test_te_doen_tijdvak_met_posten:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-05-15"))
     such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
     amaze tv[0] == 2026
     amaze tv[1] == 2
     schoon()
 wow
 
-# Q2 ingediend -> het te-doen tijdvak schuift naar het eerdere Q1.
+# Q2 met posten ingediend en geen oudere boekingen -> niets meer openstaand (lopende kwartaal),
+# géén gezeur over lege eerdere kwartalen.
 such test_te_doen_tijdvak_na_indienen:
     such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-05-15"))
+    aangifte.dien_in(s, 2026, 2)
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
+    amaze tv[0] == 2026
+    amaze tv[1] == 3
+    schoon()
+wow
+
+# Boekingen in Q1 én Q2, Q2 ingediend -> schuift naar Q1 (dat óók posten heeft), niet verder.
+such test_te_doen_tijdvak_eerder_met_posten:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-02-10"))
+    journaal.bewaar(s, verkoop21("2026-05-15"))
     aangifte.dien_in(s, 2026, 2)
     such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
     amaze tv[0] == 2026
@@ -153,14 +178,30 @@ such test_te_doen_tijdvak_na_indienen:
     schoon()
 wow
 
-# Q1 en Q2 ingediend -> loopt door naar Q4 van het vorige jaar.
-such test_te_doen_tijdvak_vorig_jaar:
+# Privégebruik-correctie: gebalanceerde post via journaal.privegebruik_post -> rubriek 1d + 5a stijgen.
+such test_privegebruik_post_overzicht:
     such s = verse_store()
-    aangifte.dien_in(s, 2026, 2)
-    aangifte.dien_in(s, 2026, 1)
-    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
-    amaze tv[0] == 2025
-    amaze tv[1] == 4
+    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "500", "Privégebruik 2026"))
+    such ov = aangifte.overzicht(s, 2026, 4)
+    amaze ov["rubrieken"]["1d"]["bedrag"] == 500
+    amaze ov["rubrieken"]["1d"]["btw"] == 105
+    amaze ov["5a"] == 105
+    amaze ov["saldo"] == 105
     schoon()
+wow
+
+# Een ingediend snapshot van vóór rubriek 1d mist de "1d"-key: de weergave mag niet crashen.
+such oud_snapshot_ov:
+    such rub = {"1a": {"bedrag": 1000, "btw": 210}, "1b": {"bedrag": 0, "btw": 0}, "1e": {"bedrag": 0, "btw": 0}, "2a": {"bedrag": 0, "btw": 0}, "3a": {"bedrag": 0, "btw": 0}, "3b": {"bedrag": 0, "btw": 0}, "4a": {"bedrag": 0, "btw": 0}, "4b": {"bedrag": 0, "btw": 0}}
+    return {"jaar": 2025, "kwartaal": 4, "status": "ingediend", "ingediend_op": "2026-01-20T00:00:00Z", "rubrieken": rub, "5a": 210, "5b": 0, "saldo": 210}
+wow
+
+such test_oude_snapshot_zonder_1d_rendert:
+    such ov = oud_snapshot_ov()
+    such prijen = aangifte_h.portaal_rijen(ov)
+    amaze prijen[3][0] == "1d"
+    amaze prijen[3][2] == "0"
+    such body = aangifte_h.rubriek_rijen(ov)
+    amaze len(body) > 0
 wow
 wow

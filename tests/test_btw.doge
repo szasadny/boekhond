@@ -121,4 +121,28 @@ such test_legenda_filtert_op_soort:
     # inkoop is een strikte subset van alle
     amaze len(ink) < len(alle)
 wow
+
+# Privégebruik (rubriek 1d): grondslag op de credit-kant (soort verkoop), btw 21% -> 1d, telt in 5a.
+such test_privegebruik_1d:
+    such boekingen = []
+    boekingen.append(maak("2026-12-31", "prive_gebruik", "500"))
+    such r = btw.rubrieken(boekingen, 2026, 4)
+    amaze r["rubrieken"]["1d"]["bedrag"] == 500
+    amaze r["rubrieken"]["1d"]["btw"] == 105
+    amaze r["5a"] == 105
+    amaze r["5b"] == 0
+    amaze r["saldo"] == 105
+wow
+
+# Aftrekbeperkingen (horeca, BUA): kosten zonder aftrek -> geen enkele rubriek, geen 5a/5b-effect.
+such test_aftrekbeperking_geen_rubriek:
+    such boekingen = []
+    boekingen.append(maak("2026-01-10", "horeca", "100"))
+    boekingen.append(maak("2026-01-11", "relatiegeschenk_bua", "250"))
+    such r = btw.rubrieken(boekingen, 2026, 1)
+    amaze r["5a"] == 0
+    amaze r["5b"] == 0
+    amaze r["saldo"] == 0
+    amaze btw.post_effect(maak("2026-01-10", "horeca", "100")) == dec("0")
+wow
 wow

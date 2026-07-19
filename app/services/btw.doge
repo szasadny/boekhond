@@ -17,15 +17,18 @@ so CODES = {
     "vrijgesteld": {"soort": "verkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Vrijgestelde omzet", "uitleg": "Vrijgesteld van btw. Telt niet mee in de aangifte-rubrieken."},
     "export_buiten_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3a", "btw": none, "aftrek": false, "zelf": false, "label": "Export buiten EU", "uitleg": "Verkoop naar buiten de EU tegen 0%. Telt in rubriek 3a."},
     "levering_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3b", "btw": none, "aftrek": false, "zelf": false, "label": "Levering binnen EU", "uitleg": "Verkoop naar een ander EU-land tegen 0%. Telt in rubriek 3b."},
+    "prive_gebruik": {"soort": "verkoop", "pct": 21, "grondslag": "1d", "btw": "1d", "aftrek": false, "zelf": true, "label": "Privégebruik (btw-correctie)", "uitleg": "Btw-correctie over privégebruik van zakelijke goederen of diensten. Alleen in de laatste aangifte van het jaar (Q4). Telt in rubriek 1d en 5a."},
     "voorbelasting_hoog": {"soort": "inkoop", "pct": 21, "grondslag": none, "btw": none, "aftrek": true, "zelf": false, "label": "Inkoop 21% (btw terugvragen)", "uitleg": "NL-leverancier met 21% btw die je als voorbelasting terugvraagt (rubriek 5b)."},
     "voorbelasting_laag": {"soort": "inkoop", "pct": 9, "grondslag": none, "btw": none, "aftrek": true, "zelf": false, "label": "Inkoop 9% (btw terugvragen)", "uitleg": "NL-leverancier met 9% btw die je terugvraagt (rubriek 5b)."},
     "verlegd_naar_mij": {"soort": "inkoop", "pct": 21, "grondslag": "2a", "btw": "2a", "aftrek": true, "zelf": true, "label": "Btw verlegd naar mij (NL)", "uitleg": "Binnenlandse verlegging: je geeft de btw zelf aan en trekt 'm af (rubriek 2a + 5b)."},
     "import_buiten_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4a", "btw": "4a", "aftrek": true, "zelf": true, "label": "Inkoop buiten EU (btw verlegd)", "uitleg": "Dienst van buiten de EU, bijvoorbeeld US-SaaS. Btw verlegd naar jou: zelf aangeven en aftrekken (rubriek 4a + 5b)."},
     "verwerving_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4b", "btw": "4b", "aftrek": true, "zelf": true, "label": "Inkoop binnen EU (btw verlegd)", "uitleg": "Goederen of diensten uit een ander EU-land met verlegde btw (rubriek 4b + 5b)."},
     "geen_btw": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Geen btw", "uitleg": "Kosten zonder btw, zoals verzekering of bankkosten."},
+    "horeca": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Horeca (btw niet aftrekbaar)", "uitleg": "Eten en drinken in de horeca: de btw is niet aftrekbaar. Boek het bedrag inclusief btw als kosten."},
+    "relatiegeschenk_bua": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Relatiegeschenk/personeel (BUA)", "uitleg": "Giften, relatiegeschenken en personeelsvoorzieningen boven 227 euro per ontvanger per jaar: btw niet aftrekbaar (BUA)."},
 }
 
-so RUBRIEKEN = ["1a", "1b", "1e", "2a", "3a", "3b", "4a", "4b"]
+so RUBRIEKEN = ["1a", "1b", "1d", "1e", "2a", "3a", "3b", "4a", "4b"]
 
 # Menselijk label voor een btw-code (voor de UI-dropdowns); valt terug op de code zelf.
 such label much code:

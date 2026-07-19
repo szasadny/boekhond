@@ -107,6 +107,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 | `vrijgesteld` | vrijgestelde prestatie | — | telt in geen rubriek; wel in jaaroverzicht |
 | `export_buiten_eu` | levering buiten de EU | **3a** | omzet → 3a; geen btw |
 | `levering_eu` | ICP: levering/dienst binnen EU (btw-id klant verplicht) | **3b** | omzet → 3b; geen btw; **flag: ICP-opgaaf vereist** (§4.5) |
+| `prive_gebruik` | btw-correctie privégebruik zakelijke zaken (alleen Q4) | **1d** | grondslag → 1d; btw (21%) → 1d; telt in 5a. Geboekt via `journaal.privegebruik_post` (self-nettend memo-paar op 0900, geen omzet-vervuiling) |
 
 ### Inkoop (type = "inkoop")
 
@@ -118,10 +119,12 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 | `import_buiten_eu` | invoer van buiten de EU | **4a + 5b** | bedrag_ex → 4a-grondslag; btw daarover → 4a-btw én → 5b |
 | `verwerving_eu` | verwerving binnen EU | **4b + 5b** | bedrag_ex → 4b-grondslag; btw daarover → 4b-btw én → 5b |
 | `geen_btw` | zonder btw / niet aftrekbaar (kvk, verzekering, prive-deel) | — | alleen kosten, geen rubriek |
+| `horeca` | eten/drinken in de horeca (btw niet aftrekbaar) | — | kosten incl. btw, geen rubriek, geen 5b |
+| `relatiegeschenk_bua` | gift/relatiegeschenk/personeel boven €227 p.p.p.j. (BUA) | — | kosten incl. btw, geen rubriek, geen 5b |
 
 ### Totalen
 
-- **5a** = som van alle verschuldigde btw (1a + 1b + 2a + 4a + 4b).
+- **5a** = som van alle verschuldigde btw (1a + 1b + 1d + 2a + 4a + 4b).
 - **5b** = som voorbelasting.
 - **saldo** = 5a − 5b — positief: te betalen; negatief: terug te vragen.
 - **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal).
