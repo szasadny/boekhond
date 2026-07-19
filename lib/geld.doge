@@ -34,6 +34,8 @@ such parse much tekst:
     if strings.contains(t, ","):
         very t = strings.replace(t, ".", "")
         very t = strings.replace(t, ",", ".")
+    elif hunt.test("^-?[0-9]\{1,3\}(\\.[0-9]\{3\})+$", t):
+        bonk "ambigu bedrag (gebruik een komma voor centen): {tekst}"
     if not hunt.test("^-?[0-9]+(\\.[0-9]+)?$", t):
         bonk "ongeldig bedrag: {tekst}"
     return dec(t)

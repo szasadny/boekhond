@@ -5,7 +5,8 @@ so forms
 # HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers met
 # recv_line en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
 
-so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "500": "500 Internal Server Error"}
+so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "413": "413 Payload Too Large", "500": "500 Internal Server Error"}
+so MAX_BODY = 12582912
 so HTML = "text/html; charset=utf-8"
 so PLAIN = "text/plain; charset=utf-8"
 so CSV = "text/csv; charset=utf-8"
@@ -80,6 +81,8 @@ such parse_request much conn:
             very n = int(headers["content-length"][0])
         oh no err!
             very n = 0
+        if n > MAX_BODY:
+            return {"oversize": true}
         such buf = bytes("")
         while len(buf) < n:
             such chunk = howl.recv_bytes(conn, n - len(buf))
@@ -95,6 +98,10 @@ wow
 
 # Bouw de volledige response als Bytes (klaar voor één howl.send_bytes).
 # Content-Length = len(bytes(body)) — bytes, niet chars (een "€" is 1 char / 3 bytes).
+such kop_veilig much v:
+    return strings.replace(strings.replace(str(v), "\r", ""), "\n", "")
+wow
+
 such bouw_response much resp:
     such status = str(resp["status"])
     such statustekst = STATUS["500"]
@@ -105,14 +112,14 @@ such bouw_response much resp:
     such headers = resp["headers"]
     such heeft_ct = false
     for naam in headers:
-        very kop = kop + "{naam}: {headers[naam]}{CRLF}"
+        very kop = kop + "{naam}: {kop_veilig(headers[naam])}{CRLF}"
         if strings.smoll(naam) == "content-type":
             very heeft_ct = true
     if not heeft_ct:
         very kop = kop + "Content-Type: {HTML}{CRLF}"
     if resp.has("set_cookie"):
         for c in resp["set_cookie"]:
-            very kop = kop + "Set-Cookie: {c}{CRLF}"
+            very kop = kop + "Set-Cookie: {kop_veilig(c)}{CRLF}"
     very kop = kop + "Content-Length: {len(body_bytes)}{CRLF}"
     very kop = kop + "Connection: close{CRLF}"
     return bytes(kop + CRLF) + body_bytes

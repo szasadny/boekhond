@@ -83,13 +83,11 @@ such winst_verlies much store, j:
     return {"omzet": omzet, "totaal_omzet": totaal_omzet, "kosten": kosten, "totaal_kosten": totaal_kosten, "resultaat": resultaat}
 wow
 
-# Balans per einddatum (tot_datum "" => jaareinde j). Activa positief (debet-credit),
-# passiva/EV positief (credit-debet); het jaarresultaat vouwt in het eigen vermogen.
-such balans much store, j, tot_datum:
-    such eind = tot_datum
-    if eind == "":
-        such g = datum.kwartaal_grenzen(j, 4)
-        very eind = g[1]
+# Balans per jaareinde j. Activa positief (debet-credit), passiva/EV positief
+# (credit-debet); het jaarresultaat vouwt in het eigen vermogen.
+such balans much store, j:
+    such g = datum.kwartaal_grenzen(j, 4)
+    such eind = g[1]
     such saldi = netto_per_rekening(store.laad("journaal", []), 0, datum.sleutel(eind))
     such m = rek_map(store)
     such activa = []

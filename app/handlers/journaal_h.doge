@@ -61,8 +61,8 @@ wow
 such lijst much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
-    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
-    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    such j = forms.geheel(req["query"], "j", datum.jaar(vandaag))
+    such kw = forms.geheel(req["query"], "kw", datum.kwartaal(vandaag))
     such body = ""
     for p in store.laad("journaal", []):
         if not datum.in_kwartaal(p["datum"], j, kw):
@@ -252,8 +252,8 @@ wow
 such export_csv much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
-    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
-    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    such j = forms.geheel(req["query"], "j", datum.jaar(vandaag))
+    such kw = forms.geheel(req["query"], "kw", datum.kwartaal(vandaag))
     such rijen = []
     for p in store.laad("journaal", []):
         if not datum.in_kwartaal(p["datum"], j, kw):

@@ -23,7 +23,10 @@ such decode_component much s:
         else:
             very buf = buf + bytes(ch)
             very i = i + 1
-    return buf.decode()
+    pls
+        return buf.decode()
+    oh no err!
+        return s
 wow
 
 such decode much body:
@@ -49,5 +52,13 @@ such enkel much velden, sleutel, standaard:
     if velden.has(sleutel) and len(velden[sleutel]) > 0:
         return velden[sleutel][0]
     return standaard
+wow
+
+such geheel much velden, sleutel, standaard:
+    such s = enkel(velden, sleutel, "")
+    pls
+        return int(s)
+    oh no err!
+        return standaard
 wow
 wow

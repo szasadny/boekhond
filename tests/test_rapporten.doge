@@ -24,7 +24,7 @@ such test_balans_balanceert:
     such s = verse_store()
     journaal.bewaar(s, journaal.prive_post("2026-02-01", "inbreng", "1100", "500", "storting"))
     journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))
-    such b = rapporten.balans(s, 2026, "")
+    such b = rapporten.balans(s, 2026)
     amaze b["klopt"] == true
     amaze geld.rond2(b["totaal_activa"]) == geld.rond2(b["totaal_passiva_ev"])
     schoon()

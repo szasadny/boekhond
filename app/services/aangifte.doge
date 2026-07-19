@@ -67,21 +67,20 @@ wow
 such overzicht much store, j, kw:
     such c = cijfers(store, j, kw)
     such rub = c["rubrieken"]
-    such drieb = rub["3b"]
-    such icp = drieb["bedrag"] > 0
+    such icp = btw.grondslag_code_tijdvak(store.laad("journaal", []), j, kw, "levering_eu") > dec("0")
     such supp = suppletie_signaal(store, j, kw)
     return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp}
 wow
 
 # Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
-# Weigert dubbel indienen en een nog-niet-begonnen tijdvak. Audit vóór de state-write.
+# Weigert dubbel indienen en een nog-niet-afgelopen tijdvak. Audit vóór de state-write.
 such dien_in much store, j, kw:
     such aangiften = store.laad("aangiften", [])
     if is_ingediend(aangiften, j, kw):
         bonk "tijdvak Q{kw}-{j} is al ingediend"
     such grenzen = datum.kwartaal_grenzen(j, kw)
-    if datum.sleutel(datum.vandaag()) < datum.sleutel(grenzen[0]):
-        bonk "tijdvak Q{kw}-{j} is nog niet begonnen"
+    if datum.sleutel(datum.vandaag()) <= datum.sleutel(grenzen[1]):
+        bonk "tijdvak Q{kw}-{j} is nog niet afgelopen"
     such snap = btw.rubrieken(store.laad("journaal", []), j, kw)
     such id = store.nieuw_id("a")
     such record = {"id": id, "jaar": j, "tijdvak": "Q{kw}", "status": "ingediend", "ingediend_op": nap.stamp(nap.now()), "rubrieken": snap["rubrieken"], "5a": snap["5a"], "5b": snap["5b"], "saldo": snap["saldo"]}

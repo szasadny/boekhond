@@ -37,4 +37,15 @@ such test_enkel:
     amaze forms.enkel(d, "b", "def") == "hello world"
     amaze forms.enkel(d, "weg", "def") == "def"
 wow
+
+such test_decode_ongeldige_utf8_valt_terug:
+    such d = forms.decode("a=%ff")
+    amaze d.has("a")
+wow
+
+such test_geheel_valt_terug:
+    amaze forms.geheel({"j": ["2025"]}, "j", 2026) == 2025
+    amaze forms.geheel({"j": ["abc"]}, "j", 2026) == 2026
+    amaze forms.geheel({}, "j", 7) == 7
+wow
 wow

@@ -144,4 +144,17 @@ such test_aftrekbeperking_geen_rubriek:
     amaze r["saldo"] == 0
     amaze btw.post_effect(maak("2026-01-10", "horeca", "100")) == dec("0")
 wow
+
+such test_afronding_negatief:
+    amaze btw.euro_af(dec("-210.50")) == -211
+    amaze btw.euro_af(dec("210.50")) == 210
+    amaze btw.euro_op(dec("-210.50")) == -210
+    amaze btw.euro_op(dec("210.10")) == 211
+wow
+
+such test_splits_incl_niet_rond:
+    such sp = btw.splits_incl(dec("9.99"), "hoog_21")
+    amaze sp[0] == dec("8.26")
+    amaze sp[0] + sp[1] == dec("9.99")
+wow
 wow

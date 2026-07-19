@@ -85,7 +85,7 @@ such toevoegen much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "dag": int(forms.enkel(v, "dag", "1")), "vanaf": forms.enkel(v, "vanaf", "")}
+        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!

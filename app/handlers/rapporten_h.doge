@@ -12,7 +12,7 @@ so weergave
 
 such jaar_uit much req:
     such vandaag = datum.vandaag()
-    return int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
+    return forms.geheel(req["query"], "j", datum.jaar(vandaag))
 wow
 
 such regels_tabel much data:
@@ -28,7 +28,7 @@ wow
 such balans much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
-    such b = rapporten.balans(store, j, "")
+    such b = rapporten.balans(store, j)
     such act = regels_tabel(b["activa"])
     such pas = regels_tabel(b["passiva"])
     such ev = regels_tabel(b["eigen_vermogen"])
@@ -43,7 +43,7 @@ wow
 such balans_csv much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
-    such b = rapporten.balans(store, j, "")
+    such b = rapporten.balans(store, j)
     such rijen = []
     for row in b["activa"]:
         rijen.append(["activa", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])

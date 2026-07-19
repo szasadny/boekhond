@@ -87,4 +87,16 @@ such test_peer_host_loopback:
     howl.close(server)
     amaze http.is_loopback(host)
 wow
+
+such test_header_crlf_gestript:
+    such resp = {"status": 303, "headers": {"Location": "/ok\r\nSet-Cookie: evil=1"}, "body": ""}
+    such txt = http.bouw_response(resp).decode()
+    amaze strings.contains(txt, "Location: /okSet-Cookie: evil=1")
+    amaze not strings.contains(txt, "/ok\r\nSet-Cookie")
+wow
+
+such test_oversize_body_geweigerd:
+    such req = rond("POST /p HTTP/1.1{CRLF}Content-Length: 99999999{CRLF}{CRLF}")
+    amaze req.has("oversize")
+wow
 wow

@@ -88,7 +88,10 @@ wow
 # Aangifte in hele euro's; afronden in eigen voordeel is toegestaan:
 # verschuldigde btw naar beneden, voorbelasting naar boven.
 such euro_af much bedrag:
-    return int(bedrag)
+    such hele = int(bedrag)
+    if bedrag < hele:
+        return hele - 1
+    return hele
 wow
 
 such euro_op much bedrag:
@@ -173,6 +176,20 @@ such grondslag_voor_code much posten, j, code:
     such som = dec("0")
     for p in posten:
         if datum.jaar(p["datum"]) != j:
+            continue
+        for regel in p["regels"]:
+            if not regel.has("btw_code") or regel["btw_code"] == none:
+                continue
+            if regel["btw_code"] == code:
+                very som = som + regel_grondslag(regel, c["soort"])
+    return som
+wow
+
+such grondslag_code_tijdvak much posten, j, kw, code:
+    such c = info(code)
+    such som = dec("0")
+    for p in posten:
+        if not datum.in_kwartaal(p["datum"], j, kw):
             continue
         for regel in p["regels"]:
             if not regel.has("btw_code") or regel["btw_code"] == none:

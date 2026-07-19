@@ -23,8 +23,8 @@ such huidig_jkw much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
     such tv = aangifte.te_doen_tijdvak(store, vandaag)
-    such j = int(forms.enkel(req["query"], "j", str(tv[0])))
-    such kw = int(forms.enkel(req["query"], "kw", str(tv[1])))
+    such j = forms.geheel(req["query"], "j", tv[0])
+    such kw = forms.geheel(req["query"], "kw", tv[1])
     return [j, kw]
 wow
 
@@ -102,8 +102,8 @@ wow
 such dien_in much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
-    such j = int(forms.enkel(v, "j", "0"))
-    such kw = int(forms.enkel(v, "kw", "0"))
+    such j = forms.geheel(v, "j", 0)
+    such kw = forms.geheel(v, "kw", 0)
     pls
         aangifte.dien_in(store, j, kw)
         such loc = "/aangifte?j={j}&kw={kw}"
@@ -267,8 +267,8 @@ such boek_privegebruik much req:
     such store = req["ctx"]["store"]
     such cfg = req["ctx"]["config"]
     such v = forms.decode(req["body"])
-    such j = int(forms.enkel(v, "j", "0"))
-    such kw = int(forms.enkel(v, "kw", "0"))
+    such j = forms.geheel(v, "j", 0)
+    such kw = forms.geheel(v, "kw", 0)
     such grondslag = forms.enkel(v, "grondslag", "")
     such datum_s = forms.enkel(v, "datum", "")
     pls

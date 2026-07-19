@@ -147,6 +147,9 @@ such afhandel much conn, r, winkel, cfg:
         such req = http.parse_request(conn)
         if req == none:
             return
+        if req.has("oversize"):
+            howl.send_bytes(conn, http.bouw_response(http.tekst_response(413, "verzoek te groot")))
+            return
         such pad = req["path"]
         such resp = none
         if begint_met(pad, STATIC_PREFIX):

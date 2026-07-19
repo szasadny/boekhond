@@ -44,23 +44,23 @@ wow
 
 such test_dien_in_snapshot:
     such s = verse_store()
-    journaal.bewaar(s, verkoop21("2026-07-15"))
-    such rec = aangifte.dien_in(s, 2026, 3)
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    such rec = aangifte.dien_in(s, 2020, 2)
     amaze rec["id"] == "a-1"
     amaze rec["status"] == "ingediend"
     amaze rec["saldo"] == 210
     amaze len(rec["ingediend_op"]) == 20
-    amaze journaal.tijdvak_open(s.laad("aangiften", []), "2026-08-01") == false
+    amaze journaal.tijdvak_open(s.laad("aangiften", []), "2020-05-01") == false
     schoon()
 wow
 
 such test_dubbel_indienen_weigert:
     such s = verse_store()
-    journaal.bewaar(s, verkoop21("2026-07-15"))
-    aangifte.dien_in(s, 2026, 3)
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    aangifte.dien_in(s, 2020, 2)
     such gevangen = false
     pls
-        aangifte.dien_in(s, 2026, 3)
+        aangifte.dien_in(s, 2020, 2)
     oh no err!
         very gevangen = true
     amaze gevangen
@@ -70,9 +70,9 @@ wow
 
 such test_overzicht_toont_snapshot_na_indienen:
     such s = verse_store()
-    journaal.bewaar(s, verkoop21("2026-07-15"))
-    aangifte.dien_in(s, 2026, 3)
-    such ov = aangifte.overzicht(s, 2026, 3)
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    aangifte.dien_in(s, 2020, 2)
+    such ov = aangifte.overzicht(s, 2020, 2)
     amaze ov["status"] == "ingediend"
     amaze ov["saldo"] == 210
     amaze len(ov["ingediend_op"]) == 20
@@ -203,5 +203,35 @@ such test_oude_snapshot_zonder_1d_rendert:
     amaze prijen[3][2] == "0"
     such body = aangifte_h.rubriek_rijen(ov)
     amaze len(body) > 0
+wow
+
+such test_dien_in_toekomstig_tijdvak_geweigerd:
+    such s = verse_store()
+    such gevangen = false
+    pls
+        aangifte.dien_in(s, 2100, 1)
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_privegebruik_buiten_q4_geweigerd:
+    such gevangen = false
+    pls
+        journaal.privegebruik_post("2026-03-31", "500", "x")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+wow
+
+such test_icp_subeuro_levering:
+    such s = verse_store()
+    such regels = [{"rekening": "8000", "debet": "", "credit": "0.50", "btw_code": "levering_eu"}, {"rekening": "1100", "debet": "0.50", "credit": "", "btw_code": none}]
+    journaal.bewaar(s, journaal.memoriaal_post("2026-10-05", "EU levering", "klant", regels))
+    such ov = aangifte.overzicht(s, 2026, 4)
+    amaze ov["icp"]
+    amaze ov["rubrieken"]["3b"]["bedrag"] == 0
+    schoon()
 wow
 wow

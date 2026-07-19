@@ -45,4 +45,14 @@ such test_bedrag:
     amaze geld.bedrag("1250.00") == dec("1250.00")
     amaze geld.bedrag("-1000") == dec("-1000")
 wow
+
+such test_parse_ambigu_geweigerd:
+    such gevangen = false
+    pls
+        geld.parse("1.500")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze geld.parse("1500") == dec("1500")
+wow
 wow

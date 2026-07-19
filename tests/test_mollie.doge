@@ -77,4 +77,20 @@ such test_refund_draait_1a_terug:
     amaze r["rubrieken"]["1a"]["btw"] == 0
     schoon()
 wow
+
+such refund_sample much id:
+    return {"id": id, "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-07-20T10:00:00+00:00"}
+wow
+
+such test_refund_idempotent:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such lijst = [refund_sample("re_1")]
+    such een = mollie.boek_refund_lijst(s, lijst)
+    amaze een["geboekt"] == 1
+    such twee = mollie.boek_refund_lijst(s, lijst)
+    amaze twee["geboekt"] == 0
+    amaze twee["overgeslagen"] == 1
+    schoon()
+wow
 wow
