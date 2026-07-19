@@ -1,30 +1,84 @@
 so "../../web/http.doge"
 so "../../web/html.doge"
-so "../services/btw.doge"
+so "../services/aangifte.doge"
+so "../services/rapporten.doge"
 so "../../lib/datum.doge"
+so "../../lib/geld.doge"
 so weergave
 
-# Overzichtspagina: het open tijdvak met live-berekende rubrieken + saldo
-# (uit de journaalposten) en de laatst geboekte posten.
+# Overzichtspagina: het te-doen tijdvak (meest recente afgelopen, nog niet ingediende kwartaal)
+# met live-berekende rubrieken + saldo + indien-deadline, een reeks CSS-staafgrafiekjes en de
+# laatst geboekte posten.
+
+so MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
+
+# [label, waarde(Decimal)]-paren -> staafgrafiek-rijen [label, pct(Int), waardetekst, klasse].
+# Staaflengte op de absolute waarde t.o.v. het maximum; negatieve waarden krijgen klasse
+# "negatief". Ratio via Decimal-integerdeling + int() (geen Float; Hard Rule 1).
+such staaf_rijen much paren:
+    such maxv = dec("0")
+    for p in paren:
+        such a = p[1]
+        if a < 0:
+            very a = 0 - a
+        if a > maxv:
+            very maxv = a
+    such rijen = []
+    for p in paren:
+        such v = p[1]
+        such a = v
+        such kl = ""
+        if a < 0:
+            very a = 0 - a
+            very kl = "negatief"
+        such pct = 0
+        if maxv > dec("0"):
+            very pct = int((a * 100) // maxv)
+        rijen.append([p[0], pct, geld.formatteer(v), kl])
+    return rijen
+wow
 
 such home much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
-    such j = datum.jaar(vandaag)
-    such kw = datum.kwartaal(vandaag)
+    such tv = aangifte.te_doen_tijdvak(store, vandaag)
+    such j = tv[0]
+    such kw = tv[1]
     such posten = store.laad("journaal", [])
-    such r = btw.rubrieken(posten, j, kw)
-    such body = ""
-    for code in btw.RUBRIEKEN:
-        such rb = r["rubrieken"][code]
-        such bedrag = rb["bedrag"]
-        such vat = rb["btw"]
-        very body = body + "<tr><td>{code}</td><td class=\"num\">{bedrag}</td><td class=\"num\">{vat}</td></tr>"
-    such tabel = "<table><thead><tr><th>Rubriek</th><th class=\"num\">Bedrag</th><th class=\"num\">Btw</th></tr></thead><tbody>{body}</tbody></table>"
-    such r5a = r["5a"]
-    such r5b = r["5b"]
-    such saldo = r["saldo"]
-    such totalen = "<p>5a (verschuldigd): {r5a} · 5b (voorbelasting): {r5b} · <strong>Saldo: {saldo}</strong></p>"
+    such dl = aangifte.deadline(j, kw)
+    such aangiften = store.laad("aangiften", [])
+    such grenzen = datum.kwartaal_grenzen(j, kw)
+    such afgelopen = datum.sleutel(grenzen[1]) < datum.sleutel(vandaag)
+    such tedoen = afgelopen and not aangifte.is_ingediend(aangiften, j, kw)
+    such banner = ""
+    if tedoen:
+        such lb = html.link("/aangifte", "Naar aangifte")
+        very banner = "<p class=\"banner\">Aangifte Q{kw}-{j} nog indienen, uiterlijk {dl}. {lb}</p>"
+    such deadlineregel = "<p>Uiterste indiendatum: {dl}</p>"
+    such opm = rapporten.omzet_per_maand(store, j)
+    such omzetparen = []
+    such mi = 0
+    while mi < 12:
+        omzetparen.append([MAANDEN[mi], opm[mi]])
+        very mi = mi + 1
+    such titel_omzet = "Omzet per maand {j}"
+    such g1 = html.staafgrafiek(titel_omzet, staaf_rijen(omzetparen))
+    such jo = rapporten.jaaroverzicht(store, j)
+    such saldoparen = []
+    for k in jo["kwartalen"]:
+        such kwn = k["kwartaal"]
+        such kwlabel = "Q{kwn}"
+        such kwsaldo = dec(str(k["saldo"]))
+        saldoparen.append([kwlabel, kwsaldo])
+    such titel_saldo = "Btw-saldo per kwartaal {j}"
+    such g2 = html.staafgrafiek(titel_saldo, staaf_rijen(saldoparen))
+    such wv = rapporten.winst_verlies(store, j)
+    such kostenparen = []
+    for kp in wv["kosten"]:
+        kostenparen.append([kp["naam"], kp["bedrag"]])
+    such titel_kosten = "Kosten per categorie {j}"
+    such g3 = html.staafgrafiek(titel_kosten, staaf_rijen(kostenparen))
+    such grafieken = "<div class=\"grafieken\">{g1}{g2}{g3}</div>"
     such recent = ""
     such n = len(posten)
     such i = n - 5
@@ -41,8 +95,9 @@ such home much req:
     for b in store.laad("bijlagen", []):
         if b["journaalpost_id"] == none:
             very inboxn = inboxn + 1
-    such inboxlink = html.link("/inbox", "Inbox ({inboxn})")
-    such inhoud = "<h1>Overzicht Q{kw}-{j}</h1><p>{inboxlink}</p>{tabel}{totalen}{laatste}"
-    return http.html_response(weergave.render("Overzicht", inhoud))
+    such inboxlabel = "Inbox ({inboxn})"
+    such inboxlink = html.link("/inbox", inboxlabel)
+    such inhoud = "<h1>Overzicht Q{kw}-{j}</h1>{banner}<p>{inboxlink}</p>{deadlineregel}{grafieken}{laatste}"
+    return http.html_response(weergave.render("Overzicht", inhoud, "breed"))
 wow
 wow

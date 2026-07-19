@@ -68,4 +68,17 @@ such test_jaaroverzicht_gebruikt_snapshot:
     amaze jo["jaar_saldo"] == 0
     schoon()
 wow
+
+such test_omzet_per_maand:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-02-10", "feb", "", [{"rekening": "1300", "debet": "1000", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": none}]))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-02-20", "feb2", "", [{"rekening": "1300", "debet": "500", "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": "500", "btw_code": none}]))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-05-05", "mei", "", [{"rekening": "1300", "debet": "800", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "800", "btw_code": none}]))
+    such per = rapporten.omzet_per_maand(s, 2026)
+    amaze len(per) == 12
+    amaze per[1] == dec("1500")
+    amaze per[4] == dec("800")
+    amaze per[0] == dec("0")
+    schoon()
+wow
 wow

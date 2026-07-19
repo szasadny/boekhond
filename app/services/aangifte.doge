@@ -94,4 +94,38 @@ wow
 such alle much store:
     return store.laad("aangiften", [])
 wow
+
+# Uiterste aangifte-/betaaldatum voor een kwartaal: laatste dag van de maand ná het tijdvak.
+# Bron: belastingdienst.nl/wps/wcm/connect/nl/btw/content/uiterste-aangifte-en-betaaldatums —
+# Q1 -> 30 apr, Q2 -> 31 jul, Q3 -> 31 okt, Q4 -> 31 jan (volgend jaar).
+such deadline much j, kw:
+    such m = kw * 3 + 1
+    such nj = j
+    if m > 12:
+        very m = m - 12
+        very nj = j + 1
+    return datum.laatste_dag_van_maand(nj, m)
+wow
+
+# Het tijdvak dat nu "te doen" is: het meest recente AFGELOPEN kwartaal dat nog niet is
+# ingediend. Loopt vanaf het lopende kwartaal terug; niets open -> val terug op het lopende
+# kwartaal. Retourneert [j, kw]. De terugloop is begrensd zodat hij altijd termineert.
+such te_doen_tijdvak much store, vandaag:
+    such aangiften = store.laad("aangiften", [])
+    such j = datum.jaar(vandaag)
+    such kw = datum.kwartaal(vandaag)
+    such vsleutel = datum.sleutel(vandaag)
+    such pogingen = 0
+    while pogingen < 8:
+        such grenzen = datum.kwartaal_grenzen(j, kw)
+        such afgelopen = datum.sleutel(grenzen[1]) < vsleutel
+        if afgelopen and not is_ingediend(aangiften, j, kw):
+            return [j, kw]
+        very kw = kw - 1
+        if kw < 1:
+            very kw = 4
+            very j = j - 1
+        very pogingen = pogingen + 1
+    return [datum.jaar(vandaag), datum.kwartaal(vandaag)]
+wow
 wow

@@ -28,9 +28,13 @@ such pagina much titel, inhoud:
     return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"icon\" href=\"/static/favicon.svg\">\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n{js}\n</body>\n</html>\n"
 wow
 
-# Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output.
-such layout much titel, nav, inhoud:
-    such body = "<header>{nav}</header>\n<main>\n{inhoud}\n</main>"
+# Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output; klasse = code
+# (optioneel, bv. "breed" voor een wijdere content-kolom).
+such layout much titel, nav, inhoud, klasse = "":
+    such kl = ""
+    if klasse != "":
+        very kl = " class=\"{escape(klasse)}\""
+    such body = "<header>{nav}</header>\n<main{kl}>\n{inhoud}\n</main>"
     return pagina(titel, body)
 wow
 
@@ -99,5 +103,20 @@ wow
 # Knop. tekst = tekst; type = code.
 such knop much tekst, type = "submit":
     return "<button type=\"{escape(type)}\">{escape(tekst)}</button>"
+wow
+
+# Staafgrafiek (CSS, geen JS). titel = tekst; rijen = List van [label, pct, waarde, klasse]:
+# label/waarde ge-escaped; pct = server-berekende Int 0-100 (geen user-input, dus de inline
+# width is veilig); klasse = code (bv. "" of "negatief").
+such staafgrafiek much titel, rijen:
+    such body = ""
+    for rij in rijen:
+        such label = escape(rij[0])
+        such pct = rij[1]
+        such waarde = escape(rij[2])
+        such kl = rij[3]
+        such balk = "<span class=\"balk {kl}\" style=\"width:{pct}%\"></span>"
+        very body = body + "<div class=\"balk-rij\"><span class=\"balk-label\">{label}</span><span class=\"balk-baan\">{balk}</span><span class=\"balk-waarde\">{waarde}</span></div>"
+    return "<figure class=\"grafiek\"><figcaption>{escape(titel)}</figcaption>{body}</figure>"
 wow
 wow

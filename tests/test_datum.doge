@@ -65,4 +65,13 @@ such test_seconden_tot_uur:
     amaze datum.seconden_tot_uur_vanaf("2026-07-18T00:00:00Z", 6) == 21600
     amaze datum.seconden_tot_uur_vanaf("2026-07-18T23:59:59Z", 6) == 21601
 wow
+
+such test_laatste_dag_van_maand:
+    amaze datum.laatste_dag_van_maand(2026, 4) == "2026-04-30"
+    amaze datum.laatste_dag_van_maand(2026, 7) == "2026-07-31"
+    amaze datum.laatste_dag_van_maand(2026, 2) == "2026-02-28"
+    amaze datum.laatste_dag_van_maand(2024, 2) == "2024-02-29"
+    amaze datum.laatste_dag_van_maand(2026, 12) == "2026-12-31"
+    amaze datum.laatste_dag_van_maand(2027, 1) == "2027-01-31"
+wow
 wow

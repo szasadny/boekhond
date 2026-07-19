@@ -18,13 +18,13 @@ such nav much actief:
     return "<nav>{items}</nav>"
 wow
 
-# Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output.
-# De actieve nav-link volgt uit SECTIE[titel].
-such render much titel, inhoud:
+# Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output; klasse = code
+# (optioneel, bv. "breed"). De actieve nav-link volgt uit SECTIE[titel].
+such render much titel, inhoud, klasse = "":
     such actief = ""
     if SECTIE.has(titel):
         very actief = SECTIE[titel]
-    return html.layout(titel, nav(actief), inhoud)
+    return html.layout(titel, nav(actief), inhoud, klasse)
 wow
 
 # Rode foutmelding; bericht = tekst (ge-escaped).

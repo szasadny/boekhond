@@ -93,4 +93,19 @@ such test_tabel_rechts_uitlijning:
     such u = html.tabel(["Naam"], [["kabosu"]])
     amaze not strings.contains(u, "class=\"num\"")
 wow
+
+such test_staafgrafiek:
+    such g = html.staafgrafiek("Omzet", [["jan", 100, "1.000", ""], ["feb", 50, "500", "negatief"]])
+    amaze strings.contains(g, "<figure class=\"grafiek\">")
+    amaze strings.contains(g, "<figcaption>Omzet</figcaption>")
+    amaze strings.contains(g, "style=\"width:100%\"")
+    amaze strings.contains(g, "class=\"balk negatief\"")
+    amaze strings.contains(g, "jan")
+    # labels ge-escaped
+    such x = html.staafgrafiek("t", [["<b>", 10, "v", ""]])
+    amaze strings.contains(x, "&lt;b&gt;")
+    # lege data crasht niet
+    such leeg = html.staafgrafiek("Leeg", [])
+    amaze strings.contains(leeg, "<figure class=\"grafiek\">")
+wow
 wow

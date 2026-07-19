@@ -46,7 +46,16 @@ docker compose up -d --build      # full build
 
 ## Deployment
 
+Eerste install:
+
 ```sh
+git clone https://github.com/szasadny/boekhond.git && cd boekhond
 cp .env.example .env              # secrets (INTERN_TOKEN, MOLLIE_API_KEY) invullen
-docker compose up -d              # app op poort 8085, administratie in ./data
+docker compose up -d --build      # app op poort 8085, administratie in ./data
+```
+
+Update:
+
+```sh
+git pull && docker compose up -d --build
 ```

@@ -125,4 +125,42 @@ such test_suppletie_negeert_open_origineel:
     amaze sig["aantal"] == 0
     schoon()
 wow
+
+# Uiterste indiendatums, handmatig geijkt tegen de Belastingdienst-bron.
+such test_deadline_per_kwartaal:
+    amaze aangifte.deadline(2026, 1) == "2026-04-30"
+    amaze aangifte.deadline(2026, 2) == "2026-07-31"
+    amaze aangifte.deadline(2026, 3) == "2026-10-31"
+    amaze aangifte.deadline(2026, 4) == "2027-01-31"
+wow
+
+# Lege administratie op 19 juli 2026 (Q3): het te-doen tijdvak is het afgelopen Q2.
+such test_te_doen_tijdvak_leeg:
+    such s = verse_store()
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
+    amaze tv[0] == 2026
+    amaze tv[1] == 2
+    schoon()
+wow
+
+# Q2 ingediend -> het te-doen tijdvak schuift naar het eerdere Q1.
+such test_te_doen_tijdvak_na_indienen:
+    such s = verse_store()
+    aangifte.dien_in(s, 2026, 2)
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
+    amaze tv[0] == 2026
+    amaze tv[1] == 1
+    schoon()
+wow
+
+# Q1 en Q2 ingediend -> loopt door naar Q4 van het vorige jaar.
+such test_te_doen_tijdvak_vorig_jaar:
+    such s = verse_store()
+    aangifte.dien_in(s, 2026, 2)
+    aangifte.dien_in(s, 2026, 1)
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
+    amaze tv[0] == 2025
+    amaze tv[1] == 4
+    schoon()
+wow
 wow

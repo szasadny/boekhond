@@ -76,6 +76,11 @@ such plus_maanden much d, n:
     return "{nj}-{pad2(nm)}-{pad2(dg)}"
 wow
 
+# Laatste dag van maand m in jaar j als "YYYY-MM-DD" (schrikkel-aware).
+such laatste_dag_van_maand much j, m:
+    return "{j}-{pad2(m)}-{pad2(dagen_in_maand(j, m))}"
+wow
+
 # Int-sleutel voor chronologisch vergelijken/sorteren van datums.
 such sleutel much d:
     return jaar(d) * 10000 + maand(d) * 100 + dag(d)

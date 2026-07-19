@@ -12,9 +12,11 @@ so weergave
 # CSV- en printexport. Boekhond dient niet in — dit levert de cijfers voor Mijn Belastingdienst.
 
 such huidig_jkw much req:
+    such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
-    such j = int(forms.enkel(req["query"], "j", str(datum.jaar(vandaag))))
-    such kw = int(forms.enkel(req["query"], "kw", str(datum.kwartaal(vandaag))))
+    such tv = aangifte.te_doen_tijdvak(store, vandaag)
+    such j = int(forms.enkel(req["query"], "j", str(tv[0])))
+    such kw = int(forms.enkel(req["query"], "kw", str(tv[1])))
     return [j, kw]
 wow
 
@@ -51,7 +53,14 @@ such overzicht_inhoud much ov, melding:
     such r5a = ov["5a"]
     such r5b = ov["5b"]
     such saldo = ov["saldo"]
-    such totalen = "<p>5a (verschuldigd): {r5a} · 5b (voorbelasting): {r5b} · <strong>Saldo: {saldo}</strong></p>"
+    such kpi_a = "<div class=\"kpi\"><span class=\"kpi-label\">5a verschuldigd</span><span class=\"kpi-waarde\">{r5a}</span></div>"
+    such kpi_b = "<div class=\"kpi\"><span class=\"kpi-label\">5b voorbelasting</span><span class=\"kpi-waarde\">{r5b}</span></div>"
+    such kpi_s = "<div class=\"kpi kpi-saldo\"><span class=\"kpi-label\">Saldo</span><span class=\"kpi-waarde\">{saldo}</span></div>"
+    such totalen = "<div class=\"samenvatting\">{kpi_a}{kpi_b}{kpi_s}</div>"
+    such dl = aangifte.deadline(j, kw)
+    such dlregel = ""
+    if ov["status"] != "ingediend":
+        very dlregel = "<p>Uiterste indiendatum: {dl}</p>"
     such ban = banners(ov)
     such actie = ""
     if ov["status"] == "ingediend":
@@ -66,15 +75,17 @@ such overzicht_inhoud much ov, melding:
     such printhref = "/aangifte/print?j={j}&kw={kw}"
     such lcsv = html.link(csvhref, "CSV")
     such lprint = html.link(printhref, "Printversie")
-    such links = "<p>{lcsv} · {lprint}</p>"
-    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{ban}{tabel}{totalen}{actie}{links}"
+    such lhist = html.link("/aangiften", "Historie")
+    such links = "<p>{lcsv} · {lprint} · {lhist}</p>"
+    such zij = "<div class=\"zijpaneel\">{totalen}{actie}{links}</div>"
+    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{dlregel}{ban}<div class=\"kolommen\">{tabel}{zij}</div>"
 wow
 
 such overzicht much req:
     such store = req["ctx"]["store"]
     such jk = huidig_jkw(req)
     such ov = aangifte.overzicht(store, jk[0], jk[1])
-    return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, "")))
+    return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, ""), "breed"))
 wow
 
 such dien_in much req:
@@ -88,7 +99,7 @@ such dien_in much req:
         return http.redirect(loc)
     oh no err!
         such ov = aangifte.overzicht(store, j, kw)
-        return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, weergave.fout(err.message)), "breed"))
 wow
 
 such export_csv much req:
@@ -129,13 +140,23 @@ wow
 
 such lijst much req:
     such store = req["ctx"]["store"]
-    such rijen = []
+    such body = ""
+    such aantal = 0
     for a in aangifte.alle(store):
         such tv = a["tijdvak"]
         such j = a["jaar"]
-        rijen.append(["{tv}-{j}", a["ingediend_op"], str(a["saldo"])])
-    such tabel = html.tabel(["Tijdvak", "Ingediend op", "Saldo"], rijen, [2])
-    such inhoud = "<h1>Aangiften</h1>{tabel}"
+        such kwn = int(tv[1:])
+        such href = "/aangifte?j={j}&kw={kwn}"
+        such label = "{tv}-{j}"
+        such tvlink = html.link(href, label)
+        such op = html.escape(a["ingediend_op"])
+        such sal = html.escape(str(a["saldo"]))
+        very body = body + "<tr><td>{tvlink}</td><td>{op}</td><td class=\"num\">{sal}</td></tr>"
+        very aantal = aantal + 1
+    such tabel = "<table><thead><tr><th>Tijdvak</th><th>Ingediend op</th><th class=\"num\">Saldo</th></tr></thead><tbody>{body}</tbody></table>"
+    if aantal == 0:
+        very tabel = "<p>Nog geen aangiften ingediend.</p>"
+    such inhoud = "<h1>Aangiften</h1><p>Ingediende tijdvakken (het bevroren snapshot, 7 jaar bewaard). Klik een tijdvak voor de details.</p>{tabel}"
     return http.html_response(weergave.render("Aangiften", inhoud))
 wow
 wow

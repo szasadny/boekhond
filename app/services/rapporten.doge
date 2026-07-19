@@ -31,6 +31,31 @@ such rek_map much store:
     return m
 wow
 
+# Omzet per maand over jaar j: som(credit - debet) op rekeningen met type "omzet", gebucket op
+# de maand van de post. Retourneert een List van 12 Decimals (index 0 = januari). Voor het
+# Overzicht-grafiekje; bedragen blijven Decimal.
+such omzet_per_maand much store, j:
+    such m = rek_map(store)
+    such per = []
+    such i = 0
+    while i < 12:
+        per.append(dec("0"))
+        very i = i + 1
+    for p in store.laad("journaal", []):
+        if datum.jaar(p["datum"]) != j:
+            continue
+        such mnd = datum.maand(p["datum"])
+        for r in p["regels"]:
+            such nr = r["rekening"]
+            if not m.has(nr):
+                continue
+            if m[nr]["type"] != "omzet":
+                continue
+            such bedrag = geld.bedrag(r["credit"]) - geld.bedrag(r["debet"])
+            per[mnd - 1] = per[mnd - 1] + bedrag
+    return per
+wow
+
 # Winst & verlies over jaar j: omzet (credit-debet) en kosten (debet-credit).
 such winst_verlies much store, j:
     such g1 = datum.kwartaal_grenzen(j, 1)
