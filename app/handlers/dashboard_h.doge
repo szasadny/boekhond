@@ -19,8 +19,8 @@ such home much req:
         such rb = r["rubrieken"][code]
         such bedrag = rb["bedrag"]
         such vat = rb["btw"]
-        very body = body + "<tr><td>{code}</td><td>{bedrag}</td><td>{vat}</td></tr>"
-    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{body}</tbody></table>"
+        very body = body + "<tr><td>{code}</td><td class=\"num\">{bedrag}</td><td class=\"num\">{vat}</td></tr>"
+    such tabel = "<table><thead><tr><th>Rubriek</th><th class=\"num\">Bedrag</th><th class=\"num\">Btw</th></tr></thead><tbody>{body}</tbody></table>"
     such r5a = r["5a"]
     such r5b = r["5b"]
     such saldo = r["saldo"]

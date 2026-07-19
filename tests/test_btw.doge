@@ -97,4 +97,28 @@ such test_splits_incl:
     amaze g[0] == dec("100")
     amaze g[1] == dec("0")
 wow
+
+# Elke code moet een niet-lege label + uitleg hebben, anders lekt een rauwe code in een dropdown.
+such test_elke_code_heeft_label_en_uitleg:
+    for c in btw.CODES:
+        amaze btw.CODES[c].has("label")
+        amaze btw.CODES[c].has("uitleg")
+        amaze btw.CODES[c]["label"] != ""
+        amaze btw.CODES[c]["uitleg"] != ""
+wow
+
+such test_label_valt_terug_op_code:
+    amaze btw.label("import_buiten_eu") == "Inkoop buiten EU (btw verlegd)"
+    amaze btw.label("bestaat_niet") == "bestaat_niet"
+wow
+
+such test_legenda_filtert_op_soort:
+    such ink = btw.legenda("inkoop")
+    for e in ink:
+        amaze btw.CODES[e["code"]]["soort"] == "inkoop"
+    such alle = btw.legenda("alle")
+    amaze len(alle) == len(btw.CODES)
+    # inkoop is een strikte subset van alle
+    amaze len(ink) < len(alle)
+wow
 wow

@@ -25,7 +25,7 @@ wow
 # boekhond.js wordt site-wide deferred geladen (feature-detect per pagina, geen JS-baseline vereist).
 such pagina much titel, inhoud:
     such js = script("/static/js/boekhond.js")
-    return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n{js}\n</body>\n</html>\n"
+    return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"icon\" href=\"/static/favicon.svg\">\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n{js}\n</body>\n</html>\n"
 wow
 
 # Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output.
@@ -68,22 +68,32 @@ such formulier much actie, methode, velden, enctype = "":
 wow
 
 # Tabel. koppen = List<tekst>; rijen = List<List<tekst>>. Alle cellen ge-escaped.
-such tabel much koppen, rijen:
+# rechts = List<Int> kolomindexen die rechts uitgelijnd worden (class="num"), bv. bedragkolommen.
+such tabel much koppen, rijen, rechts = []:
     such kop = ""
+    such ci = 0
     for k in koppen:
-        very kop = kop + "<th>{escape(k)}</th>"
+        such kl = " class=\"num\"" if ci in rechts else ""
+        very kop = kop + "<th{kl}>{escape(k)}</th>"
+        very ci = ci + 1
     such body = ""
     for rij in rijen:
         such cellen = ""
+        such cj = 0
         for cel in rij:
-            very cellen = cellen + "<td>{escape(cel)}</td>"
+            such cl = " class=\"num\"" if cj in rechts else ""
+            very cellen = cellen + "<td{cl}>{escape(cel)}</td>"
+            very cj = cj + 1
         very body = body + "<tr>{cellen}</tr>"
     return "<table>\n<thead><tr>{kop}</tr></thead>\n<tbody>{body}</tbody>\n</table>"
 wow
 
-# Anker. href/tekst = tekst (beide ge-escaped).
-such link much href, tekst:
-    return "<a href=\"{escape(href)}\">{escape(tekst)}</a>"
+# Anker. href/tekst = tekst (beide ge-escaped); klasse = code (optioneel, bv. "actief").
+such link much href, tekst, klasse = "":
+    such k = ""
+    if klasse != "":
+        very k = " class=\"{escape(klasse)}\""
+    return "<a href=\"{escape(href)}\"{k}>{escape(tekst)}</a>"
 wow
 
 # Knop. tekst = tekst; type = code.

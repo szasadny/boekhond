@@ -29,20 +29,20 @@ such overzicht_inhoud much store, cfg, melding:
             very pid = p["mollie_payment_id"]
         such incl = geld.formatteer(geld.bedrag(p["regels"][0]["debet"]))
         rijen.append([p["datum"], p["omschrijving"], incl, pid])
-    such tabel = html.tabel(["Datum", "Omschrijving", "Bedrag", "Payment"], rijen)
+    such tabel = html.tabel(["Datum", "Omschrijving", "Bedrag", "Payment"], rijen, [2])
     such actie = ""
     if heeft_key:
         such kn = html.knop("Sync nu")
         very actie = "<form action=\"/mollie/sync\" method=\"post\">{kn}</form>"
     else:
         very actie = "<p class=\"fout\">Geen MOLLIE_API_KEY geconfigureerd (.env).</p>"
-    return "{melding}<h1>Mollie</h1><p>Laatste sync: {lstxt}</p>{actie}{tabel}"
+    return "{melding}<h1>Inkomsten</h1><p>Laatste sync: {lstxt}</p>{actie}{tabel}"
 wow
 
 such overzicht much req:
     such store = req["ctx"]["store"]
     such cfg = req["ctx"]["config"]
-    return http.html_response(weergave.render("Mollie", overzicht_inhoud(store, cfg, "")))
+    return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, "")))
 wow
 
 such sync much req:
@@ -56,6 +56,6 @@ such sync much req:
         return http.redirect("/mollie")
     oh no err!
         such m = weergave.fout(err.message)
-        return http.html_response(weergave.render("Mollie", overzicht_inhoud(store, cfg, m)))
+        return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
 wow
 wow

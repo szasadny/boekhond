@@ -7,23 +7,42 @@ so "../../lib/datum.doge"
 #   btw:       rubriek waar het btw-bedrag in telt (none = geen)
 #   aftrek:    btw telt ook als voorbelasting (5b)
 #   zelf:      btw wordt zelf aangegeven, niet aan de wederpartij betaald (incl = ex)
+#   label:     menselijke naam voor de UI-dropdowns
+#   uitleg:    korte betekenis voor de legenda in de invoerformulieren
 so CODES = {
-    "hoog_21": {"soort": "verkoop", "pct": 21, "grondslag": "1a", "btw": "1a", "aftrek": false, "zelf": false},
-    "laag_9": {"soort": "verkoop", "pct": 9, "grondslag": "1b", "btw": "1b", "aftrek": false, "zelf": false},
-    "nul_binnenland": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false},
-    "verlegd_naar_afnemer": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false},
-    "vrijgesteld": {"soort": "verkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false},
-    "export_buiten_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3a", "btw": none, "aftrek": false, "zelf": false},
-    "levering_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3b", "btw": none, "aftrek": false, "zelf": false},
-    "voorbelasting_hoog": {"soort": "inkoop", "pct": 21, "grondslag": none, "btw": none, "aftrek": true, "zelf": false},
-    "voorbelasting_laag": {"soort": "inkoop", "pct": 9, "grondslag": none, "btw": none, "aftrek": true, "zelf": false},
-    "verlegd_naar_mij": {"soort": "inkoop", "pct": 21, "grondslag": "2a", "btw": "2a", "aftrek": true, "zelf": true},
-    "import_buiten_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4a", "btw": "4a", "aftrek": true, "zelf": true},
-    "verwerving_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4b", "btw": "4b", "aftrek": true, "zelf": true},
-    "geen_btw": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false},
+    "hoog_21": {"soort": "verkoop", "pct": 21, "grondslag": "1a", "btw": "1a", "aftrek": false, "zelf": false, "label": "Omzet 21%", "uitleg": "Verkoop met 21% btw. Telt in rubriek 1a."},
+    "laag_9": {"soort": "verkoop", "pct": 9, "grondslag": "1b", "btw": "1b", "aftrek": false, "zelf": false, "label": "Omzet 9%", "uitleg": "Verkoop met 9% btw. Telt in rubriek 1b."},
+    "nul_binnenland": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false, "label": "Omzet 0% (binnenland)", "uitleg": "Binnenlandse verkoop tegen 0%. Telt in rubriek 1e."},
+    "verlegd_naar_afnemer": {"soort": "verkoop", "pct": 0, "grondslag": "1e", "btw": none, "aftrek": false, "zelf": false, "label": "Btw verlegd naar klant", "uitleg": "Je verlegt de btw naar je afnemer. Telt in rubriek 1e."},
+    "vrijgesteld": {"soort": "verkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Vrijgestelde omzet", "uitleg": "Vrijgesteld van btw. Telt niet mee in de aangifte-rubrieken."},
+    "export_buiten_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3a", "btw": none, "aftrek": false, "zelf": false, "label": "Export buiten EU", "uitleg": "Verkoop naar buiten de EU tegen 0%. Telt in rubriek 3a."},
+    "levering_eu": {"soort": "verkoop", "pct": 0, "grondslag": "3b", "btw": none, "aftrek": false, "zelf": false, "label": "Levering binnen EU", "uitleg": "Verkoop naar een ander EU-land tegen 0%. Telt in rubriek 3b."},
+    "voorbelasting_hoog": {"soort": "inkoop", "pct": 21, "grondslag": none, "btw": none, "aftrek": true, "zelf": false, "label": "Inkoop 21% (btw terugvragen)", "uitleg": "NL-leverancier met 21% btw die je als voorbelasting terugvraagt (rubriek 5b)."},
+    "voorbelasting_laag": {"soort": "inkoop", "pct": 9, "grondslag": none, "btw": none, "aftrek": true, "zelf": false, "label": "Inkoop 9% (btw terugvragen)", "uitleg": "NL-leverancier met 9% btw die je terugvraagt (rubriek 5b)."},
+    "verlegd_naar_mij": {"soort": "inkoop", "pct": 21, "grondslag": "2a", "btw": "2a", "aftrek": true, "zelf": true, "label": "Btw verlegd naar mij (NL)", "uitleg": "Binnenlandse verlegging: je geeft de btw zelf aan en trekt 'm af (rubriek 2a + 5b)."},
+    "import_buiten_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4a", "btw": "4a", "aftrek": true, "zelf": true, "label": "Inkoop buiten EU (btw verlegd)", "uitleg": "Dienst van buiten de EU, bijvoorbeeld US-SaaS. Btw verlegd naar jou: zelf aangeven en aftrekken (rubriek 4a + 5b)."},
+    "verwerving_eu": {"soort": "inkoop", "pct": 21, "grondslag": "4b", "btw": "4b", "aftrek": true, "zelf": true, "label": "Inkoop binnen EU (btw verlegd)", "uitleg": "Goederen of diensten uit een ander EU-land met verlegde btw (rubriek 4b + 5b)."},
+    "geen_btw": {"soort": "inkoop", "pct": 0, "grondslag": none, "btw": none, "aftrek": false, "zelf": false, "label": "Geen btw", "uitleg": "Kosten zonder btw, zoals verzekering of bankkosten."},
 }
 
 so RUBRIEKEN = ["1a", "1b", "1e", "2a", "3a", "3b", "4a", "4b"]
+
+# Menselijk label voor een btw-code (voor de UI-dropdowns); valt terug op de code zelf.
+such label much code:
+    if CODES.has(code) and CODES[code].has("label"):
+        return CODES[code]["label"]
+    return code
+wow
+
+# Legenda-regels voor de invoerformulieren: [{code, label, uitleg}] voor een soort
+# ("inkoop", "verkoop" of "alle").
+such legenda much soort:
+    such uit = []
+    for c in CODES:
+        if soort == "alle" or CODES[c]["soort"] == soort:
+            uit.append({"code": c, "label": CODES[c]["label"], "uitleg": CODES[c]["uitleg"]})
+    return uit
+wow
 
 such info much code:
     if not CODES.has(code):

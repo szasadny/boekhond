@@ -73,4 +73,24 @@ such test_select_gekozen_en_escaped:
     amaze strings.contains(s, "<option value=\"geen_btw\" selected>&lt;geen&gt;</option>")
     amaze not strings.contains(s, "value=\"hoog_21\" selected")
 wow
+
+such test_link_klasse:
+    such a = html.link("/journaal", "Journaal", "actief")
+    amaze strings.contains(a, "<a href=\"/journaal\" class=\"actief\">Journaal</a>")
+    # zonder klasse-arg blijft de link onveranderd (backward compatible)
+    such b = html.link("/x", "y")
+    amaze b == "<a href=\"/x\">y</a>"
+wow
+
+such test_tabel_rechts_uitlijning:
+    such t = html.tabel(["Naam", "Bedrag"], [["kabosu", "12,50"]], [1])
+    # kolom 1 (Bedrag) krijgt class="num" op th en td, kolom 0 niet
+    amaze strings.contains(t, "<th class=\"num\">Bedrag</th>")
+    amaze strings.contains(t, "<td class=\"num\">12,50</td>")
+    amaze strings.contains(t, "<th>Naam</th>")
+    amaze strings.contains(t, "<td>kabosu</td>")
+    # zonder rechts-arg krijgt geen enkele cel een class (backward compatible)
+    such u = html.tabel(["Naam"], [["kabosu"]])
+    amaze not strings.contains(u, "class=\"num\"")
+wow
 wow

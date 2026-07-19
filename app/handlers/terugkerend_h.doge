@@ -25,7 +25,7 @@ such btw_opties:
     such o = []
     for c in btw.CODES:
         if btw.CODES[c]["soort"] == "inkoop":
-            o.append([c, c])
+            o.append([c, btw.label(c)])
     return o
 wow
 
@@ -53,7 +53,7 @@ such rij much s:
     such oms = html.escape(s["omschrijving"])
     such bedrag = html.escape(geld.formatteer(geld.bedrag(s["bedrag_ex"])))
     such rek = html.escape(s["kosten_rek"])
-    such code = html.escape(s["btw_code"])
+    such code = html.escape(btw.label(s["btw_code"]))
     such dag = html.escape(s["dag"])
     such vanaf = html.escape(s["vanaf"])
     such actie = "inactief"
@@ -61,18 +61,19 @@ such rij much s:
         such id = html.escape(s["id"])
         such knop = html.knop("Deactiveren")
         very actie = "<form action=\"/terugkerend/{id}/deactiveer\" method=\"post\" class=\"inline\">{knop}</form>"
-    return "<tr><td>{lev}</td><td>{oms}</td><td>{bedrag}</td><td>{rek}</td><td>{code}</td><td>{dag}</td><td>{vanaf}</td><td>{actie}</td></tr>"
+    return "<tr><td>{lev}</td><td>{oms}</td><td class=\"num\">{bedrag}</td><td>{rek}</td><td>{code}</td><td class=\"num\">{dag}</td><td>{vanaf}</td><td>{actie}</td></tr>"
 wow
 
 such inhoud_van much store, melding:
     such body = ""
     for s in terugkerend.alle(store):
         very body = body + rij(s)
-    such tabel = "<table><thead><tr><th>Leverancier</th><th>Omschrijving</th><th>Bedrag ex</th><th>Rekening</th><th>Btw-code</th><th>Dag</th><th>Vanaf</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
+    such tabel = "<table><thead><tr><th>Leverancier</th><th>Omschrijving</th><th class=\"num\">Bedrag ex</th><th>Rekening</th><th>Btw-code</th><th class=\"num\">Dag</th><th>Vanaf</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such gk = html.knop("Genereer nu")
     such genform = "<form action=\"/terugkerend/genereer\" method=\"post\">{gk}</form>"
     such form = toevoeg_formulier(store)
-    return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{form}"
+    such leg = weergave.btw_legenda("inkoop")
+    return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{form}{leg}"
 wow
 
 such lijst much req:

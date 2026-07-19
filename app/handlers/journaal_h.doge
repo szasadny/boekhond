@@ -43,14 +43,14 @@ such inkoop_btw_opties:
     such o = []
     for c in btw.CODES:
         if btw.CODES[c]["soort"] == "inkoop":
-            o.append([c, c])
+            o.append([c, btw.label(c)])
     return o
 wow
 
 such btw_opties_leeg:
     such o = [["", "(geen)"]]
     for c in btw.CODES:
-        o.append([c, c])
+        o.append([c, btw.label(c)])
     return o
 wow
 
@@ -78,8 +78,11 @@ such lijst much req:
         such oms = html.escape(p["omschrijving"])
         such bron = html.escape(p["bron"])
         such bedrag = html.escape(geld.formatteer(totaal))
-        very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td>{bedrag}</td></tr>"
-    such tabel = "<table><thead><tr><th>Datum</th><th>Omschrijving</th><th>Bron</th><th>Bedrag</th></tr></thead><tbody>{body}</tbody></table>"
+        such pid = p["id"]
+        such shref = "/journaal/storno?id={pid}"
+        such slink = html.link(shref, "Storneer")
+        very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td class=\"num\">{bedrag}</td><td>{slink}</td></tr>"
+    such tabel = "<table><thead><tr><th>Datum</th><th>Omschrijving</th><th>Bron</th><th class=\"num\">Bedrag</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such l_ink = html.link("/journaal/inkoop", "Inkoop boeken")
     such l_bank = html.link("/journaal/bank", "Bank/privé boeken")
     such l_memo = html.link("/journaal/memoriaal", "Memoriaalpost")
@@ -100,7 +103,8 @@ such inkoop_inhoud much store, melding:
     such srek = html.select("kosten_rek", rekening_opties(store), "")
     such vrek = "<label>Kostenrekening {srek}</label>"
     such form = html.formulier("/journaal/inkoop", "post", [vd, vlev, voms, vbedrag, vbtw, vrek, html.knop("Boeken")])
-    return "{melding}<h1>Inkoop boeken</h1>{form}"
+    such leg = weergave.btw_legenda("inkoop")
+    return "{melding}<h1>Inkoop boeken</h1>{form}{leg}"
 wow
 
 such inkoop_form much req:
@@ -172,7 +176,8 @@ such memoriaal_inhoud much store, melding:
     such tabel = "<table><thead><tr><th>Rekening</th><th>Debet</th><th>Credit</th><th>Btw-code</th></tr></thead><tbody>{rijen}</tbody></table>"
     such knop = html.knop("Boeken")
     such form = "<form action=\"/journaal/memoriaal\" method=\"post\">{vd}{voms}{vrel}{tabel}{knop}</form>"
-    return "{melding}<h1>Memoriaalpost</h1>{form}"
+    such leg = weergave.btw_legenda("alle")
+    return "{melding}<h1>Memoriaalpost</h1>{form}{leg}"
 wow
 
 such memoriaal_form much req:

@@ -21,7 +21,7 @@ such regels_tabel much data:
         such nr = html.escape(row["nummer"])
         such naam = html.escape(row["naam"])
         such b = html.escape(geld.formatteer(row["bedrag"]))
-        very body = body + "<tr><td>{nr}</td><td>{naam}</td><td>{b}</td></tr>"
+        very body = body + "<tr><td>{nr}</td><td>{naam}</td><td class=\"num\">{b}</td></tr>"
     return body
 wow
 
@@ -95,8 +95,8 @@ such jaaroverzicht much req:
         such a = k["5a"]
         such vb = k["5b"]
         such sal = k["saldo"]
-        very body = body + "<tr><td>Q{kw}</td><td>{a}</td><td>{vb}</td><td>{sal}</td></tr>"
-    such tabel = "<table><thead><tr><th>Tijdvak</th><th>5a</th><th>5b</th><th>Saldo</th></tr></thead><tbody>{body}</tbody></table>"
+        very body = body + "<tr><td>Q{kw}</td><td class=\"num\">{a}</td><td class=\"num\">{vb}</td><td class=\"num\">{sal}</td></tr>"
+    such tabel = "<table><thead><tr><th>Tijdvak</th><th class=\"num\">5a</th><th class=\"num\">5b</th><th class=\"num\">Saldo</th></tr></thead><tbody>{body}</tbody></table>"
     such js = jo["jaar_saldo"]
     such res = html.escape(geld.formatteer(jo["wv"]["resultaat"]))
     such vrij = html.escape(geld.formatteer(jo["vrijgestelde_omzet"]))

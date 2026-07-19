@@ -41,6 +41,7 @@ doge check lib/datum.doge         # snelle syntax check
 doge test tests                   # volledige suite
 doge fmt <file>                   # canonical formatting
 npm ci && npm run build           # Dogescript static/djs/ → static/js/ 
+docker compose up -d --build      # full build
 ```
 
 ## Deployment

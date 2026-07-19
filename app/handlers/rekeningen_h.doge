@@ -13,7 +13,7 @@ so TYPE_OPTIES = [["activa", "activa"], ["passiva", "passiva"], ["eigen_vermogen
 such btw_opties:
     such o = [["", "(geen)"]]
     for c in btw.CODES:
-        o.append([c, c])
+        o.append([c, btw.label(c)])
     return o
 wow
 
@@ -33,7 +33,7 @@ such rij much r:
     such type = html.escape(r["type"])
     such code = ""
     if r["btw_code"] != none:
-        very code = html.escape(r["btw_code"])
+        very code = html.escape(btw.label(r["btw_code"]))
     such actie = "inactief"
     if r["actief"]:
         such knop = html.knop("Deactiveren")
@@ -46,7 +46,8 @@ such inhoud_van much store, melding:
     for r in rekeningen.alle(store):
         very body = body + rij(r)
     such tabel = "<table><thead><tr><th>Nummer</th><th>Naam</th><th>Type</th><th>Btw-code</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
-    return "{melding}<h1>Rekeningen</h1>{tabel}<h2>Nieuwe rekening</h2>{toevoeg_formulier()}"
+    such leg = weergave.btw_legenda("alle")
+    return "{melding}<h1>Rekeningen</h1>{tabel}<h2>Nieuwe rekening</h2>{toevoeg_formulier()}{leg}"
 wow
 
 such lijst much req:

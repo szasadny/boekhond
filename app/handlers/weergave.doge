@@ -1,20 +1,30 @@
 so "../../web/html.doge"
+so "../services/btw.doge"
 
 # Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
 # Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
 
-so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/terugkerend", "Kosten"], ["/mollie", "Mollie"], ["/aangifte", "Aangifte"], ["/rapporten/balans", "Rapporten"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"]]
+so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/terugkerend", "Kosten"], ["/mollie", "Inkomsten"], ["/aangifte", "Aangifte"], ["/rapporten/balans", "Rapporten"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"]]
 
-such nav:
+# Paginatitel → nav-sectie (href in LINKS), voor de actief-markering. Titels zonder entry
+# krijgen geen actieve link (veilige default: printversies, onbekende pagina's).
+so SECTIE = {"Overzicht": "/", "Journaal": "/journaal", "Inkoop": "/journaal", "Bank": "/journaal", "Memoriaal": "/journaal", "Storno": "/journaal", "Kosten": "/terugkerend", "Inkomsten": "/mollie", "Aangifte": "/aangifte", "Aangiften": "/aangifte", "Rekeningen": "/rekeningen", "Uploaden": "/inbox", "Inbox": "/inbox", "Balans": "/rapporten/balans", "Winst en verlies": "/rapporten/balans", "Jaaroverzicht": "/rapporten/balans"}
+
+such nav much actief:
     such items = ""
     for l in LINKS:
-        very items = items + html.link(l[0], l[1]) + " "
+        such kl = "actief" if l[0] == actief else ""
+        very items = items + html.link(l[0], l[1], kl) + " "
     return "<nav>{items}</nav>"
 wow
 
 # Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output.
+# De actieve nav-link volgt uit SECTIE[titel].
 such render much titel, inhoud:
-    return html.layout(titel, nav(), inhoud)
+    such actief = ""
+    if SECTIE.has(titel):
+        very actief = SECTIE[titel]
+    return html.layout(titel, nav(actief), inhoud)
 wow
 
 # Rode foutmelding; bericht = tekst (ge-escaped).
@@ -26,5 +36,15 @@ wow
 such kaal much titel, inhoud:
     such body = "<main>\n{inhoud}\n</main>"
     return html.pagina(titel, body)
+wow
+
+# Uitklapbare legenda van de btw-codes voor de invoerformulieren. soort = "inkoop",
+# "verkoop" of "alle". Label + uitleg komen uit btw.doge (één bron van waarheid).
+such btw_legenda much soort:
+    such rijen = []
+    for e in btw.legenda(soort):
+        rijen.append([e["label"], e["uitleg"]])
+    such t = html.tabel(["Btw-code", "Betekenis"], rijen)
+    return "<details class=\"legenda\"><summary>Wat betekenen de btw-codes?</summary>{t}</details>"
 wow
 wow

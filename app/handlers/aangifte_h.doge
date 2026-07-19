@@ -25,7 +25,7 @@ such rubriek_rijen much ov:
         such rb = rub[code]
         such bedrag = rb["bedrag"]
         such vat = rb["btw"]
-        very body = body + "<tr><td>{code}</td><td>{bedrag}</td><td>{vat}</td></tr>"
+        very body = body + "<tr><td>{code}</td><td class=\"num\">{bedrag}</td><td class=\"num\">{vat}</td></tr>"
     return body
 wow
 
@@ -47,7 +47,7 @@ such overzicht_inhoud much ov, melding:
     such kw = ov["kwartaal"]
     such j = ov["jaar"]
     such rijen = rubriek_rijen(ov)
-    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
+    such tabel = "<table><thead><tr><th>Rubriek</th><th class=\"num\">Bedrag</th><th class=\"num\">Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
     such r5a = ov["5a"]
     such r5b = ov["5b"]
     such saldo = ov["saldo"]
@@ -117,7 +117,7 @@ such print_view much req:
     such kw = ov["kwartaal"]
     such j = ov["jaar"]
     such rijen = rubriek_rijen(ov)
-    such tabel = "<table><thead><tr><th>Rubriek</th><th>Bedrag</th><th>Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
+    such tabel = "<table><thead><tr><th>Rubriek</th><th class=\"num\">Bedrag</th><th class=\"num\">Btw</th></tr></thead><tbody>{rijen}</tbody></table>"
     such r5a = ov["5a"]
     such r5b = ov["5b"]
     such saldo = ov["saldo"]
@@ -134,7 +134,7 @@ such lijst much req:
         such tv = a["tijdvak"]
         such j = a["jaar"]
         rijen.append(["{tv}-{j}", a["ingediend_op"], str(a["saldo"])])
-    such tabel = html.tabel(["Tijdvak", "Ingediend op", "Saldo"], rijen)
+    such tabel = html.tabel(["Tijdvak", "Ingediend op", "Saldo"], rijen, [2])
     such inhoud = "<h1>Aangiften</h1>{tabel}"
     return http.html_response(weergave.render("Aangiften", inhoud))
 wow
