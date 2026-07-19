@@ -6,8 +6,6 @@ Boekhond is een volwaardige dubbel-boekhoudapp: inkomsten komen automatisch binn
 
 ## Stack
 
-This project is built entirely on the doge stack:
-
 | Layer | Technology |
 | --- | --- |
 | Backend | [Doge](https://github.com/DogeLanguage/doge) transpiles to Rust, `doge build` yields a single binary |
@@ -18,12 +16,12 @@ This project is built entirely on the doge stack:
 
 ## Deployment
 
-Eerste install:
+First install:
 
 ```sh
 git clone https://github.com/szasadny/boekhond.git && cd boekhond
-cp .env.example .env              # secrets (INTERN_TOKEN, MOLLIE_API_KEY) invullen
-docker compose up -d --build      # app op poort 8085, administratie in ./data
+cp .env.example .env
+docker compose up -d --build 
 ```
 
 Update:
