@@ -141,6 +141,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 2. De ondernemer neemt de berekende rubrieken over in **Mijn Belastingdienst Zakelijk** (handmatig — geen publieke API; Digipoort is out of scope) en markeert het tijdvak **ingediend** → Aangifte-record met rubrieken-snapshot + `ingediend_op`.
 3. Vanaf dat moment is het tijdvak **vergrendeld** (Hard Rule 3): journaalposten met een datum in een ingediend tijdvak zijn immutable; nieuwe posten kunnen er niet in gedateerd worden.
 4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`). De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het btw-effect per storno leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het effect via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5).
+5. De default voor **te doen** is het meest recente afgelopen, nog niet ingediende kwartaal. Lege kwartalen ná de start van de administratie worden niet overgeslagen; op een clean install is dat het direct voorafgaande kwartaal.
 
 ---
 
