@@ -12,7 +12,7 @@ Boekhond is een volwaardige dubbel-boekhoudapp: inkomsten komen automatisch binn
 | Web server | Inhouse micro-framework built on `doge howl` (raw TCP) |
 | Frontend | Server-rendered HTML + [Dogescript](https://github.com/dogescript/dogescript) for client-side behaviour |
 | Storage | [DSON](https://github.com/dogescript/DSON) files in `data/` |
-| Deploy | Docker container in a VM, LAN/VPN only; `data/` as volume |
+| Deploy | Docker container in a VM/LXC, LAN/VPN only; `data/` as volume |
 
 ## Deployment
 
@@ -21,7 +21,8 @@ First install:
 ```sh
 git clone https://github.com/szasadny/boekhond.git && cd boekhond
 cp .env.example .env
-docker compose up -d --build 
+# Zet PUBLISH_HOST in .env op het LAN/VPN-adres van de VM/LXC voor directe netwerktoegang.
+docker compose up -d --build
 ```
 
 Update:

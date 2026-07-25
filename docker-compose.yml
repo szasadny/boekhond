@@ -1,12 +1,11 @@
-# Boekhond draait in een VM en is alleen via LAN/VPN bereikbaar (zie docs/ARCHITECTURE.md §2).
+# Boekhond draait in een VM/LXC en is alleen via LAN/VPN bereikbaar (zie docs/ARCHITECTURE.md §2).
 # data/ is de volledige administratie — backup dat pad extern (bewaarplicht: 7 jaar).
 services:
   boekhond:
     build: .
-    # Alleen op de host-loopback publiceren: een reverse-proxy op de host (of een SSH-tunnel)
-    # bereikt de app, maar de poort staat niet open op alle host-interfaces.
+    # Host for local network
     ports:
-      - "127.0.0.1:8085:8085"
+      - "${PUBLISH_HOST:-127.0.0.1}:8085:8085"
     volumes:
       - ./data:/app/data
     env_file: .env

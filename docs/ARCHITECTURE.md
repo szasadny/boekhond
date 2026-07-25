@@ -44,7 +44,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | A user-facing (Dutch) error or label string | constants at the top of the owning handler/service — one home per string, no duplicates |
 | A config value / secret | `.env`, read once at boot in `main.doge` into a config Dict passed down — never `env.get` scattered through the code |
 | A background/periodic action | the scheduler pup in `main.doge` → loopback POST `/internal/<naam>` handler (§5.2) — never a sleep loop inside the request path |
-| A language-gap stopgap | `lib/` with a `# stopgap for doge#NN` comment (Hard Rule 10) |
+| A language-gap stopgap | `lib/` with a `# stopgap for doge#NN` comment (Hard Rule 11) |
 | A test | `tests/test_<module>.doge` — table-driven for fiscal rules |
 
 ---
@@ -55,14 +55,14 @@ Authoritative reference for the system's shape. Jump to the section you need and
 2. **Single source of truth.** Fiscal rules in `btw.doge`, persistence in `store.doge`, escaping in `html.doge`. Duplication of a fiscal rule is a compliance bug, not just debt.
 3. **Boring beats clever.** One user, tiny data volume: sequential request handling, JSON files, server-rendered HTML. Complexity needs a demonstrated reason.
 4. **Audit-first.** Every mutation is an append to `audit.dsonl` before it is state. The administratie must be reconstructable (bewaarplicht).
-5. **The language is young — push gaps upstream.** A missing primitive becomes a DogeLanguage/doge ticket + minimal marked stopgap (Hard Rule 10), so this app makes the language better instead of accumulating workarounds.
+5. **The language is young — push gaps upstream.** A missing primitive becomes a DogeLanguage/doge ticket + minimal marked stopgap (Hard Rule 11), so this app makes the language better instead of accumulating workarounds.
 
 ---
 
 ## 2. Topology & Request Lifecycle
 
 ```text
-Browser (LAN/VPN) ──HTTP──▶ VM ▸ Docker container ▸ boekhond binary
+Browser (LAN/VPN) ──HTTP──▶ VM/LXC ▸ Docker container ▸ boekhond binary
                                                               │
                                     ┌─────────────────────────┤
                                     ▼                         ▼
@@ -139,7 +139,7 @@ All exports are GET endpoints rendering from the same services that render pages
 
 ### 5.5 Config
 
-`.env` read once at boot → config Dict → passed down explicitly. `main.doge` loads `.env` itself (a small parser; real environment variables win, so `docker compose env_file`/exports override the file). Keys: `INTERN_TOKEN` (none → scheduler-pup niet gestart, `/internal/*` weigert alles), `MOLLIE_API_KEY`, `POORT`, `DATA_DIR`, `BIND_HOST` (listener-bind; default `127.0.0.1`, in de container zet `docker-compose.yml` dit op `0.0.0.0` zodat de gepubliceerde poort/reverse-proxy hem bereikt — `main.doge` bindt `cfg["bind_host"]`). Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
+`.env` read once at boot → config Dict → passed down explicitly. `main.doge` loads `.env` itself (a small parser; real environment variables win, so `docker compose env_file`/exports override the file). App keys: `INTERN_TOKEN` (none → scheduler-pup niet gestart, `/internal/*` weigert alles), `MOLLIE_API_KEY`, `POORT`, `DATA_DIR`, `BIND_HOST` (listener-bind; default `127.0.0.1`, in de container zet `docker-compose.yml` dit op `0.0.0.0` zodat de gepubliceerde poort/reverse-proxy hem bereikt — `main.doge` bindt `cfg["bind_host"]`). Compose consumes `PUBLISH_HOST` separately: default `127.0.0.1`; set the VM/LXC's LAN/VPN address for direct network access. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
 
 ### 5.6 Bijlagen — upload & download
 

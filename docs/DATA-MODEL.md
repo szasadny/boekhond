@@ -7,7 +7,7 @@ Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads wh
 | 1 | Entities (one DSON collection each) |
 | 2 | btw-codes → aangifte-rubrieken — the fiscal heart |
 | 3 | Tijdvak & aangifte lifecycle |
-| 4 | Invarianten (enforced in services, tested per Hard Rule 9) |
+| 4 | Invarianten (enforced in services, tested per Hard Rule 10) |
 
 ---
 
@@ -146,7 +146,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 
 ## 4. Invarianten
 
-Enforced in services, elk met een test (Hard Rule 9):
+Enforced in services, elk met een test (Hard Rule 10):
 
 0. **Elke journaalpost balanceert:** som(debet) == som(credit), op de cent (Decimal). Een niet-balancerende post wordt geweigerd, nooit "rechtgetrokken".
 1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in.

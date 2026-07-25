@@ -39,8 +39,9 @@ Never acceptable to break — including during debugging or hot fixes.
 6. **Every piece of user input rendered into HTML goes through the escaping helpers in `web/html.doge`** — never raw string interpolation of stored data (XSS).
 7. **Uploads are validated** (extension allow-list, size cap) and stored under a generated name; the original filename is metadata only, never a path.
 8. **Secrets and instance config in `.env` only** — never in source, not even as fallback defaults.
-9. **Everything the wet touches gets a test with a known-good outcome** — rubriek sums, afronding, import-idempotentie, tijdvak boundaries. `doge test tests` must stay green.
-10. **A Doge language gap becomes a ticket on DogeLanguage/doge, plus the smallest possible userland stopgap** — clearly marked `# stopgap for doge#NN` so it can be deleted when the ticket lands. Never silently build a permanent workaround for something that belongs in the language.
+9. **Agents never touch `.env` or another instance-specific env file.** Never read, write, search, diff, parse, print, or otherwise inspect it. Inspect `.env.example` only to learn the schema; never target `.env` directly or through a glob such as `.env*`.
+10. **Everything the wet touches gets a test with a known-good outcome** — rubriek sums, afronding, import-idempotentie, tijdvak boundaries. `doge test tests` must stay green.
+11. **A Doge language gap becomes a ticket on DogeLanguage/doge, plus the smallest possible userland stopgap** — clearly marked `# stopgap for doge#NN` so it can be deleted when the ticket lands. Never silently build a permanent workaround for something that belongs in the language.
 
 ## Domain in one screen
 
@@ -54,7 +55,7 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
 - **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`).
 - **Scheduler:** one `pack.zoom` pup (daily ~06:00) POSTs loopback `/internal/run-recurring` — guarded on `INTERN_TOKEN` (`crypto.same`) + a loopback-peer-check (`howl.peer`), runs Mollie-sync + terugkerende kosten + import-scan (each idempotent). Pups share no state — loopback HTTP is the only channel.
-- **Deploy:** `doge build` → single binary in a Docker container inside a VM (`data/` as volume), LAN/VPN only. The container binds `0.0.0.0` via `BIND_HOST` (compose overrides the loopback default) so the published port reaches it.
+- **Deploy:** `doge build` → single binary in a Docker container inside a VM/LXC (`data/` as volume), LAN/VPN only. Compose publishes on `PUBLISH_HOST` (default `127.0.0.1`; set the instance's LAN/VPN address for direct network access); the container binds `0.0.0.0` via `BIND_HOST` so the published port reaches it.
 
 ## Project map
 
@@ -92,7 +93,7 @@ docs/                   # ARCHITECTURE, DATA-MODEL — the on-demand reference s
 - `doge check <file>` — fastest syntax/semantic feedback; run it constantly.
 - `doge test tests` — full suite; runs every zero-arg `test_*` function (`amaze` assertions). Fixture helpers must **not** start with `test` (the runner would execute them).
 - `doge fmt "$PWD/<file>"` — canonical in-place formatting. Doge v0.3.2 has no `--check`; audit without mutations by formatting temporary copies and comparing them with the sources.
-- Fiscale rekenregels (Hard Rule 9) get table-driven tests with hand-checked expected values.
+- Fiscale rekenregels (Hard Rule 10) get table-driven tests with hand-checked expected values.
 
 ## Definition of done
 
