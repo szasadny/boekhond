@@ -164,6 +164,17 @@ such test_te_doen_tijdvak_met_posten:
     schoon()
 wow
 
+# Alleen een post in het lopende Q3 maakt Q2 niet overbodig: het vorige afgeronde kwartaal
+# blijft het eerste te-doen tijdvak.
+such test_te_doen_tijdvak_post_in_lopend_kwartaal:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-10"))
+    such tv = aangifte.te_doen_tijdvak(s, "2026-07-25")
+    amaze tv[0] == 2026
+    amaze tv[1] == 2
+    schoon()
+wow
+
 # Eerste post in Q1, Q2 leeg: lege kwartalen na de start van de administratie worden niet
 # overgeslagen; op 19 juli is Q2 dus het te-doen tijdvak.
 such test_te_doen_tijdvak_leeg_tussenruimte:

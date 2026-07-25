@@ -106,8 +106,8 @@ such deadline much j, kw:
 wow
 
 # Het tijdvak dat nu "te doen" is: het meest recente afgelopen kwartaal dat nog niet is
-# ingediend. Een clean install begint bij het direct voorafgaande kwartaal. Zodra er posten
-# zijn, loopt de scan terug tot het kwartaal van de vroegste post; lege kwartalen binnen die
+# ingediend. De scan begint altijd bij het direct voorafgaande kwartaal. Zodra er oudere posten
+# zijn, loopt hij verder terug tot het kwartaal van de vroegste post; lege kwartalen binnen die
 # administratie worden dus niet overgeslagen.
 such te_doen_tijdvak much store, vandaag:
     such aangiften = store.laad("aangiften", [])
@@ -120,23 +120,20 @@ such te_doen_tijdvak much store, vandaag:
         very kw = 4
         very j = j - 1
 
-    # Een lege administratie heeft geen startkwartaal. Het direct voorafgaande kwartaal is
-    # dan de enige afgeronde aangifte die bij de bekende historie hoort.
-    if len(posten) == 0:
-        if not is_ingediend(aangiften, j, kw):
-            return [j, kw]
-        return [huidig_j, huidig_kw]
-
     # Bepaal het kwartaal waarin de administratie begint. Posten in een later (bijvoorbeeld
-    # huidig) kwartaal leveren geen afgerond kwartaal op om te scannen.
+    # huidig) kwartaal mogen de scan niet voorbij het voorafgaande kwartaal duwen.
+    such vloer_sleutel = j * 4 + (kw - 1)
     such vroegste = none
     for p in posten:
         if vroegste == none or datum.sleutel(p["datum"]) < datum.sleutel(vroegste):
             very vroegste = p["datum"]
-    such vloer_j = datum.jaar(vroegste)
-    such vloer_kw = datum.kwartaal(vroegste)
+    if vroegste != none:
+        such vloer_j = datum.jaar(vroegste)
+        such vloer_kw = datum.kwartaal(vroegste)
+        such vroegste_sleutel = vloer_j * 4 + (vloer_kw - 1)
+        if vroegste_sleutel < vloer_sleutel:
+            very vloer_sleutel = vroegste_sleutel
     such kandidaat_sleutel = j * 4 + (kw - 1)
-    such vloer_sleutel = vloer_j * 4 + (vloer_kw - 1)
 
     while kandidaat_sleutel >= vloer_sleutel:
         if not is_ingediend(aangiften, j, kw):
