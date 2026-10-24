@@ -2,6 +2,7 @@ so "../../web/http.doge"
 so "../services/mollie.doge"
 so "../services/terugkerend.doge"
 so "../services/bijlagen.doge"
+so "../services/wisselkoers.doge"
 so "../../lib/datum.doge"
 so crypto
 so strings
@@ -31,9 +32,14 @@ such run_recurring much req:
         oh no err!
             regels.append("mollie fout: {err.message}")
     pls
-        such tr = terugkerend.genereer(store, datum.vandaag())
+        such kb = none
+        if cfg.has("wise_token") and cfg["wise_token"] != none:
+            very kb = wisselkoers.Wise(cfg["wise_token"])
+        such tr = terugkerend.genereer(store, datum.vandaag(), kb)
         such tg = tr["geboekt"]
         regels.append("terugkerend {tg} geboekt")
+        for f in tr["fouten"]:
+            regels.append("terugkerend fout: {f}")
     oh no err!
         regels.append("terugkerend fout: {err.message}")
     pls

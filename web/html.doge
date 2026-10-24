@@ -73,7 +73,8 @@ wow
 
 # Tabel. koppen = List<tekst>; rijen = List<List<tekst>>. Alle cellen ge-escaped.
 # rechts = List<Int> kolomindexen die rechts uitgelijnd worden (class="num"), bv. bedragkolommen.
-such tabel much koppen, rijen, rechts = []:
+# voet = List<tekst> (optioneel): één totaalrij in <tfoot>.
+such tabel much koppen, rijen, rechts = [], voet = []:
     such kop = ""
     such ci = 0
     for k in koppen:
@@ -89,7 +90,22 @@ such tabel much koppen, rijen, rechts = []:
             very cellen = cellen + "<td{cl}>{escape(cel)}</td>"
             very cj = cj + 1
         very body = body + "<tr>{cellen}</tr>"
-    return "<table>\n<thead><tr>{kop}</tr></thead>\n<tbody>{body}</tbody>\n</table>"
+    such tfoot = ""
+    if len(voet) > 0:
+        such vcellen = ""
+        such vk = 0
+        for cel in voet:
+            such vl = " class=\"num\"" if vk in rechts else ""
+            very vcellen = vcellen + "<td{vl}>{escape(cel)}</td>"
+            very vk = vk + 1
+        very tfoot = "\n<tfoot><tr>{vcellen}</tr></tfoot>"
+    return "<table>\n<thead><tr>{kop}</tr></thead>\n<tbody>{body}</tbody>{tfoot}\n</table>"
+wow
+
+# Scrollbare tabel-regio voor brede tabellen: toetsenbord-scrollbaar (tabindex) met een
+# toegankelijke naam. label = tekst (ge-escaped); tabel = builder-output van tabel().
+such tabel_regio much label, tabel:
+    return "<div class=\"tabel-regio\" tabindex=\"0\" role=\"region\" aria-label=\"{escape(label)}\">{tabel}</div>"
 wow
 
 # Anker. href/tekst = tekst (beide ge-escaped); klasse = code (optioneel, bv. "actief").

@@ -55,4 +55,11 @@ such test_parse_ambigu_geweigerd:
     amaze gevangen
     amaze geld.parse("1500") == dec("1500")
 wow
+# rond2: half-up op centen met precies twee decimalen in de tekstvorm (geen "17.2400000").
+# Nul toont Doge altijd als "0", ongeacht de schaal.
+such test_rond2_tekstvorm:
+    such gevallen = [["17.2400000", "17.24"], ["8.6255", "8.63"], ["-8.6255", "-8.63"], ["0.005", "0.01"], ["3", "3.00"], ["0.1", "0.10"], ["-0.001", "0"], ["20.00", "20.00"]]
+    for g in gevallen:
+        amaze str(geld.rond2(dec(g[0]))) == g[1], g[0]
+wow
 wow

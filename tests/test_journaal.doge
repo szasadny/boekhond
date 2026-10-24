@@ -3,6 +3,9 @@ so "../app/store/store.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
+so "../app/services/aangifte.doge"
+so "../app/handlers/journaal_h.doge"
+so "../lib/datum.doge"
 
 so TMPMAP = "tmp_test_journaal"
 
@@ -119,6 +122,24 @@ such test_storno_nettoot_rubriek_naar_nul:
     amaze r["rubrieken"]["1a"]["bedrag"] == 0
     amaze r["rubrieken"]["1a"]["btw"] == 0
     amaze r["saldo"] == 0
+    schoon()
+wow
+# Tijdvakkeuze in de journaallijst: ?tv=JJJJ-K wint, daarna ?j=&kw=; ongeldige invoer valt
+# terug op het te-doen tijdvak.
+such test_gekozen_tijdvak:
+    such s = verse_store()
+    such te = aangifte.te_doen_tijdvak(s, datum.vandaag())
+    such a = journaal_h.gekozen_tijdvak(s, {"tv": ["2026-3"]})
+    amaze a[0] == 2026 and a[1] == 3
+    such b = journaal_h.gekozen_tijdvak(s, {"j": ["2025"], "kw": ["4"]})
+    amaze b[0] == 2025 and b[1] == 4
+    such c = journaal_h.gekozen_tijdvak(s, {})
+    amaze c[0] == te[0] and c[1] == te[1]
+    such d = journaal_h.gekozen_tijdvak(s, {"tv": ["2026-9"]})
+    amaze d[0] == te[0] and d[1] == te[1]
+    such e = journaal_h.gekozen_tijdvak(s, {"tv": ["abcd-1"]})
+    amaze e[0] == te[0] and e[1] == te[1]
+    amaze journaal_h.tijdvak_url("2026-10-18") == "/journaal?tv=2026-4"
     schoon()
 wow
 wow

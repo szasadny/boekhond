@@ -1,7 +1,9 @@
 so journaal
 so rekeningen
 so btw
+so wisselkoers
 so "../../lib/datum.doge"
+so "../../lib/geld.doge"
 
 # Terugkerende kosten: vaste maandlasten (bv. abonnementen van buiten de EU, btw
 # verlegd -> rubriek 4a + 5b) als kostensjabloon beheren en per maand automatisch
@@ -10,6 +12,17 @@ so "../../lib/datum.doge"
 # Idempotent per sjabloon+maand via het terugkerend_sleutel-veld (Hard Rule 2) — exact
 # het mollie-patroon. store komt als parameter binnen; nooit geïmporteerd (testbaar).
 # Bedragen zijn instance-data en leven in data/terugkerend.dson, nooit in source.
+# Een sjabloon heeft een valuta (EUR | USD); bedrag_ex staat in die valuta. Een niet-EUR
+# sjabloon wordt bij het boeken omgerekend met de live koers van een koersbron
+# (wisselkoers.Wise in productie, een stub in tests); koers + vreemd bedrag gaan als
+# audit-metadata mee op de journaalpost.
+
+# Oude sjablonen hebben geen valuta-veld: die zijn EUR.
+such valuta_van much s:
+    if s.has("valuta") and s["valuta"] != none and s["valuta"] != "":
+        return s["valuta"]
+    return "EUR"
+wow
 
 such alle much store:
     return store.laad("terugkerend", [])
@@ -65,6 +78,10 @@ such voeg_toe much store, sjabloon:
     if not geldige_maand(sjabloon["vanaf"]):
         such vf = sjabloon["vanaf"]
         bonk "ongeldige vanaf-maand (JJJJ-MM): {vf}"
+    such val = valuta_van(sjabloon)
+    if not wisselkoers.VALUTA.contains(val):
+        bonk "onbekende valuta: {val}"
+    sjabloon["valuta"] = val
     such lijst = store.laad("terugkerend", [])
     such id = store.nieuw_id("s")
     sjabloon["id"] = id
@@ -86,28 +103,53 @@ wow
 
 # Boek de kostenpost van de huidige maand voor elk actief sjabloon dat aan de beurt is:
 # op/na zijn dag, niet vóór zijn vanaf-maand, en nog niet geboekt deze maand. Alleen de
-# lopende maand (geen backfill van gemiste maanden). Getriggerd door de knop en straks
-# de scheduler-pup (Fase 5c). Retourneert {geboekt, overgeslagen}.
-such genereer much store, vandaag:
+# lopende maand (geen backfill van gemiste maanden). Getriggerd door de knop en de
+# scheduler-pup. koersbron (object met koers(van, naar) -> {koers, tijd, bron}, of none)
+# is alleen nodig voor niet-EUR sjablonen; de koers wordt pas opgehaald als er echt
+# geboekt wordt. Geen koersbron of een koersfout -> fout-melding, sjabloon blijft
+# ongeboekt (de volgende run probeert opnieuw; idempotentie blijft via de sleutel).
+# Retourneert {geboekt, overgeslagen, fouten}.
+such genereer much store, vandaag, koersbron:
     such maand = vandaag[0:7]
     such dagnu = datum.dag(vandaag)
     such gezien = geboekte_sleutels(store, "terugkerend_sleutel")
     such geboekt = 0
     such overgeslagen = 0
+    such fouten = []
     for s in store.laad("terugkerend", []):
         such sid = s["id"]
         such sleutel = "{sid}-{maand}"
         if not s["actief"] or maand < s["vanaf"] or dagnu < s["dag"] or gezien.contains(sleutel):
             very overgeslagen = overgeslagen + 1
             continue
+        such val = valuta_van(s)
+        such oms = s["omschrijving"]
+        such bedrag_eur = s["bedrag_ex"]
+        such meta = none
+        if val != "EUR":
+            if koersbron == none:
+                fouten.append("{val}-sjabloon {oms}: geen WISE_API_TOKEN ingesteld, niet geboekt")
+                continue
+            such k = none
+            pls
+                very k = koersbron.koers(val, "EUR")
+            oh no err!
+                fouten.append("{val}-sjabloon {oms}: koers ophalen mislukt ({err.message}), niet geboekt")
+                continue
+            such vreemd = geld.rond2(dec(s["bedrag_ex"]))
+            very bedrag_eur = str(wisselkoers.omreken(vreemd, k["koers"]))
+            very meta = {"valuta": val, "bedrag_valuta": str(vreemd), "koers": str(k["koers"]), "koers_tijd": k["tijd"], "koers_bron": k["bron"]}
         such dg = datum.pad2(s["dag"])
         such datum_post = "{maand}-{dg}"
-        such post = journaal.inkoop_post(datum_post, s["leverancier"], s["omschrijving"], s["bedrag_ex"], s["btw_code"], s["kosten_rek"])
+        such post = journaal.inkoop_post(datum_post, s["leverancier"], oms, bedrag_eur, s["btw_code"], s["kosten_rek"])
         post["bron"] = "terugkerend"
         post["terugkerend_sleutel"] = sleutel
+        if meta != none:
+            for veld in meta:
+                post[veld] = meta[veld]
         journaal.bewaar(store, post)
         gezien.append(sleutel)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "fouten": fouten}
 wow
 wow

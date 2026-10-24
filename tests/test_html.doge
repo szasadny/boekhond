@@ -87,6 +87,13 @@ such test_tabel_rechts_uitlijning:
     amaze not strings.contains(u, "class=\"num\"")
 wow
 
+such test_tabel_voet:
+    such t = html.tabel(["Naam", "Bedrag"], [["kabosu", "12,50"]], [1], ["<Totaal>", "12,50"])
+    amaze strings.contains(t, "<tfoot><tr><td>&lt;Totaal&gt;</td><td class=\"num\">12,50</td></tr></tfoot>")
+    such u = html.tabel(["Naam"], [["kabosu"]])
+    amaze not strings.contains(u, "<tfoot>")
+wow
+
 such test_staafgrafiek:
     such g = html.staafgrafiek("Omzet", [["jan", 100, "1.000", ""], ["feb", 50, "500", "negatief"]])
     amaze strings.contains(g, "<figure class=\"grafiek\">")
@@ -98,5 +105,10 @@ such test_staafgrafiek:
     amaze strings.contains(x, "&lt;b&gt;")
     such leeg = html.staafgrafiek("Leeg", [])
     amaze strings.contains(leeg, "<figure class=\"grafiek\">")
+wow
+such test_tabel_regio:
+    such r = html.tabel_regio("Btw <per> post", "<table></table>")
+    amaze strings.contains(r, "tabindex=\"0\" role=\"region\" aria-label=\"Btw &lt;per&gt; post\"")
+    amaze strings.contains(r, "<table></table></div>")
 wow
 wow

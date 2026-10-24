@@ -102,4 +102,22 @@ such test_refund_idempotent:
     amaze twee["overgeslagen"] == 1
     schoon()
 wow
+# Mollie laat amountRefunded weg bij betalingen zonder (mogelijke) refund; geen KeyError en geen API-call.
+such test_zonder_amount_refunded:
+    such s = verse_store()
+    such b = betaling("tr_1", "12.10")
+    b.remove("amountRefunded")
+    amaze mollie.terugbetaald(b) == dec("0")
+    mollie.boek_betalingen(s, [b])
+    such res = mollie.boek_refunds(s, "geen-key", [b])
+    amaze res["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_terugbetaald_bedrag:
+    such b = betaling("tr_1", "12.10")
+    b["amountRefunded"] = {"value": "2.50", "currency": "EUR"}
+    amaze mollie.terugbetaald(b) == dec("2.50")
+wow
 wow

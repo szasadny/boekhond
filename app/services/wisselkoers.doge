@@ -1,0 +1,53 @@
+so howl
+so hunt
+so "../../lib/geld.doge"
+
+# Wisselkoersen voor terugkerende kosten in vreemde valuta (bv. USD-abonnementen).
+# De koers komt live van de Wise rates-API op het moment van boeken; de omrekening
+# naar EUR is Decimal-only (Hard Rule 1). Pure helpers (lees_koers, omreken) zijn
+# getest; het netwerkdeel (Wise.koers) niet, net als mollie.haal_*.
+
+so VALUTA = ["EUR", "USD"]
+so WISE_BASIS = "https://api.wise.com/v1/rates"
+
+# Parse de ruwe Wise-response, bv. [{"rate":0.86215,"source":"USD","target":"EUR","time":"..."}].
+# stopgap for doge#73: json.parse kent geen Decimal-modus (Hard Rule 11)
+# json.parse maakt van rate een Float; daarom de koers als tekst uit de body halen en dec()'en.
+such lees_koers much body:
+    such g = hunt.groups("\"rate\"\\s*:\\s*([0-9]+(\\.[0-9]+)?)", body)
+    if g == none:
+        bonk "geen koers gevonden in het Wise-antwoord"
+    such koers = dec(g[1])
+    if koers <= dec("0"):
+        bonk "ongeldige koers in het Wise-antwoord: {koers}"
+    such tijd = ""
+    such t = hunt.groups("\"time\"\\s*:\\s*\"([^\"]*)\"", body)
+    if t != none:
+        very tijd = t[1]
+    return {"koers": koers, "tijd": tijd}
+wow
+
+# Bedrag (Decimal, vreemde valuta) x koers (Decimal) -> EUR, half-up op centen.
+such omreken much bedrag, koers:
+    return geld.rond2(bedrag * koers)
+wow
+
+# Koersbron voor terugkerend.genereer: koers(van, naar) -> {koers, tijd, bron}.
+many Wise:
+    such init much token:
+        self.token = token
+    wow
+
+    such koers much van, naar:
+        such tok = self.token
+        such opts = {"headers": {"Authorization": "Bearer {tok}"}}
+        such resp = howl.request("GET", "{WISE_BASIS}?source={van}&target={naar}", opts)
+        such st = resp["status"]
+        if st != 200:
+            bonk "Wise API gaf status {st}"
+        such uit = lees_koers(resp["body"])
+        uit["bron"] = "wise"
+        return uit
+    wow
+wow
+wow

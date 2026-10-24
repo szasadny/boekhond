@@ -4,6 +4,7 @@ so "../../web/forms.doge"
 so "../services/terugkerend.doge"
 so "../services/rekeningen.doge"
 so "../services/btw.doge"
+so "../services/wisselkoers.doge"
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 so weergave
@@ -29,6 +30,20 @@ such btw_opties:
     return o
 wow
 
+such valuta_opties:
+    such o = []
+    for v in wisselkoers.VALUTA:
+        o.append([v, v])
+    return o
+wow
+
+# Koersbron voor niet-EUR sjablonen; zonder WISE_API_TOKEN none (de service meldt dat).
+such koersbron_van much cfg:
+    if cfg.has("wise_token") and cfg["wise_token"] != none:
+        return wisselkoers.Wise(cfg["wise_token"])
+    return none
+wow
+
 such bedrag_str much rauw:
     if rauw == "":
         return ""
@@ -38,20 +53,24 @@ wow
 such toevoeg_formulier much store:
     such vlev = html.veld("leverancier", "Leverancier", "text", "")
     such voms = html.veld("omschrijving", "Omschrijving", "text", "")
-    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", "")
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw (in gekozen valuta)", "text", "")
+    such sval = html.select("valuta", valuta_opties(), "EUR")
+    such vval = "<label>Valuta {sval}</label>"
     such srek = html.select("kosten_rek", kosten_opties(store), "")
     such vrek = "<label>Kostenrekening {srek}</label>"
     such sbtw = html.select("btw_code", btw_opties(), "import_buiten_eu")
     such vbtw = "<label>Btw-code {sbtw}</label>"
     such vdag = html.veld("dag", "Dag van de maand (1-28)", "number", "1")
     such vvanaf = html.veld("vanaf", "Vanaf (maand)", "month", datum.vandaag()[0:7])
-    return html.formulier("/terugkerend", "post", [vlev, voms, vbedrag, vrek, vbtw, vdag, vvanaf, html.knop("Toevoegen")])
+    return html.formulier("/terugkerend", "post", [vlev, voms, vbedrag, vval, vrek, vbtw, vdag, vvanaf, html.knop("Toevoegen")])
 wow
 
 such rij much s:
     such lev = html.escape(s["leverancier"])
     such oms = html.escape(s["omschrijving"])
-    such bedrag = html.escape(geld.formatteer(geld.bedrag(s["bedrag_ex"])))
+    such val = terugkerend.valuta_van(s)
+    such fmt = geld.formatteer(geld.bedrag(s["bedrag_ex"]))
+    such bedrag = html.escape("{val} {fmt}")
     such rek = html.escape(s["kosten_rek"])
     such code = html.escape(btw.label(s["btw_code"]))
     such dag = html.escape(s["dag"])
@@ -73,7 +92,8 @@ such inhoud_van much store, melding:
     such genform = "<form action=\"/terugkerend/genereer\" method=\"post\">{gk}</form>"
     such form = toevoeg_formulier(store)
     such leg = weergave.btw_legenda("inkoop")
-    return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{form}{leg}"
+    such hint = "<p>Dollarbedragen worden bij het boeken omgerekend met de actuele Wise-koers. Koers en dollarbedrag worden bij de journaalpost bewaard.</p>"
+    return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{hint}{form}{leg}"
 wow
 
 such lijst much req:
@@ -85,7 +105,7 @@ such toevoegen much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
+        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "valuta": forms.enkel(v, "valuta", "EUR"), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!
@@ -104,8 +124,14 @@ wow
 
 such genereer much req:
     such store = req["ctx"]["store"]
+    such kb = koersbron_van(req["ctx"]["config"])
     pls
-        terugkerend.genereer(store, datum.vandaag())
+        such res = terugkerend.genereer(store, datum.vandaag(), kb)
+        if len(res["fouten"]) > 0:
+            such meldingen = ""
+            for f in res["fouten"]:
+                very meldingen = meldingen + weergave.fout(f)
+            return http.html_response(weergave.render("Kosten", inhoud_van(store, meldingen)))
         return http.redirect("/terugkerend")
     oh no err!
         return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))

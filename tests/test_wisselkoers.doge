@@ -1,0 +1,43 @@
+so "../app/services/wisselkoers.doge"
+
+so WISE_BODY = "[\{\"rate\":0.86215,\"source\":\"USD\",\"target\":\"EUR\",\"time\":\"2026-10-24T06:00:12+0000\"\}]"
+
+such test_lees_koers_realistisch:
+    such k = wisselkoers.lees_koers(WISE_BODY)
+    amaze k["koers"] == dec("0.86215")
+    amaze str(k["koers"]) == "0.86215"
+    amaze k["tijd"] == "2026-10-24T06:00:12+0000"
+wow
+
+such test_lees_koers_zonder_tijd:
+    such k = wisselkoers.lees_koers("[\{\"rate\": 1.1, \"source\": \"EUR\"\}]")
+    amaze k["koers"] == dec("1.1")
+    amaze k["tijd"] == ""
+wow
+
+such test_lees_koers_zonder_rate_bonkt:
+    such mislukt = false
+    pls
+        wisselkoers.lees_koers("[]")
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+wow
+
+such test_lees_koers_nul_bonkt:
+    such mislukt = false
+    pls
+        wisselkoers.lees_koers("[\{\"rate\":0\}]")
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+wow
+
+# Handmatig nagerekend: bedrag x koers, half-up op centen.
+such test_omreken_tabel:
+    such gevallen = [["20.00", "0.86215", "17.24"], ["19.99", "0.9", "17.99"], ["10.00", "0.86255", "8.63"], ["100.00", "1", "100.00"], ["0.01", "0.5", "0.01"], ["17.00", "1", "17.00"], ["5", "0.2", "1.00"]]
+    for g in gevallen:
+        such uit = wisselkoers.omreken(dec(g[0]), dec(g[1]))
+        amaze str(uit) == g[2], "omreken {g}"
+wow
+wow

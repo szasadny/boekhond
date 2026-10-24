@@ -53,6 +53,104 @@ such banners much ov:
     return uit
 wow
 
+# Het saldo in gewone taal (hele euro's, zoals op de aangifte).
+such conclusie much saldo:
+    if saldo > 0:
+        return "Je betaalt € {saldo} btw aan de Belastingdienst."
+    if saldo < 0:
+        such terug = 0 - saldo
+        return "Je krijgt € {terug} btw terug van de Belastingdienst."
+    return "Je hoeft niets te betalen en krijgt niets terug."
+wow
+
+such bedrag_tekst much d:
+    return geld.formatteer(d)
+wow
+
+such begrippen:
+    such a = "<dt>5a verschuldigd</dt><dd>De btw die je moet afdragen: btw over je omzet, plus de btw die je zelf aangeeft bij verlegde inkoop.</dd>"
+    such b = "<dt>5b voorbelasting</dt><dd>De btw die je mag aftrekken: btw op zakelijke inkopen, plus de verlegde btw die je al in 5a hebt aangegeven.</dd>"
+    such c = "<dt>Saldo</dt><dd>5a min 5b. Positief betaal je, negatief krijg je terug.</dd>"
+    return "<details class=\"legenda\"><summary>Wat betekenen 5a, 5b en saldo?</summary><dl>{a}{b}{c}</dl></details>"
+wow
+
+# Controle per post: sluit de geboekte btw aan op wat de btw-codes voorschrijven?
+such controle_inhoud much u:
+    such n = len(u["posten"])
+    if n == 0:
+        return ""
+    if len(u["afwijkend"]) == 0:
+        return "<p>Controle: bij alle {n} posten met btw sluit de geboekte btw aan op de btw-code.</p>"
+    such items = ""
+    for sp in u["afwijkend"]:
+        such d = html.escape(sp["datum"])
+        such oms = html.escape(sp["omschrijving"])
+        such pid = html.escape(sp["id"])
+        very items = items + "<li>{d} {oms} ({pid})</li>"
+    return "<div class=\"fout\"><p>Controle: bij deze posten wijkt de geboekte btw af van wat de btw-code voorschrijft. Storneer de post en boek hem opnieuw met het juiste bedrag of de juiste btw-code.</p><ul>{items}</ul></div>"
+wow
+
+# Per btw-regel: wat telt mee, in welke rubriek, en hoeveel btw verschuldigd/aftrekbaar.
+such posten_tabel much u:
+    if len(u["posten"]) == 0:
+        return "<p>Geen posten met btw in dit tijdvak.</p>"
+    such rijen = []
+    for sp in u["posten"]:
+        for r in sp["regels"]:
+            rijen.append([sp["datum"], sp["omschrijving"], btw.label(r["code"]), r["rubriek"], bedrag_tekst(r["grondslag"]), bedrag_tekst(r["verschuldigd"]), bedrag_tekst(r["voorbelasting"])])
+    such voet = ["Totaal", "", "", "", "", bedrag_tekst(u["verschuldigd"]), bedrag_tekst(u["voorbelasting"])]
+    such t = html.tabel(["Datum", "Omschrijving", "Btw-code", "Rubriek", "Bedrag excl. btw", "Btw verschuldigd (5a)", "Voorbelasting (5b)"], rijen, [4, 5, 6], voet)
+    return html.tabel_regio("Btw per post", t)
+wow
+
+# Exact op de cent naast de aangifte in hele euro's, zodat het afrondingsverschil zichtbaar is.
+such afronding_inhoud much ov, u:
+    such rub = ov["rubrieken"]
+    such rijen = []
+    for code in btw.RUBRIEKEN:
+        such exact = u["btw_per_rubriek"][code]
+        such rb = rub[code] if rub.has(code) else {"bedrag": 0, "btw": 0}
+        if exact != 0 or rb["btw"] != 0:
+            rijen.append(["{code} btw", bedrag_tekst(exact), str(rb["btw"])])
+    rijen.append(["5a verschuldigd", bedrag_tekst(u["verschuldigd"]), str(ov["5a"])])
+    rijen.append(["5b voorbelasting", bedrag_tekst(u["voorbelasting"]), str(ov["5b"])])
+    such voet = ["Saldo (5a min 5b)", bedrag_tekst(u["saldo"]), str(ov["saldo"])]
+    such t = html.tabel_regio("Afronding op hele euro's", html.tabel(["", "Op de cent", "Op de aangifte"], rijen, [1, 2], voet))
+    such uitleg = "<p>In de aangifte staan hele euro's, en je mag in je eigen voordeel afronden: de verschuldigde btw per rubriek naar beneden, de voorbelasting naar boven.</p>"
+    if ov["saldo"] != u["saldo"]:
+        such s_exact = bedrag_tekst(u["saldo"])
+        such s_aangifte = ov["saldo"]
+        very uitleg = uitleg + "<p>Daardoor is het saldo {s_aangifte} in plaats van {s_exact}. Dat verschil is geen fout.</p>"
+    return "<h3>Afronding</h3>{uitleg}{t}"
+wow
+
+such heeft_verlegd much u:
+    for sp in u["posten"]:
+        for r in sp["regels"]:
+            if r["verlegd"]:
+                return true
+    return false
+wow
+
+# "Hoe komt dit saldo tot stand?" voor wie geen boekhouder is: conclusie, controle, per post wat
+# meetelt, afronding en verlegde btw. Alle rekenwerk komt uit btw.specificatie (Hard Rule 5).
+such uitleg_inhoud much ov:
+    such u = ov["uitleg"]
+    such c = html.escape(conclusie(ov["saldo"]))
+    such ctrl = controle_inhoud(u)
+    such tabel = posten_tabel(u)
+    such zonder = ""
+    such z = u["zonder_btw"]
+    if z > 0:
+        very zonder = "<p>{z} posten zonder btw (bijvoorbeeld bank/privé) tellen niet mee in de aangifte.</p>"
+    such verlegd = ""
+    if heeft_verlegd(u):
+        very verlegd = "<p>Verlegde btw (rubriek 2a, 4a en 4b): bij inkoop van buiten Nederland betaal je de leverancier geen btw. Je geeft die btw zelf aan (telt in 5a) en trekt hem in dezelfde aangifte weer af (telt in 5b). Netto kost het je niets, maar het moet wel op de aangifte staan.</p>"
+    such afr = afronding_inhoud(ov, u)
+    such beg = begrippen()
+    return "<h2 id=\"uitleg\">Hoe komt dit saldo tot stand?</h2><p class=\"banner\">{c}</p>{ctrl}{tabel}{zonder}{verlegd}{afr}{beg}"
+wow
+
 such overzicht_inhoud much ov, melding:
     such kw = ov["kwartaal"]
     such j = ov["jaar"]
@@ -89,7 +187,8 @@ such overzicht_inhoud much ov, melding:
     such doenhref = "/aangifte/doen?j={j}&kw={kw}"
     such ldoen = html.link(doenhref, "Aangifte doen (stap voor stap) →")
     such cta = "<p class=\"banner\">{ldoen}</p>"
-    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{cta}{dlregel}{ban}<div class=\"kolommen\">{tabel}{zij}</div>"
+    such uitleg = uitleg_inhoud(ov)
+    return "{melding}<h1>Aangifte Q{kw}-{j}</h1>{cta}{dlregel}{ban}<div class=\"kolommen\">{tabel}{zij}</div>{uitleg}"
 wow
 
 such overzicht much req:
@@ -248,7 +347,10 @@ such doen_inhoud much store, cfg, ov, melding:
         such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
         such kn = html.knop("Markeer ingediend")
         very actie = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{kn}</form>"
-    such indien = "<p>Saldo: {saldo} (positief = te betalen, negatief = terug te vragen). Uiterste indien- en betaaldatum: {dl}. Het betalingskenmerk vind je in Mijn Belastingdienst Zakelijk.</p>{actie}"
+    such concl = html.escape(conclusie(saldo))
+    such uhref = "/aangifte?j={j}&kw={kw}#uitleg"
+    such ulink = html.link(uhref, "Hoe komt dit saldo tot stand?")
+    such indien = "<p>Saldo: {saldo} (positief = te betalen, negatief = terug te vragen). {concl} {ulink}</p><p>Uiterste indien- en betaaldatum: {dl}. Het betalingskenmerk vind je in Mijn Belastingdienst Zakelijk.</p>{actie}"
     such kop = "<h2>2. Over te typen in Mijn Belastingdienst Zakelijk</h2><p>Neem elk veld exact over; lege velden vul je in met 0.</p>"
     return "{melding}<h1>Aangifte doen Q{kw}-{j}</h1><h2>1. Controleer</h2>{checklist}{prive}{ban}{kop}{ptabel}<h2>3. Indienen</h2>{indien}"
 wow

@@ -1,7 +1,9 @@
 so strings
 so hunt
 
-# Rekenkundig afronden (half-up, weg van nul) op 2 decimalen.
+# Rekenkundig afronden (half-up, weg van nul) op 2 decimalen. Het resultaat heeft altijd precies
+# twee decimalen in de tekstvorm: een product als 20.00 x 0.86215 houdt anders zijn schaal
+# ("17.2400000") en dat zou zo als string in de journaalregel belanden.
 such rond2 much bedrag:
     such neg = bedrag < 0
     such a = bedrag
@@ -9,13 +11,16 @@ such rond2 much bedrag:
         very a = 0 - bedrag
     such centen = a * 100
     such rest = centen % 1
-    such hele = centen - rest
+    such hele = int(centen - rest)
     if rest >= dec("0.5"):
         very hele = hele + 1
-    such resultaat = hele / 100
-    if neg:
-        very resultaat = 0 - resultaat
-    return resultaat
+    such euro = hele // 100
+    such cent = hele % 100
+    such cc = str(cent)
+    if cent < 10:
+        very cc = "0" + cc
+    such teken = "-" if neg and hele > 0 else ""
+    return dec("{teken}{euro}.{cc}")
 wow
 
 # Regel-bedrag uit de store naar Decimal: "" of none is de ongebruikte

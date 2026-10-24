@@ -1,3 +1,4 @@
+so strings
 so fetch
 so "../app/store/store.doge"
 so "../app/services/aangifte.doge"
@@ -265,5 +266,81 @@ such test_icp_subeuro_levering:
     amaze ov["icp"]
     amaze ov["rubrieken"]["3b"]["bedrag"] == 0
     schoon()
+wow
+# Tijdvakkeuze journaal: van het oudste tijdvak met posten t/m het huidige kwartaal, nieuwste
+# eerst, met status per tijdvak.
+such test_tijdvakken_lijst:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-05-15"))
+    journaal.bewaar(s, verkoop21("2026-08-10"))
+    aangifte.dien_in(s, 2026, 2)
+    such tv = aangifte.tijdvakken(s, "2026-10-24")
+    amaze len(tv) == 3
+    amaze tv[0]["jaar"] == 2026 and tv[0]["kwartaal"] == 4 and tv[0]["status"] == "open"
+    amaze tv[1]["kwartaal"] == 3 and tv[1]["status"] == "open"
+    amaze tv[2]["kwartaal"] == 2 and tv[2]["status"] == "ingediend"
+    schoon()
+wow
+
+# Lege administratie: alleen het te-doen tijdvak en het huidige kwartaal, over de jaargrens.
+such test_tijdvakken_leeg_jaargrens:
+    such s = verse_store()
+    such tv = aangifte.tijdvakken(s, "2026-01-15")
+    amaze len(tv) == 2
+    amaze tv[0]["jaar"] == 2026 and tv[0]["kwartaal"] == 1
+    amaze tv[1]["jaar"] == 2025 and tv[1]["kwartaal"] == 4
+    schoon()
+wow
+# Praktijkgeval Q4: verlegde inkoop in 4a (ex 1,20 -> btw 0,25) en 4b (ex 17,88 -> btw 3,75).
+# Op de cent is het saldo 0,00; afronding in eigen voordeel per rubriek (4a 0,25 -> 0, 4b 3,75 -> 3,
+# 5b 4,00 -> 4) geeft -1. Een post plus zijn storno nettoot naar nul.
+such test_uitleg_afronding_verlegd:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-01", "Google", "Hosting", "1.20", "import_buiten_eu", "4100"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-17", "Mailer", "Mailing", "17.88", "verwerving_eu", "4000"))
+    such codex = journaal.bewaar(s, journaal.inkoop_post("2026-10-18", "OpenAI", "Codex", "19.01", "import_buiten_eu", "4000"))
+    journaal.bewaar(s, journaal.storno_post(codex, "2026-10-18"))
+    such ov = aangifte.overzicht(s, 2026, 4)
+    amaze ov["5a"] == 3
+    amaze ov["5b"] == 4
+    amaze ov["saldo"] == -1
+    such u = ov["uitleg"]
+    amaze len(u["posten"]) == 4
+    amaze u["verschuldigd"] == dec("4.00")
+    amaze u["voorbelasting"] == dec("4.00")
+    amaze u["saldo"] == dec("0")
+    amaze u["btw_per_rubriek"]["4a"] == dec("0.25")
+    amaze u["btw_per_rubriek"]["4b"] == dec("3.75")
+    amaze len(u["afwijkend"]) == 0
+    such r0 = u["posten"][0]["regels"][0]
+    amaze r0["rubriek"] == "4a + 5b"
+    amaze r0["verlegd"]
+    amaze r0["verschuldigd"] == dec("0.25") and r0["voorbelasting"] == dec("0.25")
+    such html_out = aangifte_h.uitleg_inhoud(ov)
+    amaze strings.contains(html_out, "Je krijgt € 1 btw terug")
+    amaze strings.contains(html_out, "Daardoor is het saldo -1 in plaats van 0,00")
+    schoon()
+wow
+
+# Een memoriaalpost waarvan de geboekte btw niet past bij de btw-code wordt gemarkeerd; een
+# post zonder btw-regels (bank/privé) telt niet mee.
+such test_uitleg_controle_afwijking:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-07-16", "fout", "", [{"rekening": "1300", "debet": "1200", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "200", "btw_code": none}]))
+    journaal.bewaar(s, journaal.prive_post("2026-07-17", "storting", "1100", "50", "storting"))
+    such u = aangifte.uitleg(s, 2026, 3)
+    amaze len(u["posten"]) == 2
+    amaze u["zonder_btw"] == 1
+    amaze len(u["afwijkend"]) == 1
+    amaze u["afwijkend"][0]["omschrijving"] == "fout"
+    amaze u["verschuldigd"] == dec("420")
+    schoon()
+wow
+
+such test_conclusie_tekst:
+    amaze aangifte_h.conclusie(210) == "Je betaalt € 210 btw aan de Belastingdienst."
+    amaze aangifte_h.conclusie(-1) == "Je krijgt € 1 btw terug van de Belastingdienst."
+    amaze aangifte_h.conclusie(0) == "Je hoeft niets te betalen en krijgt niets terug."
 wow
 wow
