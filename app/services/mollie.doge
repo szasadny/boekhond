@@ -122,11 +122,18 @@ such boek_refund_lijst much store, refunds:
     return {"geboekt": geboekt, "overgeslagen": overgeslagen}
 wow
 
+# Mollie stuurt amountRefunded alleen mee bij betalingen die (deels) terugbetaald kunnen worden
+# of zijn; ontbreekt het veld, dan is er niets terugbetaald.
+such terugbetaald much betaling:
+    if not betaling.has("amountRefunded") or betaling["amountRefunded"] == none:
+        return dec("0")
+    return geld.bedrag(betaling["amountRefunded"]["value"])
+wow
+
 such boek_refunds much store, key, betalingen:
     such refunds = []
     for b in betalingen:
-        such ar = b["amountRefunded"]
-        if geld.bedrag(ar["value"]) <= dec("0"):
+        if terugbetaald(b) <= dec("0"):
             continue
         for r in haal_refunds(key, b["id"]):
             refunds.append(r)

@@ -45,6 +45,11 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     mollie_refund_id         gezet bij een Mollie-refund-tegenboeking — idempotentie-sleutel (§4.3)
     terugkerend_sleutel      gezet bij bron "terugkerend" — "{sjabloon-id}-{YYYY-MM}",
                              idempotentie-sleutel per sjabloon+maand (§4.2)
+    valuta, bedrag_valuta    alleen bij bron "terugkerend" in vreemde valuta: "USD" en het
+                             oorspronkelijke bedrag excl. btw (Decimal-as-string)
+    koers, koers_tijd,       gebruikte koers (Decimal-as-string, bv. "0.86215"), het
+    koers_bron               tijdstip van de koers (Wise `time`) en de bron ("wise") —
+                             audit-metadata; de regels staan altijd in EUR
     bijlage_ids              [bijlage-id, …]
     storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §4.4)
     created_at
@@ -69,13 +74,18 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     omschrijving              boekingsomschrijving
     kosten_rek                kostenrekening-nummer (bv. "4000")
     btw_code                  inkoop-code (bv. import_buiten_eu → 4a + 5b)
-    bedrag_ex                 Decimal-as-string, bedrag excl. btw
+    bedrag_ex                 Decimal-as-string, bedrag excl. btw, in `valuta`
+    valuta                    "EUR" | "USD" (allow-list wisselkoers.VALUTA); ontbreekt bij
+                              oude sjablonen → "EUR"
     dag                       1–28 (cap — boekdatum blijft geldig in korte maanden)
     vanaf                     "YYYY-MM" — eerste maand die geboekt mag worden
   De generator boekt per lopende maand één post per actief sjabloon (op/na `dag`,
   niet vóór `vanaf`), idempotent per sjabloon+maand via `terugkerend_sleutel` op de
   journaalpost. Geen backfill van gemiste maanden. De btw-splitsing (bv. 4a + 5b bij
   import_buiten_eu) loopt via `journaal.inkoop_post` — geen btw-logica hier.
+  Een niet-EUR sjabloon wordt bij het boeken omgerekend met de live Wise-koers
+  (`wisselkoers.omreken`, half-up op centen); zonder koers geen boeking (fout-melding,
+  de volgende run probeert opnieuw).
 
 ─── aangiften.dson (List) ────────────────────────────────────
   Aangifte — één ingediend (of open berekend) tijdvak
@@ -127,7 +137,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 - **5a** = som van alle verschuldigde btw (1a + 1b + 1d + 2a + 4a + 4b).
 - **5b** = som voorbelasting.
 - **saldo** = 5a − 5b — positief: te betalen; negatief: terug te vragen.
-- **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal).
+- **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal). Gevolg: verlegde btw (2a/4a/4b + 5b) die op de cent nettoot kan op de aangifte een saldo van een paar euro negatief geven. `btw.specificatie(posten, j, kw)` levert dezelfde afleiding per post zonder afronding; de aangiftepagina toont die naast de afgeronde cijfers, plus per post een controle of de geboekte btw (1510/1520) aansluit op de btw-codes (`aangifte.uitleg`).
 - Btw per journaalregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
 - Inclusieve bedragen (Mollie levert incl) splitsen naar `[ex, btw]` via `btw.splits_incl`
   (`btw = btw_bedrag(ex)`, gelijk aan de aangifte-afleiding); een afrondingsverschil boekt op

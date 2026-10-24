@@ -23,10 +23,27 @@ such sjabloon much bedrag, dag, vanaf:
     return {"leverancier": "Testleverancier", "omschrijving": "Maandabonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": bedrag, "dag": dag, "vanaf": vanaf}
 wow
 
+# Stub-koersbronnen: vaste koers, en een die altijd faalt (netwerk/API-fout).
+many VasteKoers:
+    such koers much van, naar:
+        return {"koers": dec("0.86215"), "tijd": "2026-07-15T06:00:00+0000", "bron": "test"}
+    wow
+wow
+
+many KapotteKoers:
+    such koers much van, naar:
+        bonk "Wise API gaf status 503"
+    wow
+wow
+
+such usd_sjabloon much bedrag, omschrijving:
+    return {"leverancier": "US SaaS", "omschrijving": omschrijving, "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": bedrag, "valuta": "USD", "dag": 1, "vanaf": "2026-01"}
+wow
+
 such test_genereer_boekt_4a_5b:
     such s = verse_store()
     terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
-    such res = terugkerend.genereer(s, "2026-07-15")
+    such res = terugkerend.genereer(s, "2026-07-15", none)
     amaze res["geboekt"] == 1
     such posten = s.laad("journaal", [])
     amaze len(posten) == 1
@@ -43,9 +60,9 @@ wow
 such test_idempotent:
     such s = verse_store()
     terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
-    such een = terugkerend.genereer(s, "2026-07-15")
+    such een = terugkerend.genereer(s, "2026-07-15", none)
     amaze een["geboekt"] == 1
-    such twee = terugkerend.genereer(s, "2026-07-20")
+    such twee = terugkerend.genereer(s, "2026-07-20", none)
     amaze twee["geboekt"] == 0
     amaze twee["overgeslagen"] == 1
     amaze len(s.laad("journaal", [])) == 1
@@ -55,7 +72,7 @@ wow
 such test_voor_de_dag_niet:
     such s = verse_store()
     terugkerend.voeg_toe(s, sjabloon("20.00", 15, "2026-01"))
-    such res = terugkerend.genereer(s, "2026-07-01")
+    such res = terugkerend.genereer(s, "2026-07-01", none)
     amaze res["geboekt"] == 0
     amaze len(s.laad("journaal", [])) == 0
     schoon()
@@ -65,7 +82,7 @@ such test_inactief_overgeslagen:
     such s = verse_store()
     such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
     terugkerend.deactiveer(s, sj["id"])
-    such res = terugkerend.genereer(s, "2026-07-15")
+    such res = terugkerend.genereer(s, "2026-07-15", none)
     amaze res["geboekt"] == 0
     amaze len(s.laad("journaal", [])) == 0
     schoon()
@@ -74,7 +91,7 @@ wow
 such test_vanaf_toekomst_niet:
     such s = verse_store()
     terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-12"))
-    such res = terugkerend.genereer(s, "2026-07-15")
+    such res = terugkerend.genereer(s, "2026-07-15", none)
     amaze res["geboekt"] == 0
     schoon()
 wow
@@ -109,6 +126,102 @@ such test_validatie_onbekende_rekening:
     oh no err!
         very mislukt = true
     amaze mislukt
+    schoon()
+wow
+such test_usd_omgerekend_met_koers:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, usd_sjabloon("20.00", "API"))
+    such res = terugkerend.genereer(s, "2026-07-15", VasteKoers())
+    amaze res["geboekt"] == 1
+    amaze len(res["fouten"]) == 0
+    such posten = s.laad("journaal", [])
+    amaze len(posten) == 1
+    such p = posten[0]
+    amaze p["regels"][0]["debet"] == "17.24"
+    amaze journaal.balans_klopt(p["regels"])
+    amaze p["valuta"] == "USD"
+    amaze p["bedrag_valuta"] == "20.00"
+    amaze p["koers"] == "0.86215"
+    amaze p["koers_tijd"] == "2026-07-15T06:00:00+0000"
+    amaze p["koers_bron"] == "test"
+    such r = btw.rubrieken(posten, 2026, 3)
+    amaze r["rubrieken"]["4a"]["bedrag"] == 17
+    amaze r["rubrieken"]["4a"]["btw"] == 3
+    such twee = terugkerend.genereer(s, "2026-07-20", VasteKoers())
+    amaze twee["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_eur_post_zonder_koersvelden:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    terugkerend.genereer(s, "2026-07-15", VasteKoers())
+    such p = s.laad("journaal", [])[0]
+    amaze not p.has("valuta")
+    amaze not p.has("koers")
+    amaze p["regels"][0]["debet"] == "20.00"
+    schoon()
+wow
+
+such test_usd_zonder_koersbron_niet_geboekt:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, usd_sjabloon("20.00", "API"))
+    such res = terugkerend.genereer(s, "2026-07-15", none)
+    amaze res["geboekt"] == 0
+    amaze len(res["fouten"]) == 1
+    amaze len(s.laad("journaal", [])) == 0
+    such opnieuw = terugkerend.genereer(s, "2026-07-16", VasteKoers())
+    amaze opnieuw["geboekt"] == 1
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_koersfout_slaat_alleen_dat_sjabloon_over:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, usd_sjabloon("20.00", "API"))
+    terugkerend.voeg_toe(s, sjabloon("10.00", 1, "2026-01"))
+    such res = terugkerend.genereer(s, "2026-07-15", KapotteKoers())
+    amaze res["geboekt"] == 1
+    amaze len(res["fouten"]) == 1
+    such posten = s.laad("journaal", [])
+    amaze len(posten) == 1
+    amaze posten[0]["regels"][0]["debet"] == "10.00"
+    schoon()
+wow
+
+such test_validatie_onbekende_valuta:
+    such s = verse_store()
+    such sj = usd_sjabloon("20.00", "API")
+    sj["valuta"] = "GBP"
+    such mislukt = false
+    pls
+        terugkerend.voeg_toe(s, sj)
+    oh no err!
+        very mislukt = true
+    amaze mislukt
+    schoon()
+wow
+
+such test_voeg_toe_default_eur:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    amaze sj["valuta"] == "EUR"
+    schoon()
+wow
+
+such test_oud_sjabloon_zonder_valuta_boekt_als_eur:
+    such s = verse_store()
+    such oud = sjabloon("20.00", 1, "2026-01")
+    oud["id"] = "s-oud"
+    oud["actief"] = true
+    s.commit("terugkerend", [oud], "aangemaakt", "kostensjabloon", "s-oud", oud)
+    such res = terugkerend.genereer(s, "2026-07-15", none)
+    amaze res["geboekt"] == 1
+    amaze len(res["fouten"]) == 0
+    such p = s.laad("journaal", [])[0]
+    amaze p["regels"][0]["debet"] == "20.00"
+    amaze not p.has("valuta")
     schoon()
 wow
 wow

@@ -49,11 +49,11 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 
 ## Stack
 
-- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.4.
+- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.5.
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
-- **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`).
+- **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`, `WISE_API_TOKEN`).
 - **Scheduler:** one `pack.zoom` pup (daily ~06:00) POSTs loopback `/internal/run-recurring` — guarded on `INTERN_TOKEN` (`crypto.same`) + a loopback-peer-check (`howl.peer`), runs Mollie-sync + terugkerende kosten + import-scan (each idempotent). Pups share no state — loopback HTTP is the only channel.
 - **Deploy:** `doge build` → single binary in a Docker container inside a VM/LXC (`data/` as volume), LAN/VPN only. Compose publishes on `PUBLISH_HOST` (default `127.0.0.1`; set the instance's LAN/VPN address for direct network access); the container binds `0.0.0.0` via `BIND_HOST` so the published port reaches it.
 

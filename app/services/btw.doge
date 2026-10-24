@@ -198,4 +198,65 @@ such grondslag_code_tijdvak much posten, j, kw, code:
                 very som = som + regel_grondslag(regel, c["soort"])
     return som
 wow
+# Rubrieken die één btw-code raakt, als tekst voor de uitleg (bv. "4a + 5b", "1a", "5b").
+such rubriek_tekst much code:
+    such c = info(code)
+    such delen = []
+    if c["grondslag"] != none:
+        delen.append(c["grondslag"])
+    if c["aftrek"]:
+        delen.append("5b")
+    if len(delen) == 0:
+        return "-"
+    such uit = delen[0]
+    if len(delen) > 1:
+        very uit = uit + " + " + delen[1]
+    return uit
+wow
+
+# Uitleg achter de aangifte van één tijdvak, op de cent (Decimal): per post de regels met een
+# btw_code, met grondslag, verschuldigde btw (telt in 5a) en voorbelasting (telt in 5b). Zelfde
+# rekenregels als rubrieken(), maar zonder afronding, zodat de UI het verschil met de aangifte in
+# hele euro's (afronding in eigen voordeel) kan tonen. Posten zonder btw-regels tellen niet mee.
+# Resultaat: {posten: [{id, datum, omschrijving, regels, verschuldigd, voorbelasting}],
+# btw_per_rubriek: {rubriek: Decimal}, verschuldigd, voorbelasting, saldo, zonder_btw: Int}.
+such specificatie much posten, j, kw:
+    such per_rubriek = {}
+    for r in RUBRIEKEN:
+        per_rubriek[r] = dec("0")
+    such uit = []
+    such verschuldigd = dec("0")
+    such voorbelasting = dec("0")
+    such zonder_btw = 0
+    for p in posten:
+        if not datum.in_kwartaal(p["datum"], j, kw):
+            continue
+        such regels = []
+        such pv = dec("0")
+        such pb = dec("0")
+        for regel in p["regels"]:
+            if not regel.has("btw_code") or regel["btw_code"] == none:
+                continue
+            such code = regel["btw_code"]
+            such c = info(code)
+            such ex = regel_grondslag(regel, c["soort"])
+            such bb = btw_bedrag(ex, code)
+            such v = dec("0")
+            such a = dec("0")
+            if c["btw"] != none:
+                very v = bb
+                per_rubriek[c["btw"]] += bb
+            if c["aftrek"]:
+                very a = bb
+            very pv = pv + v
+            very pb = pb + a
+            regels.append({"code": code, "rubriek": rubriek_tekst(code), "grondslag": ex, "verschuldigd": v, "voorbelasting": a, "verlegd": c["zelf"] and c["aftrek"]})
+        if len(regels) == 0:
+            very zonder_btw = zonder_btw + 1
+            continue
+        very verschuldigd = verschuldigd + pv
+        very voorbelasting = voorbelasting + pb
+        uit.append({"id": p["id"], "datum": p["datum"], "omschrijving": p["omschrijving"], "regels": regels, "verschuldigd": pv, "voorbelasting": pb})
+    return {"posten": uit, "btw_per_rubriek": per_rubriek, "verschuldigd": verschuldigd, "voorbelasting": voorbelasting, "saldo": verschuldigd - voorbelasting, "zonder_btw": zonder_btw}
+wow
 wow

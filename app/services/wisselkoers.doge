@@ -1,0 +1,57 @@
+so howl
+so json
+so "../../lib/geld.doge"
+
+# Wisselkoersen voor terugkerende kosten in vreemde valuta (bv. USD-abonnementen).
+# De koers komt live van de Wise rates-API op het moment van boeken; de omrekening
+# naar EUR is Decimal-only (Hard Rule 1). Pure helpers (lees_koers, omreken) zijn
+# getest; het netwerkdeel (Wise.koers) niet, net als mollie.haal_*.
+
+so VALUTA = ["EUR", "USD"]
+so WISE_BASIS = "https://api.wise.com/v1/rates"
+
+# Parse de ruwe Wise-response, bv. [{"rate":0.86215,"source":"USD","target":"EUR","time":"..."}].
+# json.parse in Decimal-modus: een koers met breuk of exponent wordt direct een exacte Decimal en
+# raakt nooit een Float (Hard Rule 1); een hele koers (bv. 1) komt als Int en wordt via dec()
+# Decimal. Een onverwachte vorm (geen lijst, lege lijst, geen rate, ongeldige JSON) wordt één
+# Nederlandse fout.
+such lees_koers much body:
+    such koers = none
+    such tijd = ""
+    pls
+        such data = json.parse(body, {"numbers": "decimal"})
+        such eerste = data[0]
+        very koers = dec(eerste["rate"])
+        if eerste.has("time") and eerste["time"] != none:
+            very tijd = str(eerste["time"])
+    oh no err!
+        bonk "geen koers gevonden in het Wise-antwoord"
+    if koers <= dec("0"):
+        bonk "ongeldige koers in het Wise-antwoord: {koers}"
+    return {"koers": koers, "tijd": tijd}
+wow
+
+# Bedrag (Decimal, vreemde valuta) x koers (Decimal) -> EUR, half-up op centen.
+such omreken much bedrag, koers:
+    return geld.rond2(bedrag * koers)
+wow
+
+# Koersbron voor terugkerend.genereer: koers(van, naar) -> {koers, tijd, bron}.
+many Wise:
+    such init much token:
+        self.token = token
+    wow
+
+    such koers much van, naar:
+        such tok = self.token
+        such opts = {"headers": {"Authorization": "Bearer {tok}"}}
+        such resp = howl.request("GET", "{WISE_BASIS}?source={van}&target={naar}", opts)
+        such st = resp["status"]
+        if st != 200:
+            bonk "Wise API gaf status {st}"
+        such uit = lees_koers(resp["body"])
+        uit["bron"] = "wise"
+        return uit
+    wow
+wow
+wow

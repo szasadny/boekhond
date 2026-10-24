@@ -1,5 +1,6 @@
 so btw
 so journaal
+so rekeningen
 so nap
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
@@ -63,13 +64,15 @@ such cijfers much store, j, kw:
     return {"rubrieken": r["rubrieken"], "5a": r["5a"], "5b": r["5b"], "saldo": r["saldo"], "status": "open", "ingediend_op": none}
 wow
 
-# Paginamodel voor één tijdvak: de cijfers (snapshot of live) + ICP- en suppletie-signaal.
+# Paginamodel voor één tijdvak: de cijfers (snapshot of live) + ICP- en suppletie-signaal + de
+# uitleg per post (zie uitleg()).
 such overzicht much store, j, kw:
     such c = cijfers(store, j, kw)
     such rub = c["rubrieken"]
     such icp = btw.grondslag_code_tijdvak(store.laad("journaal", []), j, kw, "levering_eu") > dec("0")
     such supp = suppletie_signaal(store, j, kw)
-    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp}
+    such u = uitleg(store, j, kw)
+    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "uitleg": u}
 wow
 
 # Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
@@ -144,5 +147,63 @@ such te_doen_tijdvak much store, vandaag:
             very j = j - 1
         very kandidaat_sleutel = j * 4 + (kw - 1)
     return [huidig_j, huidig_kw]
+wow
+# Kwartaal als doorlopend getal (jaar * 4 + kwartaal - 1), zodat tijdvakken te vergelijken en
+# af te tellen zijn.
+such kwartaal_nummer much j, kw:
+    return j * 4 + (kw - 1)
+wow
+
+# Alle tijdvakken van de administratie, nieuwste eerst: van het oudste van (vroegste post,
+# te-doen-tijdvak) t/m het nieuwste van (huidig kwartaal, laatste post). Elk element is
+# {jaar, kwartaal, status} met status "ingediend" of "open". Voor de tijdvakkeuze in het journaal.
+such tijdvakken much store, vandaag:
+    such aangiften = store.laad("aangiften", [])
+    such te = te_doen_tijdvak(store, vandaag)
+    such laag = kwartaal_nummer(te[0], te[1])
+    such hoog = kwartaal_nummer(datum.jaar(vandaag), datum.kwartaal(vandaag))
+    for p in store.laad("journaal", []):
+        such n = kwartaal_nummer(datum.jaar(p["datum"]), datum.kwartaal(p["datum"]))
+        if n < laag:
+            very laag = n
+        if n > hoog:
+            very hoog = n
+    such uit = []
+    such n = hoog
+    while n >= laag:
+        such j = n // 4
+        such kw = n % 4 + 1
+        such status = "ingediend" if is_ingediend(aangiften, j, kw) else "open"
+        uit.append({"jaar": j, "kwartaal": kw, "status": status})
+        very n = n - 1
+    return uit
+wow
+# Saldo-beweging (debet - credit) van één rekening binnen één post, Decimal.
+such beweging much post, rekening:
+    such som = dec("0")
+    for r in post["regels"]:
+        if r["rekening"] == rekening:
+            very som = som + geld.bedrag(r["debet"]) - geld.bedrag(r["credit"])
+    return som
+wow
+
+# Uitleg + controle voor de aangiftepagina: btw.specificatie (per post, op de cent) plus per post
+# of de geboekte btw (rekening af te dragen en voorbelasting) aansluit op wat de btw-codes
+# voorschrijven. Elke spec-post krijgt "klopt"; "afwijkend" somt de posten op die niet aansluiten
+# (in de praktijk een handmatige memoriaalpost met een verkeerd btw-bedrag).
+such uitleg much store, j, kw:
+    such posten = store.laad("journaal", [])
+    such spec = btw.specificatie(posten, j, kw)
+    such afwijkend = []
+    for sp in spec["posten"]:
+        such p = journaal.zoek_post(posten, sp["id"])
+        such geboekt_af = dec("0") - beweging(p, rekeningen.REK_AF_TE_DRAGEN)
+        such geboekt_voor = beweging(p, rekeningen.REK_VOORBELASTING)
+        such klopt = geboekt_af == sp["verschuldigd"] and geboekt_voor == sp["voorbelasting"]
+        sp["klopt"] = klopt
+        if not klopt:
+            afwijkend.append(sp)
+    spec["afwijkend"] = afwijkend
+    return spec
 wow
 wow

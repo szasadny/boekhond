@@ -4,6 +4,7 @@ so "../../web/forms.doge"
 so "../services/journaal.doge"
 so "../services/rekeningen.doge"
 so "../services/btw.doge"
+so "../services/aangifte.doge"
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 so "../../lib/csv.doge"
@@ -11,7 +12,8 @@ so weergave
 
 # Journaal: lijst per tijdvak + de sjabloonflows (inkoop, bank/privé) en de
 # vrije memoriaalpost. Handlers parsen invoer (geld.parse), roepen journaal.doge;
-# alle boekingslogica en de balans-invariant zitten daar.
+# alle boekingslogica en de balans-invariant zitten daar. Zonder keuze toont de lijst het
+# tijdvak dat nu aan de beurt is (aangifte.te_doen_tijdvak), niet blind het huidige kwartaal.
 
 so MEMO_RIJEN = 6
 
@@ -58,11 +60,52 @@ such bedrag_str much rauw:
     return str(geld.rond2(geld.parse(rauw)))
 wow
 
+# Gekozen tijdvak als [j, kw]: ?tv=JJJJ-K uit de keuzelijst, anders ?j=&kw=, anders het
+# tijdvak dat aan de beurt is (oudste afgelopen kwartaal dat nog niet is ingediend, of het
+# huidige kwartaal als alles is ingediend).
+such gekozen_tijdvak much store, query:
+    such te = aangifte.te_doen_tijdvak(store, datum.vandaag())
+    such j = forms.geheel(query, "j", te[0])
+    such kw = forms.geheel(query, "kw", te[1])
+    such tv = forms.enkel(query, "tv", "")
+    if len(tv) == 6 and tv[4] == "-":
+        pls
+            very j = int(tv[0:4])
+            very kw = int(tv[5:6])
+        oh no err!
+            very j = te[0]
+            very kw = te[1]
+    if kw < 1 or kw > 4:
+        return te
+    return [j, kw]
+wow
+
+# Journaal-URL voor het tijdvak waar een datum in valt (redirect na boeken, zodat je de post ziet).
+such tijdvak_url much d:
+    such j = datum.jaar(d)
+    such kw = datum.kwartaal(d)
+    return "/journaal?tv={j}-{kw}"
+wow
+
+such tijdvak_keuze much store, j, kw:
+    such opties = []
+    for t in aangifte.tijdvakken(store, datum.vandaag()):
+        such tj = t["jaar"]
+        such tkw = t["kwartaal"]
+        such label = "Q{tkw}-{tj}"
+        if t["status"] == "ingediend":
+            very label = label + " (ingediend)"
+        opties.append(["{tj}-{tkw}", label])
+    such sel = html.select("tv", opties, "{j}-{kw}")
+    such kn = html.knop("Toon")
+    return "<form action=\"/journaal\" method=\"get\" class=\"inline\"><label>Tijdvak {sel}</label>{kn}</form>"
+wow
+
 such lijst much req:
     such store = req["ctx"]["store"]
-    such vandaag = datum.vandaag()
-    such j = forms.geheel(req["query"], "j", datum.jaar(vandaag))
-    such kw = forms.geheel(req["query"], "kw", datum.kwartaal(vandaag))
+    such jk = gekozen_tijdvak(store, req["query"])
+    such j = jk[0]
+    such kw = jk[1]
     such body = ""
     for p in store.laad("journaal", []):
         if not datum.in_kwartaal(p["datum"], j, kw):
@@ -82,8 +125,14 @@ such lijst much req:
     such l_ink = html.link("/journaal/inkoop", "Inkoop boeken")
     such l_bank = html.link("/journaal/bank", "Bank/privé boeken")
     such l_memo = html.link("/journaal/memoriaal", "Memoriaalpost")
-    such acties = "<p>{l_ink} · {l_bank} · {l_memo}</p>"
-    such inhoud = "<h1>Journaal Q{kw}-{j}</h1>{acties}{tabel}"
+    such csvhref = "/journaal/export.csv?j={j}&kw={kw}"
+    such l_csv = html.link(csvhref, "CSV")
+    such acties = "<p>{l_ink} · {l_bank} · {l_memo} · {l_csv}</p>"
+    such keuze = tijdvak_keuze(store, j, kw)
+    such status = "open"
+    if aangifte.is_ingediend(store.laad("aangiften", []), j, kw):
+        very status = "ingediend en vergrendeld; correcties boek je als storno in een open tijdvak"
+    such inhoud = "<h1>Journaal Q{kw}-{j}</h1>{keuze}<p>Status: {status}.</p>{acties}{tabel}"
     return http.html_response(weergave.render("Journaal", inhoud))
 wow
 
@@ -113,7 +162,7 @@ such inkoop much req:
         such ex = bedrag_str(forms.enkel(v, "bedrag_ex", ""))
         such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, forms.enkel(v, "btw_code", ""), forms.enkel(v, "kosten_rek", ""))
         journaal.bewaar(store, post)
-        return http.redirect("/journaal")
+        return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
         return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message))))
 wow
@@ -143,7 +192,7 @@ such bank much req:
         such bedrag = bedrag_str(forms.enkel(v, "bedrag", ""))
         such post = journaal.prive_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "rekening", ""), bedrag, forms.enkel(v, "kant", "storting"))
         journaal.bewaar(store, post)
-        return http.redirect("/journaal")
+        return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
         return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message))))
 wow
@@ -205,7 +254,7 @@ such memoriaal much req:
         such regels = bouw_regels(v)
         such post = journaal.memoriaal_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "relatie", ""), regels)
         journaal.bewaar(store, post)
-        return http.redirect("/journaal")
+        return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
         return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message))))
 wow
@@ -244,16 +293,16 @@ such storno much req:
             bonk "onbekende journaalpost: {id}"
         such sp = journaal.storno_post(orig, forms.enkel(v, "datum", datum.vandaag()))
         journaal.bewaar(store, sp)
-        return http.redirect("/journaal")
+        return http.redirect(tijdvak_url(sp["datum"]))
     oh no err!
         return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.fout(err.message))))
 wow
 
 such export_csv much req:
     such store = req["ctx"]["store"]
-    such vandaag = datum.vandaag()
-    such j = forms.geheel(req["query"], "j", datum.jaar(vandaag))
-    such kw = forms.geheel(req["query"], "kw", datum.kwartaal(vandaag))
+    such jk = gekozen_tijdvak(store, req["query"])
+    such j = jk[0]
+    such kw = jk[1]
     such rijen = []
     for p in store.laad("journaal", []):
         if not datum.in_kwartaal(p["datum"], j, kw):

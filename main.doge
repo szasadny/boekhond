@@ -77,10 +77,11 @@ such config:
         very data_dir = "data"
     such mollie_key = haal("MOLLIE_API_KEY", envd)
     such intern_token = haal("INTERN_TOKEN", envd)
+    such wise_token = haal("WISE_API_TOKEN", envd)
     such bind_host = haal("BIND_HOST", envd)
     if bind_host == none:
         very bind_host = "127.0.0.1"
-    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key, "intern_token": intern_token, "bind_host": bind_host}
+    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key, "intern_token": intern_token, "wise_token": wise_token, "bind_host": bind_host}
 wow
 
 such health much req:

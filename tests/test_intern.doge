@@ -33,7 +33,7 @@ such maak_req much s, headers:
 wow
 
 such maak_req_van much s, headers, peer:
-    such cfg = {"poort": 8085, "data_dir": TMPMAP, "mollie_key": none, "intern_token": "geheim", "bind_host": "127.0.0.1"}
+    such cfg = {"poort": 8085, "data_dir": TMPMAP, "mollie_key": none, "intern_token": "geheim", "wise_token": none, "bind_host": "127.0.0.1"}
     return {"ctx": {"store": s, "config": cfg}, "headers": headers, "peer_host": peer, "path": "/internal/run-recurring", "method": "POST"}
 wow
 
