@@ -49,7 +49,7 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 
 ## Stack
 
-- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.4.
+- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.5.
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.

@@ -1,5 +1,5 @@
 so howl
-so hunt
+so json
 so "../../lib/geld.doge"
 
 # Wisselkoersen voor terugkerende kosten in vreemde valuta (bv. USD-abonnementen).
@@ -11,19 +11,23 @@ so VALUTA = ["EUR", "USD"]
 so WISE_BASIS = "https://api.wise.com/v1/rates"
 
 # Parse de ruwe Wise-response, bv. [{"rate":0.86215,"source":"USD","target":"EUR","time":"..."}].
-# stopgap for doge#73: json.parse kent geen Decimal-modus (Hard Rule 11)
-# json.parse maakt van rate een Float; daarom de koers als tekst uit de body halen en dec()'en.
+# json.parse in Decimal-modus: een koers met breuk of exponent wordt direct een exacte Decimal en
+# raakt nooit een Float (Hard Rule 1); een hele koers (bv. 1) komt als Int en wordt via dec()
+# Decimal. Een onverwachte vorm (geen lijst, lege lijst, geen rate, ongeldige JSON) wordt één
+# Nederlandse fout.
 such lees_koers much body:
-    such g = hunt.groups("\"rate\"\\s*:\\s*([0-9]+(\\.[0-9]+)?)", body)
-    if g == none:
+    such koers = none
+    such tijd = ""
+    pls
+        such data = json.parse(body, {"numbers": "decimal"})
+        such eerste = data[0]
+        very koers = dec(eerste["rate"])
+        if eerste.has("time") and eerste["time"] != none:
+            very tijd = str(eerste["time"])
+    oh no err!
         bonk "geen koers gevonden in het Wise-antwoord"
-    such koers = dec(g[1])
     if koers <= dec("0"):
         bonk "ongeldige koers in het Wise-antwoord: {koers}"
-    such tijd = ""
-    such t = hunt.groups("\"time\"\\s*:\\s*\"([^\"]*)\"", body)
-    if t != none:
-        very tijd = t[1]
     return {"koers": koers, "tijd": tijd}
 wow
 

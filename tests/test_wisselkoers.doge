@@ -33,6 +33,30 @@ such test_lees_koers_nul_bonkt:
     amaze mislukt
 wow
 
+# Exponent-notatie (kon de oude regex-stopgap niet aan) wordt een exacte Decimal.
+such test_lees_koers_exponent:
+    such k = wisselkoers.lees_koers("[\{\"rate\":8.6215E-1,\"time\":\"t\"\}]")
+    amaze k["koers"] == dec("0.86215")
+wow
+
+# Een hele koers komt als Int uit json.parse en wordt toch een Decimal.
+such test_lees_koers_hele_koers:
+    such k = wisselkoers.lees_koers("[\{\"rate\":1\}]")
+    amaze k["koers"] == dec("1")
+    amaze str(k["koers"] + dec("0.5")) == "1.5"
+wow
+
+# Onverwachte vormen: lege lijst, object i.p.v. lijst, ongeldige JSON -> allemaal een bonk.
+such test_lees_koers_onverwachte_vorm_bonkt:
+    for body in ["[]", "\{\"error\":\"unauthorized\"\}", "geen json", "[\{\"source\":\"USD\"\}]"]:
+        such mislukt = false
+        pls
+            wisselkoers.lees_koers(body)
+        oh no err!
+            very mislukt = true
+        amaze mislukt, body
+wow
+
 # Handmatig nagerekend: bedrag x koers, half-up op centen.
 such test_omreken_tabel:
     such gevallen = [["20.00", "0.86215", "17.24"], ["19.99", "0.9", "17.99"], ["10.00", "0.86255", "8.63"], ["100.00", "1", "100.00"], ["0.01", "0.5", "0.01"], ["17.00", "1", "17.00"], ["5", "0.2", "1.00"]]
