@@ -22,14 +22,6 @@ such kosten_opties much store:
     return o
 wow
 
-such btw_opties:
-    such o = []
-    for c in btw.CODES:
-        if btw.CODES[c]["soort"] == "inkoop":
-            o.append([c, btw.label(c)])
-    return o
-wow
-
 such valuta_opties:
     such o = []
     for v in wisselkoers.VALUTA:
@@ -44,12 +36,6 @@ such koersbron_van much cfg:
     return none
 wow
 
-such bedrag_str much rauw:
-    if rauw == "":
-        return ""
-    return str(geld.rond2(geld.parse(rauw)))
-wow
-
 such toevoeg_formulier much store:
     such vlev = html.veld("leverancier", "Leverancier", "text", "")
     such voms = html.veld("omschrijving", "Omschrijving", "text", "")
@@ -58,7 +44,7 @@ such toevoeg_formulier much store:
     such vval = "<label>Valuta {sval}</label>"
     such srek = html.select("kosten_rek", kosten_opties(store), "")
     such vrek = "<label>Kostenrekening {srek}</label>"
-    such sbtw = html.select("btw_code", btw_opties(), "import_buiten_eu")
+    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), "import_buiten_eu")
     such vbtw = "<label>Btw-code {sbtw}</label>"
     such vdag = html.veld("dag", "Dag van de maand (1-28)", "number", "1")
     such vvanaf = html.veld("vanaf", "Vanaf (maand)", "month", datum.vandaag()[0:7])
@@ -105,7 +91,7 @@ such toevoegen much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": bedrag_str(forms.enkel(v, "bedrag_ex", "")), "valuta": forms.enkel(v, "valuta", "EUR"), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
+        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": weergave.bedrag_str(forms.enkel(v, "bedrag_ex", "")), "valuta": forms.enkel(v, "valuta", "EUR"), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!

@@ -45,11 +45,11 @@ Never acceptable to break — including during debugging or hot fixes.
 
 ## Domain in one screen
 
-Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditregels op een rekeningschema (chart of accounts); som(debet) == som(credit) altijd. Omzet-/kostenregels dragen een `btw_code` die exact op één aangifte-rubriek mapt (1a/1b/1e/2a/3a/3b/4a/4b/5b — [docs/DATA-MODEL.md](docs/DATA-MODEL.md) §2). Posten ontstaan automatisch (Mollie-import = omzet 21% → 1a, idempotent per `mollie_payment_id`; terugkerende maandabonnementen van buiten de EU → 4a + 5b) of via een sjabloonflow (inkoop, bank/privé) of een vrije memoriaalpost. Inkoopbewijs komt via een open uploadveld of `data/import/` in de import-inbox; 7 jaar bewaard. Per kwartaal berekent de app alle rubrieken; de ondernemer neemt ze over in Mijn Belastingdienst Zakelijk en markeert het tijdvak ingediend → snapshot + slot (Hard Rule 3).
+Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditregels op een rekeningschema (chart of accounts); som(debet) == som(credit) altijd. Omzet-/kostenregels dragen een `btw_code` die exact op één aangifte-rubriek mapt (1a/1b/1d/1e/2a/3a/3b/4a/4b, plus voorbelasting 5b — [docs/DATA-MODEL.md](docs/DATA-MODEL.md) §2). Posten ontstaan automatisch (Mollie-import = omzet 21% → 1a, idempotent per `mollie_payment_id`; terugkerende maandabonnementen van buiten de EU → 4a + 5b) of via een sjabloonflow (inkoop, bank/privé) of een vrije memoriaalpost. Inkoopbewijs komt via een open uploadveld of `data/import/` in de import-inbox; 7 jaar bewaard. Per kwartaal berekent de app alle rubrieken; de ondernemer neemt ze over in Mijn Belastingdienst Zakelijk en markeert het tijdvak ingediend → snapshot + slot (Hard Rule 3).
 
 ## Stack
 
-- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale). Doge is now v0.3.5.
+- **Language:** Doge (`doge.toml` project; update via `cargo install dogelang` — the local binary goes stale).
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
@@ -66,7 +66,7 @@ doge.toml               # manifest, entry = main.doge ([dependencies] header req
 package.json            # npm-toolchain voor de Dogescript-build (build-js.mjs → static/js/; dogescript library-API)
 main.doge               # boot: config (.env), store load, scheduler pup, accept-loop, route table
 web/                    # generic HTTP micro-framework (HTTP/1.1 parse, router, cookies, forms, multipart, html escaping, static; never imports app/)
-app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared nav/foutbanner); _h avoids the service-import name clash
+app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared view helpers: nav, foutbanner, btw-opties); _h avoids the service-import name clash
 app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, wisselkoers, aangifte, rapporten, terugkerend, overdracht
 app/store/              # store.doge (atomic DSON + audit), one load/save per collection
 lib/                    # domain-free helpers: datum, geld, csv
@@ -92,9 +92,9 @@ docs/                   # ARCHITECTURE, DATA-MODEL — the on-demand reference s
 
 - `doge check <file>` — fastest syntax/semantic feedback; run it constantly.
 - `doge test tests` — full suite; runs every zero-arg `test_*` function (`amaze` assertions). Fixture helpers must **not** start with `test` (the runner would execute them).
-- `doge fmt "$PWD/<file>"` — canonical in-place formatting. Doge v0.3.2 has no `--check`; audit without mutations by formatting temporary copies and comparing them with the sources.
+- `doge fmt "$PWD/<file>"` — canonical in-place formatting; `doge fmt --check <file>` is the non-mutating audit (one file per call, no directories).
 - Fiscale rekenregels (Hard Rule 10) get table-driven tests with hand-checked expected values.
 
 ## Definition of done
 
-`doge check` + non-mutating `doge fmt` audit + `doge test tests` green; [docs/DATA-MODEL.md](docs/DATA-MODEL.md) / [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) updated in the same change when entities or layer boundaries changed; Hard Rules intact. Scope tightly — a bug fix changes the bug, a feature adds the feature; flag observed debt instead of silently fixing it.
+`doge check` + `doge fmt --check` + `doge test tests` green; [docs/DATA-MODEL.md](docs/DATA-MODEL.md) / [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) updated in the same change when entities or layer boundaries changed; Hard Rules intact. Scope tightly — a bug fix changes the bug, a feature adds the feature; flag observed debt instead of silently fixing it.

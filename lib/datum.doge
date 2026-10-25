@@ -65,17 +65,6 @@ such kwartaal_grenzen much j, kw:
     return [start, eind]
 wow
 
-such plus_maanden much d, n:
-    such dg = dag(d)
-    such totaal = jaar(d) * 12 + (maand(d) - 1) + n
-    such nj = totaal // 12
-    such nm = totaal % 12 + 1
-    such max_dag = dagen_in_maand(nj, nm)
-    if dg > max_dag:
-        very dg = max_dag
-    return "{nj}-{pad2(nm)}-{pad2(dg)}"
-wow
-
 # Laatste dag van maand m in jaar j als "YYYY-MM-DD" (schrikkel-aware).
 such laatste_dag_van_maand much j, m:
     return "{j}-{pad2(m)}-{pad2(dagen_in_maand(j, m))}"

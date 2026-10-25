@@ -52,7 +52,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     koers_bron               tijdstip van de koers (Wise `time`) en de bron ("wise") —
                              audit-metadata; de regels staan altijd in EUR
     bijlage_ids              [bijlage-id, …]
-    storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §4.4)
+    storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §3.4)
     created_at
   INVARIANT: som(debet) == som(credit) — een post die niet balanceert
   wordt nooit opgeslagen (§4.0). Posten ontstaan automatisch (Mollie-import =
@@ -64,7 +64,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     id, journaalpost_id      none = staat in de import-inbox, vandaaruit boeken
     bron                     "upload" | "import" (uit data/import/)
     bestandsnaam_origineel   metadata only — nooit een pad (Hard Rule 7)
-    pad                      "uploads/{jaar}/{id}{ext}"
+    pad                      "uploads/{jaar}/{id}.{ext}"
     mime, grootte_bytes, geupload_op
 
 ─── terugkerend.dson (List) ──────────────────────────────────
@@ -96,6 +96,10 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     rubrieken                snapshot bij indienen: {rubriek: {bedrag, btw}} — de btw.rubrieken()-motorvorm (§2)
     5a, 5b                   verschuldigd / voorbelasting (hele euro's), samen met de snapshot bevroren
     saldo                    5a − 5b (te betalen; negatief = terug te vragen)
+
+─── tellers.dson (singleton Dict) ────────────────────────────
+  {prefix: laatst uitgegeven Int} — id-uitgifte via store.nieuw_id ("j" → j-1, j-2, …);
+  nooit verlaagd, dus een id wordt nooit hergebruikt
 
 ─── audit.dsonl (append-only, geen collectie) ────────────────
   {ts, actie, entiteit, id, data} — vóór elke state-write (ARCHITECTURE.md §4)

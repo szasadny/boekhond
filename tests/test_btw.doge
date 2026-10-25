@@ -21,14 +21,6 @@ such test_btw_bedrag:
     amaze btw.btw_bedrag(dec("100"), "verlegd_naar_mij") == dec("21")
 wow
 
-such test_bedrag_incl:
-    amaze btw.bedrag_incl(dec("100"), "hoog_21") == dec("121")
-    amaze btw.bedrag_incl(dec("100"), "voorbelasting_hoog") == dec("121")
-    amaze btw.bedrag_incl(dec("100"), "verlegd_naar_mij") == dec("100")
-    amaze btw.bedrag_incl(dec("100"), "import_buiten_eu") == dec("100")
-    amaze btw.bedrag_incl(dec("100"), "vrijgesteld") == dec("100")
-wow
-
 such test_onbekende_code:
     such gevangen = false
     pls

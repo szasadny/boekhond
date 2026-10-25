@@ -5,7 +5,7 @@ description: Write, edit, review, or debug programs in the Doge language (`.doge
 
 # Writing Doge
 
-Doge is a dynamically typed, indentation-based scripting language. It looks Python-ish but its keywords are doge-speak and several rules differ sharply — **do not** transliterate Python. This cheat sheet is enough to write most programs correctly. For exact stdlib signatures see `references/stdlib.md`; the authoritative v0.3.2 specs are [SYNTAX](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/SYNTAX.md), [GRAMMAR](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/GRAMMAR.md), [STDLIB](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/STDLIB.md), [CLI](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/CLI.md), and [ERRORS](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/ERRORS.md).
+Doge is a dynamically typed, indentation-based scripting language. It looks Python-ish but its keywords are doge-speak and several rules differ sharply — **do not** transliterate Python. This cheat sheet is enough to write most programs correctly. For exact stdlib signatures see `references/stdlib.md`; the authoritative specs are [SYNTAX](https://github.com/DogeLanguage/doge/blob/main/docs/SYNTAX.md), [GRAMMAR](https://github.com/DogeLanguage/doge/blob/main/docs/GRAMMAR.md), [STDLIB](https://github.com/DogeLanguage/doge/blob/main/docs/STDLIB.md), [CLI](https://github.com/DogeLanguage/doge/blob/main/docs/CLI.md), and [ERRORS](https://github.com/DogeLanguage/doge/blob/main/docs/ERRORS.md).
 
 ## The rules that bite first
 
@@ -104,7 +104,7 @@ Doge transpiles to Rust and caches the binary, so first run pays a compile cost,
 
 - `doge bark script.doge [args…]` — compile (cached) and run; `args…` reach the script via `env.args()`.
 - `doge check script.doge` — parse + semantic checks only, no build. **Fastest way to validate syntax.**
-- `doge fmt script.doge` — format in place to canonical style (four-space indent). Doge v0.3.2 has no `--check`; for a non-mutating audit, format a temporary copy and compare it with the source.
+- `doge fmt script.doge` — format in place to canonical style (four-space indent). `doge fmt --check script.doge` is the non-mutating audit (exit 1 when formatting is needed).
 - `doge test <file-or-dir>` — runs every top-level zero-arg function whose name starts with `test`, asserting with `amaze`:
 
 ```doge
@@ -115,7 +115,7 @@ wow
 
 ## Workflow for a new program or feature
 
-1. **Sketch the shape first** in your head: which top-level functions/objects, which stdlib modules. If the current repo has local `examples/`, grep them first; otherwise use the pinned [Doge v0.3.2 examples](https://github.com/DogeLanguage/doge/tree/v0.3.2/examples). Match their style — the examples are the living style guide.
+1. **Sketch the shape first** in your head: which top-level functions/objects, which stdlib modules. If the current repo has local `examples/`, grep them first; otherwise use the [Doge examples](https://github.com/DogeLanguage/doge/tree/main/examples). Match their style — the examples are the living style guide.
 2. **Write the script.** Keep `wow` discipline: every `such f`/`many N` and the file itself. Prefer the flavored construct (`bark`, `pls`/`oh no`, `amaze`) over hand-rolling.
 3. **Validate:** run `doge check` for fast syntax feedback, then `doge bark` to run it. When working in the DogeLanguage/doge repo itself, a feature ships an `examples/*.doge` integration test with a `.out` sibling that asserts its stdout.
 4. **Read the error, don't guess.** Doge errors carry file, line, a caret, and a `such fix:` hint. They mean exactly what they say. If you ever see raw `rustc`/Rust output, that is a compiler bug, not your script's fault.
@@ -123,5 +123,5 @@ wow
 ## When to read more
 
 - Exact signatures for every builtin, collection method, and stdlib module member → `references/stdlib.md`.
-- A subtle semantic (closure capture, slice clamping, `super` rules, pack/thread copy semantics, DSON octal numbers) → the pinned [SYNTAX](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/SYNTAX.md) and [STDLIB](https://github.com/DogeLanguage/doge/blob/v0.3.2/docs/STDLIB.md) specs.
-- Working examples of every feature → local `examples/*.doge` when present, otherwise the pinned [Doge v0.3.2 examples](https://github.com/DogeLanguage/doge/tree/v0.3.2/examples).
+- A subtle semantic (closure capture, slice clamping, `super` rules, pack/thread copy semantics, DSON octal numbers) → the [SYNTAX](https://github.com/DogeLanguage/doge/blob/main/docs/SYNTAX.md) and [STDLIB](https://github.com/DogeLanguage/doge/blob/main/docs/STDLIB.md) specs.
+- Working examples of every feature → local `examples/*.doge` when present, otherwise the [Doge examples](https://github.com/DogeLanguage/doge/tree/main/examples).

@@ -1,5 +1,6 @@
 so "../../web/html.doge"
 so "../services/btw.doge"
+so "../../lib/geld.doge"
 
 # Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
 # Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
@@ -46,5 +47,29 @@ such btw_legenda much soort:
         rijen.append([e["label"], e["uitleg"]])
     such t = html.tabel(["Btw-code", "Betekenis"], rijen)
     return "<details class=\"legenda\"><summary>Wat betekenen de btw-codes?</summary>{t}</details>"
+wow
+
+# Select-opties [code, label] voor de inkoop-btw-codes.
+such inkoop_btw_opties:
+    such o = []
+    for c in btw.CODES:
+        if btw.CODES[c]["soort"] == "inkoop":
+            o.append([c, btw.label(c)])
+    return o
+wow
+
+# Select-opties voor alle btw-codes, met een lege "(geen)"-keuze vooraan.
+such btw_opties_leeg:
+    such o = [["", "(geen)"]]
+    for c in btw.CODES:
+        o.append([c, btw.label(c)])
+    return o
+wow
+
+# Bedrag uit een formulierveld ("1.234,56") genormaliseerd naar een Decimal-string; leeg blijft leeg.
+such bedrag_str much rauw:
+    if rauw == "":
+        return ""
+    return str(geld.rond2(geld.parse(rauw)))
 wow
 wow

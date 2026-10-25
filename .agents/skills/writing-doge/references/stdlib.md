@@ -2,7 +2,7 @@
 
 Signatures for every builtin, collection method, and stdlib module member. Names in
 doge-speak are unguessable, so look them up here rather than inventing them. This
-mirrors the pinned [Doge v0.3.5 STDLIB specification](https://github.com/DogeLanguage/doge/blob/v0.3.5/docs/STDLIB.md); read that for full semantics and edge cases. Every failure
+mirrors the [Doge STDLIB specification](https://github.com/DogeLanguage/doge/blob/main/docs/STDLIB.md); read that for full semantics and edge cases. Every failure
 below is a **catchable** error (`pls`/`oh no`), never a crash.
 
 ## Builtins (always in scope, no import)
@@ -102,7 +102,7 @@ Each pup gets a deep copy of args/captures/top-level snapshot — no shared muta
 
 ### `json` / `dson` — serialize
 `parse(text)`→Doge value · `emit(value)`→Str (compact). Maps object↔Dict, array↔List,
-number↔Int|Float, null↔none. `json.parse(text, {"numbers": "decimal"})` (0.3.5) parses every number with a
+number↔Int|Float, null↔none. `json.parse(text, {"numbers": "decimal"})` parses every number with a
 fraction or exponent to an exact `Decimal` (whole numbers stay Int; `"float"` is the default; unknown option → `ValueError`) — use it for money/rates from APIs. Unserializable value or bad input → `TypeError`/`ValueError`.
 `dson` is the same shape in doge-speak (objects `such … wow`, arrays `so … many`, `yes`/`no`/`empty`, octal numbers).
 

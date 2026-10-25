@@ -10,19 +10,12 @@ so weergave
 
 so TYPE_OPTIES = [["activa", "activa"], ["passiva", "passiva"], ["eigen_vermogen", "eigen_vermogen"], ["omzet", "omzet"], ["kosten", "kosten"]]
 
-such btw_opties:
-    such o = [["", "(geen)"]]
-    for c in btw.CODES:
-        o.append([c, btw.label(c)])
-    return o
-wow
-
 such toevoeg_formulier:
     such vn = html.veld("nummer", "Nummer", "text", "")
     such vnaam = html.veld("naam", "Naam", "text", "")
     such stype = html.select("type", TYPE_OPTIES, "kosten")
     such vtype = "<label>Type {stype}</label>"
-    such sbtw = html.select("btw_code", btw_opties(), "")
+    such sbtw = html.select("btw_code", weergave.btw_opties_leeg(), "")
     such vbtw = "<label>Btw-code {sbtw}</label>"
     return html.formulier("/rekeningen", "post", [vn, vnaam, vtype, vbtw, html.knop("Toevoegen")])
 wow
