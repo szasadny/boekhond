@@ -31,6 +31,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | Een `multipart/form-data` body (binaire upload) parsen | `web/multipart.doge` — domeinvrij; native `bytes.find`/`split`; input = rauwe Bytes-body + boundary uit Content-Type |
 | Een geüploade bijlage terugserveren (download) | een router-route (`app/handlers/bijlagen_h.doge` `download`), **nooit** onder `/static/` — leest de bytes uit de `bijlagen.dson`-metadata (§5.6) |
 | Aangifte-lifecycle: markeer ingediend (snapshot + tijdvak-lock), storno/suppletie-signaal, te-doen tijdvak + tijdvakkenlijst (journaal-keuze), saldo-uitleg per post | `app/services/aangifte.doge` — schrijft het Aangifte-record, leest rubrieken uit `btw.doge`, storno via `journaal.storno_post`; `uitleg` = `btw.specificatie` (per post op de cent) + controle of de geboekte btw (1510/1520) per post aansluit op de btw-codes |
+| Export/import van de volledige administratie tussen instances (één JSON-bundel, import alleen op een lege instance) | `app/services/overdracht.doge` — `exporteer` (alle collecties + bijlagen als base64 + `audit.dsonl`), `importeer` (valideert alles vóór de eerste write: formaat/versie, balans per post, bijlage-pad via `bijlagen.geldig_pad`, grootte; daarna audit, bestanden, collecties); handler `overdracht_h` (`/overdracht`), bundelformaat in [DATA-MODEL.md](./DATA-MODEL.md) §5 |
 | Balans / winst & verlies / jaaroverzicht aggregation | `app/services/rapporten.doge` — reads the journaal, never writes |
 | A new page or form endpoint | `app/handlers/<resource>_h.doge` — shape: parse request → call service → render via `web/html.doge`. Copy an existing handler. Shared view-schil (nav, foutbanner) in `app/handlers/weergave.doge`. |
 | A route registration | `main.doge` route table — handlers never self-register |
@@ -104,7 +105,7 @@ The container is only reachable on LAN/VPN (decided 2026-07-15) — no public ex
 
 Handlers receive the request Dict + the loaded state, return a response Dict; `main.doge` owns the socket. Keep the framework small — it exists because Doge has no HTTP server story yet; if that ever ships upstream, `web/` is the seam to delete.
 
-Concrete contract as built: `parse_request(conn)` → `{method, path, query, headers, body, cookies, params}` (header names lowercased, each value a List; `query` decoded via `forms`); `bouw_response(resp)` → Bytes for one `send_bytes`, where `resp` is `{status, headers, set_cookie?, body}` and Content-Length is `len(bytes(body))` (byte count, never char). The `Router` (object) matches `[methode, patroon, handler]`, captures `/pad/{id}` params, and returns a 404 (no path) vs 405 (`Allow`) response; handlers are called positionally with the single request Dict. Response CRLF is the literal `so CRLF = "\r\n"` (the doge#67 stopgap is retired in 0.3.3). A `multipart/form-data` body arrives as raw **Bytes** (`http.is_tekst` returns false), so `web/multipart.doge` parses it directly — no `http.doge`/`router` change was needed for upload.
+Concrete contract as built: `parse_request(conn, caps = {})` → `{method, path, query, headers, body, cookies, params}` (header names lowercased, each value a List; `query` decoded via `forms`; body above `MAX_BODY` (12 MiB) → `{oversize}` → 413, unless `caps` gives that path a larger cap — `main.doge` does this only for `/overdracht/import`); `bouw_response(resp)` → Bytes for one `send_bytes`, where `resp` is `{status, headers, set_cookie?, body}` and Content-Length is `len(bytes(body))` (byte count, never char). The `Router` (object) matches `[methode, patroon, handler]`, captures `/pad/{id}` params, and returns a 404 (no path) vs 405 (`Allow`) response; handlers are called positionally with the single request Dict. Response CRLF is the literal `so CRLF = "\r\n"` (the doge#67 stopgap is retired in 0.3.3). A `multipart/form-data` body arrives as raw **Bytes** (`http.is_tekst` returns false), so `web/multipart.doge` parses it directly — no `http.doge`/`router` change was needed for upload.
 
 ---
 
@@ -117,6 +118,7 @@ Concrete contract as built: `parse_request(conn)` → `{method, path, query, hea
 - **In-memory model:** collections are **loaded per request through `store.laad`** and written back through `store.bewaar` (the store already does per-call file I/O). Chosen over a boot-loaded cache (Phase 2a): single-user + strictly sequential + tiny volume means a DSON parse per request is free, and it avoids a dual-write invariant (memory *and* file) with no upside. Handlers get the `Store` instance via `req["ctx"]["store"]`. Revisit only if profiling ever shows a hot read.
 - **Uploads:** `data/uploads/{jaar}/{bijlage_id}{ext}` — generated names only (Hard Rule 7); metadata in `bijlagen.dson`. Deletion does not exist (Hard Rule 3).
 - **Backups are external** (the whole `data/` dir is the state — restic/borg on a timer); the app itself never deletes or rewrites history.
+- **Overdracht naar een andere instance** loopt via `/overdracht`: export = één JSON-bundel (DATA-MODEL §5), import alleen op een instance zonder administratie (geen journaal, bijlagen, sjablonen of aangiften), dus nooit overschrijven (Hard Rule 3) en nooit dubbel (Hard Rule 2). De audit-historie uit de bundel wordt achter het bestaande log aangevuld (`store.audit_aanvullen`), gevolgd door één `geimporteerd`-event. De import-upload heeft een eigen bodycap (`overdracht.MAX_IMPORT_BYTES`, 256 MiB); de hele body staat in memory.
 
 ---
 
@@ -136,7 +138,7 @@ Pages stay server-rendered (`web/html.doge`); client-side gedrag is progressive 
 
 ### 5.4 Exports
 
-All exports are GET endpoints rendering from the same services that render pages, met `lib/csv.doge` (generieke writer, `;`-gescheiden voor Excel-NL) en `http.csv_response` als download-schil: aangifte-overzicht (`/aangifte`, print-view `/aangifte/print` + `/aangifte/export.csv`), journaal-CSV per tijdvak (`/journaal/export.csv`), balans + winst & verlies + jaaroverzicht (`rapporten.doge`, `/rapporten/balans|winst-verlies|jaaroverzicht` elk met een `.csv`-variant).
+All exports are GET endpoints rendering from the same services that render pages, met `lib/csv.doge` (generieke writer, `;`-gescheiden voor Excel-NL) en `http.csv_response` als download-schil: aangifte-overzicht (`/aangifte`, print-view `/aangifte/print` + `/aangifte/export.csv`), journaal-CSV per tijdvak (`/journaal/export.csv`), balans + winst & verlies + jaaroverzicht (`rapporten.doge`, `/rapporten/balans|winst-verlies|jaaroverzicht` elk met een `.csv`-variant). De volledige export voor overdracht (`/overdracht/export.json`) is geen CSV maar een JSON-bundel (§4).
 
 ### 5.5 Config
 

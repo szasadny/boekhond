@@ -1,0 +1,125 @@
+so json
+so dson
+so nap
+so strings
+so bijlagen
+so journaal
+
+# Overdracht tussen instances: de volledige administratie als één JSON-bundel exporteren
+# en die op een verse instance importeren. store komt als parameter binnen; deze service
+# importeert de store nooit. Alle writes lopen via de store (Hard Rule 4).
+#
+# Bundel: {formaat, versie, gemaakt_op, collecties: {naam: waarde}, bestanden: {bijlage-id: base64},
+# audit: rauwe audit.dsonl-tekst}. Bedragen blijven Decimal-as-string, precies zoals in data/.
+#
+# Importeren mag alleen op een instance zonder administratie: nooit iets overschrijven
+# (Hard Rule 3), en een tweede import van dezelfde bundel boekt niets dubbel (Hard Rule 2).
+
+so FORMAAT = "boekhond-export"
+so VERSIE = 1
+
+# Elke collectie in data/ (DATA-MODEL §1), in schrijfvolgorde bij een import. De laatste vier
+# vormen de administratie: zolang die niet geschreven zijn blijft een afgebroken import herhaalbaar.
+so COLLECTIES = ["tellers", "instellingen", "rekeningen", "terugkerend", "aangiften", "journaal", "bijlagen"]
+so ADMINISTRATIE = ["terugkerend", "aangiften", "journaal", "bijlagen"]
+
+# Bodycap voor de import-upload (de bundel draagt alle bijlagen als base64). De rest van de
+# app houdt de gewone cap uit web/http.doge.
+so MAX_IMPORT_BYTES = 268435456
+
+such is_leeg much store:
+    for naam in ADMINISTRATIE:
+        if len(store.laad(naam, [])) > 0:
+            return false
+    return true
+wow
+
+# De volledige administratie als JSON-tekst. Bijlagen lezen via hun opgeslagen pad.
+such exporteer much store:
+    such collecties = {}
+    for naam in COLLECTIES:
+        collecties[naam] = store.laad(naam, none)
+    such bestanden = {}
+    for b in store.laad("bijlagen", []):
+        bestanden[b["id"]] = store.laad_bestand(b["pad"]).b64()
+    such bundel = {"formaat": FORMAAT, "versie": VERSIE, "gemaakt_op": nap.stamp(nap.now()), "collecties": collecties, "bestanden": bestanden, "audit": store.laad_audit()}
+    return json.emit(bundel)
+wow
+
+# Parse + valideer een bundel volledig vóór er iets geschreven wordt. Geeft
+# {collecties, bestanden: {id: Bytes}, audit, gemaakt_op}; bonkt bij elke afwijking.
+such lees much tekst:
+    such bundel = none
+    pls
+        very bundel = json.parse(tekst)
+    oh no err!
+        bonk "geen geldige export: geen JSON"
+    such formaat = none
+    pls
+        very formaat = bundel["formaat"]
+    oh no err!
+        very formaat = none
+    if formaat != FORMAAT:
+        bonk "geen Boekhond-export"
+    if bundel["versie"] != VERSIE:
+        such v = bundel["versie"]
+        bonk "onbekende exportversie: {v}"
+    such collecties = bundel["collecties"]
+    for naam in collecties.keys():
+        if not COLLECTIES.contains(naam):
+            bonk "onbekende collectie in export: {naam}"
+    for post in leeg_als_none(collecties, "journaal"):
+        if not journaal.balans_klopt(post["regels"]):
+            such pid = post["id"]
+            bonk "journaalpost {pid} balanceert niet"
+    such bestanden = {}
+    for b in leeg_als_none(collecties, "bijlagen"):
+        such bid = b["id"]
+        if not bijlagen.geldig_pad(bid, b["pad"]):
+            bonk "ongeldig bijlage-pad bij {bid}"
+        if not bundel["bestanden"].has(bid):
+            bonk "bestand ontbreekt voor bijlage {bid}"
+        such data = bundel["bestanden"][bid].from_b64()
+        if len(data) != b["grootte_bytes"] or len(data) > bijlagen.MAX_BYTES:
+            bonk "bestand van bijlage {bid} heeft niet de verwachte grootte"
+        bestanden[bid] = data
+    such audit = bundel["audit"]
+    for regel in strings.split(audit, "\n"):
+        if strings.trim(regel) != "":
+            dson.parse(regel)
+    if audit != "" and audit[len(audit) - 1] != "\n":
+        very audit = audit + "\n"
+    return {"collecties": collecties, "bestanden": bestanden, "audit": audit, "gemaakt_op": bundel["gemaakt_op"]}
+wow
+
+such leeg_als_none much collecties, naam:
+    if not collecties.has(naam) or collecties[naam] == none:
+        return []
+    return collecties[naam]
+wow
+
+# Importeer een bundel op een lege instance. Volgorde: valideren, audit (historie uit de
+# bundel + één import-event), bestanden, collecties. Rekeningschema en instellingen van
+# deze instance worden vervangen door die uit de bundel. Geeft de aantallen terug.
+such importeer much store, tekst:
+    if not is_leeg(store):
+        bonk "deze instance heeft al een administratie; importeren kan alleen op een lege instance"
+    such b = none
+    pls
+        very b = lees(tekst)
+    oh no err!
+        bonk "export ongeldig: {err.message}"
+    such collecties = b["collecties"]
+    such aantallen = {}
+    for naam in ADMINISTRATIE:
+        aantallen[naam] = len(leeg_als_none(collecties, naam))
+    store.audit_aanvullen(b["audit"])
+    store.audit("geimporteerd", "export", "*", {"gemaakt_op": b["gemaakt_op"], "aantallen": aantallen})
+    for bijlage in leeg_als_none(collecties, "bijlagen"):
+        store.bewaar_bestand(bijlage["pad"], b["bestanden"][bijlage["id"]])
+    for naam in COLLECTIES:
+        if collecties.has(naam) and collecties[naam] != none:
+            store.bewaar(naam, collecties[naam])
+    return aantallen
+wow
+wow

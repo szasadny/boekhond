@@ -77,6 +77,20 @@ many Store:
         fetch.append(fetch.join(self.dir, "audit.dsonl"), regel + "\n")
     wow
 
+    # Het volledige audit-log als tekst ("" als het nog niet bestaat), voor de export.
+    such laad_audit:
+        such p = fetch.join(self.dir, "audit.dsonl")
+        if not fetch.exists(p):
+            return ""
+        return fetch.read(p)
+    wow
+
+    # Append rauwe audit-regels (de historie uit een import). Append-only: bestaande
+    # regels blijven onaangeroerd. tekst = complete dsonl-regels, elk met "\n".
+    such audit_aanvullen much tekst:
+        fetch.append(fetch.join(self.dir, "audit.dsonl"), tekst)
+    wow
+
     such commit much naam, waarde, actie, entiteit, id, data:
         self.audit(actie, entiteit, id, data)
         self.bewaar(naam, waarde)

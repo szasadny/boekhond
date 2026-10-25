@@ -67,7 +67,7 @@ package.json            # npm-toolchain voor de Dogescript-build (build-js.mjs â
 main.doge               # boot: config (.env), store load, scheduler pup, accept-loop, route table
 web/                    # generic HTTP micro-framework (HTTP/1.1 parse, router, cookies, forms, multipart, html escaping, static; never imports app/)
 app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared nav/foutbanner); _h avoids the service-import name clash
-app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, aangifte, rapporten, terugkerend
+app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, wisselkoers, aangifte, rapporten, terugkerend, overdracht
 app/store/              # store.doge (atomic DSON + audit), one load/save per collection
 lib/                    # domain-free helpers: datum, geld, csv
 static/djs/ , static/js/, static/   # Dogescript source, compiled output (gitignored), css/favicon

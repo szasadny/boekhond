@@ -8,6 +8,7 @@ Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads wh
 | 2 | btw-codes → aangifte-rubrieken — the fiscal heart |
 | 3 | Tijdvak & aangifte lifecycle |
 | 4 | Invarianten (enforced in services, tested per Hard Rule 10) |
+| 5 | Exportbundel (overdracht tussen instances) |
 
 ---
 
@@ -166,3 +167,23 @@ Enforced in services, elk met een test (Hard Rule 10):
 4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren). Koppelen is symmetrisch en gaat via `journaal.koppel_bijlage` (de enige schrijver van journaalposten): het zet `journaalpost_id` op de Bijlage én voegt het bijlage-id toe aan `bijlage_ids` van de post — en wordt geweigerd als de post in een ingediend tijdvak valt (§3.3, invariant 3).
 5. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
 6. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.
+
+---
+
+## 5. Exportbundel
+
+Geen collectie maar een bestandsformaat: `GET /overdracht/export.json` levert de volledige administratie, `POST /overdracht/import` leest 'm in op een lege instance (`app/services/overdracht.doge`, ARCHITECTURE.md §4).
+
+```text
+─── boekhond-export-YYYY-MM-DD.json (JSON, niet DSON) ────────
+  formaat      "boekhond-export"
+  versie       1 — een andere versie wordt geweigerd
+  gemaakt_op   ISO-8601 UTC
+  collecties   {tellers, instellingen, rekeningen, terugkerend, aangiften, journaal, bijlagen}
+               elk exact de inhoud van data/<naam>.dson (null als het bestand ontbreekt);
+               bedragen blijven Decimal-as-string
+  bestanden    {bijlage-id: base64} — de bytes achter elke Bijlage
+  audit        de rauwe audit.dsonl-tekst
+```
+
+Een import valideert de hele bundel vóór de eerste write: alleen bekende collecties, elke journaalpost balanceert, elk bijlage-`pad` volgt exact `uploads/{jaar}/{id}.{ext}` met een toegestane extensie (`bijlagen.geldig_pad`, Hard Rule 7), elk bestand is aanwezig en heeft `grootte_bytes`, elke audit-regel is geldige DSON. `tellers` komt mee, zodat nieuwe ids na de import doorlopen.
