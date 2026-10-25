@@ -8,6 +8,7 @@ Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads wh
 | 2 | btw-codes → aangifte-rubrieken — the fiscal heart |
 | 3 | Tijdvak & aangifte lifecycle |
 | 4 | Invarianten (enforced in services, tested per Hard Rule 10) |
+| 5 | Exportbundel (overdracht tussen instances) |
 
 ---
 
@@ -51,7 +52,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     koers_bron               tijdstip van de koers (Wise `time`) en de bron ("wise") —
                              audit-metadata; de regels staan altijd in EUR
     bijlage_ids              [bijlage-id, …]
-    storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §4.4)
+    storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §3.4)
     created_at
   INVARIANT: som(debet) == som(credit) — een post die niet balanceert
   wordt nooit opgeslagen (§4.0). Posten ontstaan automatisch (Mollie-import =
@@ -63,7 +64,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     id, journaalpost_id      none = staat in de import-inbox, vandaaruit boeken
     bron                     "upload" | "import" (uit data/import/)
     bestandsnaam_origineel   metadata only — nooit een pad (Hard Rule 7)
-    pad                      "uploads/{jaar}/{id}{ext}"
+    pad                      "uploads/{jaar}/{id}.{ext}"
     mime, grootte_bytes, geupload_op
 
 ─── terugkerend.dson (List) ──────────────────────────────────
@@ -95,6 +96,10 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     rubrieken                snapshot bij indienen: {rubriek: {bedrag, btw}} — de btw.rubrieken()-motorvorm (§2)
     5a, 5b                   verschuldigd / voorbelasting (hele euro's), samen met de snapshot bevroren
     saldo                    5a − 5b (te betalen; negatief = terug te vragen)
+
+─── tellers.dson (singleton Dict) ────────────────────────────
+  {prefix: laatst uitgegeven Int} — id-uitgifte via store.nieuw_id ("j" → j-1, j-2, …);
+  nooit verlaagd, dus een id wordt nooit hergebruikt
 
 ─── audit.dsonl (append-only, geen collectie) ────────────────
   {ts, actie, entiteit, id, data} — vóór elke state-write (ARCHITECTURE.md §4)
@@ -166,3 +171,23 @@ Enforced in services, elk met een test (Hard Rule 10):
 4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren). Koppelen is symmetrisch en gaat via `journaal.koppel_bijlage` (de enige schrijver van journaalposten): het zet `journaalpost_id` op de Bijlage én voegt het bijlage-id toe aan `bijlage_ids` van de post — en wordt geweigerd als de post in een ingediend tijdvak valt (§3.3, invariant 3).
 5. `levering_eu` (3b) in een tijdvak → banner "ICP-opgaaf vereist" op het aangifte-overzicht (de opgaaf zelf is Goal Architecture).
 6. Bedragen zijn overal Decimal (Hard Rule 1); een Float die het domein binnenkomt is een bug in de parse-laag, nergens anders.
+
+---
+
+## 5. Exportbundel
+
+Geen collectie maar een bestandsformaat: `GET /overdracht/export.json` levert de volledige administratie, `POST /overdracht/import` leest 'm in op een lege instance (`app/services/overdracht.doge`, ARCHITECTURE.md §4).
+
+```text
+─── boekhond-export-YYYY-MM-DD.json (JSON, niet DSON) ────────
+  formaat      "boekhond-export"
+  versie       1 — een andere versie wordt geweigerd
+  gemaakt_op   ISO-8601 UTC
+  collecties   {tellers, instellingen, rekeningen, terugkerend, aangiften, journaal, bijlagen}
+               elk exact de inhoud van data/<naam>.dson (null als het bestand ontbreekt);
+               bedragen blijven Decimal-as-string
+  bestanden    {bijlage-id: base64} — de bytes achter elke Bijlage
+  audit        de rauwe audit.dsonl-tekst
+```
+
+Een import valideert de hele bundel vóór de eerste write: alleen bekende collecties, elke journaalpost balanceert, elk bijlage-`pad` volgt exact `uploads/{jaar}/{id}.{ext}` met een toegestane extensie (`bijlagen.geldig_pad`, Hard Rule 7), elk bestand is aanwezig en heeft `grootte_bytes`, elke audit-regel is geldige DSON. `tellers` komt mee, zodat nieuwe ids na de import doorlopen.

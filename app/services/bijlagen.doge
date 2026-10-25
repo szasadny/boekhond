@@ -1,6 +1,7 @@
 so journaal
 so nap
 so fetch
+so hunt
 so strings
 
 # Bijlagen (inkoopbewijs): upload-validatie, opslag onder een gegenereerde naam,
@@ -19,6 +20,15 @@ such ext_van much filename:
     if len(e) > 0 and e[0] == ".":
         return e[1:]
     return e
+wow
+
+# Klopt een opgeslagen pad met de eigen layout "uploads/{jaar}/{id}.{ext}"? Voor paden die
+# van buiten komen (import van een export): nooit een willekeurig pad schrijven (Hard Rule 7).
+such geldig_pad much id, pad:
+    if not hunt.test("^b-[0-9]+$", str(id)):
+        return false
+    such m = hunt.groups("^uploads/[0-9][0-9][0-9][0-9]/(b-[0-9]+)\\.([a-z]+)$", str(pad))
+    return m != none and m[1] == id and TOEGESTANE_EXT.contains(m[2])
 wow
 
 such zoek much lijst, id:

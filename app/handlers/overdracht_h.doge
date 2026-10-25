@@ -1,0 +1,72 @@
+so "../../web/http.doge"
+so "../../web/html.doge"
+so "../../web/multipart.doge"
+so "../services/overdracht.doge"
+so "../../lib/datum.doge"
+so weergave
+
+# Export en import van de volledige administratie (overdracht naar een andere instance).
+# De export is een download; de import is een multipart-upload van dat bestand. Het
+# uploadveld heet bewust niet "bestand": de upload-UX in boekhond.js checkt dat veld op
+# de bijlagen-allow-list (pdf/png/jpg) en zou een .json weigeren.
+
+so TITEL = "Export en import"
+so JSON = "application/json"
+
+such import_formulier:
+    such veld = html.bestand("export", "Exportbestand (.json)", ".json,application/json", true)
+    return html.formulier("/overdracht/import", "post", [veld, html.knop("Export importeren")], "multipart/form-data")
+wow
+
+such inhoud_van much store, melding:
+    such link = html.link("/overdracht/export.json", "Export downloaden")
+    such exp = "<h2>Exporteren</h2><p>Eén bestand met de volledige administratie: journaal, rekeningschema, instellingen, kostensjablonen, aangiften, bijlagen en het audit-log. Importeer het op een andere instance.</p><p>{link}</p>"
+    such imp = "<h2>Importeren</h2>"
+    if overdracht.is_leeg(store):
+        very imp = imp + "<p>Alleen op een instance zonder administratie. Het rekeningschema en de instellingen van deze instance worden vervangen door die uit de export.</p>" + import_formulier()
+    else:
+        very imp = imp + "<p>Deze instance heeft al een administratie. Importeren kan alleen op een lege instance; er wordt nooit iets overschreven.</p>"
+    return "{melding}<h1>{TITEL}</h1>{exp}{imp}"
+wow
+
+such pagina much req:
+    such store = req["ctx"]["store"]
+    return http.html_response(weergave.render(TITEL, inhoud_van(store, "")))
+wow
+
+such export_json much req:
+    such store = req["ctx"]["store"]
+    such naam = "boekhond-export-{datum.vandaag()}.json"
+    such disp = "attachment; filename=\"{naam}\""
+    return {"status": 200, "headers": {"Content-Type": JSON, "Content-Disposition": disp}, "body": overdracht.exporteer(store)}
+wow
+
+such import_melding much aantallen:
+    such j = aantallen["journaal"]
+    such b = aantallen["bijlagen"]
+    such t = aantallen["terugkerend"]
+    such a = aantallen["aangiften"]
+    return "<p>Import geslaagd: {j} journaalposten, {b} bijlagen, {t} kostensjablonen, {a} aangiften.</p>"
+wow
+
+such importeer much req:
+    such store = req["ctx"]["store"]
+    such melding = ""
+    pls
+        if not req["headers"].has("content-type") or len(req["body"]) == 0:
+            bonk "geen exportbestand geüpload"
+        such grens = multipart.grens_uit_content_type(req["headers"]["content-type"][0])
+        such p = multipart.parse(req["body"], grens)
+        if len(p["bestanden"]) == 0:
+            bonk "geen exportbestand geüpload"
+        such tekst = ""
+        pls
+            very tekst = p["bestanden"][0]["data"].decode()
+        oh no err!
+            bonk "geen geldige export: geen tekstbestand"
+        very melding = import_melding(overdracht.importeer(store, tekst))
+    oh no err!
+        very melding = weergave.fout(err.message)
+    return http.html_response(weergave.render(TITEL, inhoud_van(store, melding)))
+wow
+wow

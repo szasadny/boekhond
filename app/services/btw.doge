@@ -2,7 +2,7 @@ so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 
 # De enige plek met fiscale rekenregels (Hard Rule 5).
-# Specificatie: .claude/DATA-MODEL.md §2 — elke code mapt op precies één rubriek-gedrag.
+# Specificatie: docs/DATA-MODEL.md §2 — elke code mapt op precies één rubriek-gedrag.
 #   grondslag: rubriek waar bedrag_ex in telt (none = geen)
 #   btw:       rubriek waar het btw-bedrag in telt (none = geen)
 #   aftrek:    btw telt ook als voorbelasting (5b)
@@ -64,16 +64,7 @@ such btw_bedrag much bedrag_ex, code:
     return geld.rond2(bedrag_ex * c["pct"] / 100)
 wow
 
-# Wat er daadwerkelijk betaald wordt: bij zelf-aangeven-codes komt er
-# geen btw op de factuur van de wederpartij, dus incl == ex.
-such bedrag_incl much bedrag_ex, code:
-    such c = info(code)
-    if c["zelf"]:
-        return bedrag_ex
-    return bedrag_ex + btw_bedrag(bedrag_ex, code)
-wow
-
-# Inverse van bedrag_incl: splits een inclusief bedrag in [ex, btw]. ex volgt uit incl,
+# Splits een inclusief bedrag in [ex, btw]. ex volgt uit incl,
 # btw = btw_bedrag(ex) (zelfde afronding als de aangifte); ex + btw kan een cent van incl
 # afwijken, dat verschil sluit de Mollie-post op de afrondingsrekening. Afronding hier (Hard Rule 5).
 such splits_incl much bedrag_incl, code:

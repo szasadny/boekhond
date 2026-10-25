@@ -15,7 +15,7 @@ Non-negotiable working rules:
 - For any new UI element, use the modern-web-guidance skill first. Server-rendered HTML, no JS framework; client-side gedrag is Dogescript.
 - Match the existing pattern: grep web/ and app/ for a sibling and copy its shape.
 - Respect the Hard Rules on every edit: money is Decimal (never Float); every data/ write goes through app/store/ (atomic + audit); all btw math lives in app/services/btw.doge; every rendered user input is escaped via web/html.doge; nothing in an ingediend tijdvak is mutated or deleted; uploads are validated and stored under a generated name; secrets live only in .env, never as source fallbacks; agents never touch instance env files and inspect .env.example only.
-- Hit a Doge language gap? Do NOT invent a permanent workaround. File a DogeLanguage/doge ticket and add the smallest stopgap marked `# stopgap for doge#NN`, then record it in docs/PLAN.md §3 (Hard Rule 11).
+- Hit a Doge language gap? Do NOT invent a permanent workaround. File a DogeLanguage/doge ticket and add the smallest stopgap marked `# stopgap for doge#NN` (Hard Rule 11).
 
-Definition of done: `doge check` on every touched Doge file, a non-mutating formatter audit (Doge v0.3.2 has no `doge fmt --check`; format temporary copies and compare), and `doge test tests` all green; docs/DATA-MODEL.md or docs/ARCHITECTURE.md updated in the same change when entities or layer boundaries changed. Fiscale rekenregels get table-driven tests with hand-checked expected values.
+Definition of done: `doge check` on every touched Doge file, `doge fmt --check` on every touched Doge file, and `doge test tests` all green; docs/DATA-MODEL.md or docs/ARCHITECTURE.md updated in the same change when entities or layer boundaries changed. Fiscale rekenregels get table-driven tests with hand-checked expected values.
 """

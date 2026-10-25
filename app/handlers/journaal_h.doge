@@ -39,27 +39,6 @@ such rekening_opties much store:
     return o
 wow
 
-such inkoop_btw_opties:
-    such o = []
-    for c in btw.CODES:
-        if btw.CODES[c]["soort"] == "inkoop":
-            o.append([c, btw.label(c)])
-    return o
-wow
-
-such btw_opties_leeg:
-    such o = [["", "(geen)"]]
-    for c in btw.CODES:
-        o.append([c, btw.label(c)])
-    return o
-wow
-
-such bedrag_str much rauw:
-    if rauw == "":
-        return ""
-    return str(geld.rond2(geld.parse(rauw)))
-wow
-
 # Gekozen tijdvak als [j, kw]: ?tv=JJJJ-K uit de keuzelijst, anders ?j=&kw=, anders het
 # tijdvak dat aan de beurt is (oudste afgelopen kwartaal dat nog niet is ingediend, of het
 # huidige kwartaal als alles is ingediend).
@@ -141,7 +120,7 @@ such inkoop_inhoud much store, melding:
     such vlev = html.veld("leverancier", "Leverancier", "text", "")
     such voms = html.veld("omschrijving", "Omschrijving", "text", "")
     such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", "")
-    such sbtw = html.select("btw_code", inkoop_btw_opties(), "voorbelasting_hoog")
+    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), "voorbelasting_hoog")
     such vbtw = "<label>Btw-code {sbtw}</label>"
     such srek = html.select("kosten_rek", rekening_opties(store), "")
     such vrek = "<label>Kostenrekening {srek}</label>"
@@ -159,7 +138,7 @@ such inkoop much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such ex = bedrag_str(forms.enkel(v, "bedrag_ex", ""))
+        such ex = weergave.bedrag_str(forms.enkel(v, "bedrag_ex", ""))
         such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, forms.enkel(v, "btw_code", ""), forms.enkel(v, "kosten_rek", ""))
         journaal.bewaar(store, post)
         return http.redirect(tijdvak_url(post["datum"]))
@@ -189,7 +168,7 @@ such bank much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such bedrag = bedrag_str(forms.enkel(v, "bedrag", ""))
+        such bedrag = weergave.bedrag_str(forms.enkel(v, "bedrag", ""))
         such post = journaal.prive_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "rekening", ""), bedrag, forms.enkel(v, "kant", "storting"))
         journaal.bewaar(store, post)
         return http.redirect(tijdvak_url(post["datum"]))
@@ -201,7 +180,7 @@ such memoriaal_rij much store:
     such rk = html.select("regel_rekening", rekening_opties(store), "")
     such db = "<input name=\"regel_debet\" type=\"text\" inputmode=\"decimal\">"
     such cr = "<input name=\"regel_credit\" type=\"text\" inputmode=\"decimal\">"
-    such bt = html.select("regel_btw", btw_opties_leeg(), "")
+    such bt = html.select("regel_btw", weergave.btw_opties_leeg(), "")
     return "<tr><td>{rk}</td><td>{db}</td><td>{cr}</td><td>{bt}</td></tr>"
 wow
 
@@ -232,8 +211,8 @@ such bouw_regels much v:
     such regels = []
     such i = 0
     while i < len(reks):
-        such deb = bedrag_str(element(debs, i))
-        such cred = bedrag_str(element(creds, i))
+        such deb = weergave.bedrag_str(element(debs, i))
+        such cred = weergave.bedrag_str(element(creds, i))
         if deb != "" or cred != "":
             such rek = element(reks, i)
             if rek == "":

@@ -43,7 +43,7 @@ When the change affects entities or layer boundaries, update the routed referenc
 Avoid duplicated instruction bodies:
 
 - Keep `.claude/CLAUDE.md` import-only.
-- If the skill inventory changed, update the skill lines in `AGENTS.md` and `README.md`.
+- If the skill inventory changed, update the skill lines in `AGENTS.md`.
 - If the repository layout changed, update the corresponding structure line in `README.md` when present.
 - Keep canonical skill content in `.agents/skills/`; Claude Code gets the same content through name-matching symlinks.
 
@@ -54,7 +54,7 @@ Run checks proportional to the edit:
 - Resolve every Claude skill symlink and validate each changed skill with `quick_validate.py` from the global `skill-creator` skill.
 - Parse changed TOML with Python `tomllib`.
 - Check local Markdown links and run `git diff --check` plus `git diff --cached --check`.
-- If `.doge` files changed, run `doge check`, a non-mutating formatter audit using temporary copies, and `doge test tests`.
+- If `.doge` files changed, run `doge check`, `doge fmt --check` per changed file, and `doge test tests`.
 - Confirm the Git index and `HEAD` remain unchanged when the task forbids staging or commits.
 
 ### 6. Report compactly

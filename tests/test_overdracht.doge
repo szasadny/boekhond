@@ -1,0 +1,260 @@
+so fetch
+so json
+so dson
+so strings
+so "../app/store/store.doge"
+so "../app/services/overdracht.doge"
+so "../app/services/bijlagen.doge"
+so "../app/services/journaal.doge"
+so "../app/services/rekeningen.doge"
+so "../app/services/terugkerend.doge"
+so "../app/services/aangifte.doge"
+so "../app/handlers/overdracht_h.doge"
+
+so BRON = "tmp_test_overdracht_bron"
+so DOEL = "tmp_test_overdracht_doel"
+so PDF = "%PDF-1.4 bewijs met é"
+
+such schoon:
+    for m in [BRON, DOEL]:
+        if fetch.exists(m):
+            fetch.remove_dir(m)
+wow
+
+such verse much map:
+    such s = store.Store(map)
+    rekeningen.seed(s)
+    return s
+wow
+
+such memoriaal much s, d, bedrag:
+    such regels = [{"rekening": "1100", "debet": bedrag, "credit": "", "btw_code": none}, {"rekening": "0800", "debet": "", "credit": bedrag, "btw_code": none}]
+    return journaal.bewaar(s, journaal.memoriaal_post(d, "inbreng", "", regels))
+wow
+
+# Bron met van elke collectie iets: extra rekening, post met gekoppelde bijlage, inbox-bijlage,
+# kostensjabloon en een ingediende aangifte.
+such gevulde_bron:
+    such s = verse(BRON)
+    rekeningen.voeg_toe(s, {"nummer": "4600", "naam": "Reiskosten", "type": "kosten", "btw_code": "geen_btw"})
+    such p = memoriaal(s, "2025-11-03", "1250.00")
+    such b = bijlagen.bewaar(s, {"filename": "bon.pdf", "data": bytes(PDF)}, "upload")
+    bijlagen.koppel(s, b["id"], p["id"])
+    bijlagen.bewaar(s, {"filename": "inbox.png", "data": bytes([137, 80, 78, 71, 0, 255])}, "upload")
+    terugkerend.voeg_toe(s, {"leverancier": "Test", "omschrijving": "Abonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": "20.00", "dag": 1, "vanaf": "2026-01"})
+    aangifte.dien_in(s, 2025, 4)
+    return s
+wow
+
+such audit_regels much s:
+    return len(strings.split(strings.trim(s.laad_audit()), "\n"))
+wow
+
+# Importeer en geef de foutmelding terug ("" als er niets bonkte).
+such import_fout much s, tekst:
+    pls
+        overdracht.importeer(s, tekst)
+    oh no err!
+        return err.message
+    return ""
+wow
+
+# Bewerk de bundel als Dict en geef de nieuwe tekst terug.
+such bundel_van much tekst:
+    return json.parse(tekst)
+wow
+
+such test_rondreis_neemt_alles_over:
+    schoon()
+    such bron = gevulde_bron()
+    such tekst = overdracht.exporteer(bron)
+    such doel = verse(DOEL)
+    such aantallen = overdracht.importeer(doel, tekst)
+    amaze aantallen["journaal"] == 1
+    amaze aantallen["bijlagen"] == 2
+    amaze aantallen["terugkerend"] == 1
+    amaze aantallen["aangiften"] == 1
+    for naam in overdracht.COLLECTIES:
+        amaze dson.emit(doel.laad(naam, none)) == dson.emit(bron.laad(naam, none))
+    for b in bijlagen.alle(bron):
+        amaze doel.laad_bestand(b["pad"]).hex() == bron.laad_bestand(b["pad"]).hex()
+    amaze dec(doel.laad("journaal", [])[0]["regels"][0]["debet"]) == dec("1250.00")
+    schoon()
+wow
+
+such test_audit_historie_plus_import_event:
+    schoon()
+    such bron = gevulde_bron()
+    such doel = verse(DOEL)
+    such voor = doel.laad_audit()
+    overdracht.importeer(doel, overdracht.exporteer(bron))
+    such na = doel.laad_audit()
+    amaze na[0:len(voor)] == voor
+    amaze strings.contains(na, bron.laad_audit())
+    such regels = strings.split(strings.trim(na), "\n")
+    such laatste = dson.parse(regels[len(regels) - 1])
+    amaze laatste["actie"] == "geimporteerd"
+    amaze laatste["data"]["aantallen"]["journaal"] == 1
+    schoon()
+wow
+
+such test_ids_lopen_door_na_import:
+    schoon()
+    such bron = gevulde_bron()
+    such doel = verse(DOEL)
+    overdracht.importeer(doel, overdracht.exporteer(bron))
+    such p = memoriaal(doel, "2026-10-01", "10.00")
+    amaze p["id"] == "j-2"
+    amaze doel.nieuw_id("b") == "b-3"
+    schoon()
+wow
+
+such test_ingediend_tijdvak_blijft_vergrendeld:
+    schoon()
+    such bron = gevulde_bron()
+    such doel = verse(DOEL)
+    overdracht.importeer(doel, overdracht.exporteer(bron))
+    such gevangen = false
+    pls
+        memoriaal(doel, "2025-12-01", "5.00")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_weigert_gevulde_instance:
+    schoon()
+    such tekst = overdracht.exporteer(gevulde_bron())
+    such doel = verse(DOEL)
+    memoriaal(doel, "2026-10-01", "10.00")
+    such audit_voor = audit_regels(doel)
+    amaze strings.contains(import_fout(doel, tekst), "lege instance")
+    amaze len(doel.laad("journaal", [])) == 1
+    amaze audit_regels(doel) == audit_voor
+    schoon()
+wow
+
+such test_tweede_import_boekt_niets_dubbel:
+    schoon()
+    such tekst = overdracht.exporteer(gevulde_bron())
+    such doel = verse(DOEL)
+    overdracht.importeer(doel, tekst)
+    such audit_voor = audit_regels(doel)
+    amaze import_fout(doel, tekst) != ""
+    amaze len(doel.laad("journaal", [])) == 1
+    amaze len(doel.laad("bijlagen", [])) == 2
+    amaze audit_regels(doel) == audit_voor
+    schoon()
+wow
+
+such test_lege_export_op_lege_instance:
+    schoon()
+    such doel = verse(DOEL)
+    such aantallen = overdracht.importeer(doel, overdracht.exporteer(verse(BRON)))
+    amaze aantallen["journaal"] == 0
+    amaze overdracht.is_leeg(doel)
+    schoon()
+wow
+
+# Een gemanipuleerde bundel schrijft niets: geen bestand, geen collectie, geen audit-regel.
+such weigert_zonder_writes much bundel, verwacht:
+    such doel = verse(DOEL)
+    such audit_voor = audit_regels(doel)
+    such fout = import_fout(doel, json.emit(bundel))
+    amaze strings.contains(fout, verwacht)
+    amaze audit_regels(doel) == audit_voor
+    amaze overdracht.is_leeg(doel)
+    amaze not fetch.exists(fetch.join(DOEL, "uploads"))
+wow
+
+such test_weigert_pad_buiten_uploads:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    for pad in ["uploads/2025/../../evil.pdf", "../b-1.pdf", "/etc/b-1.pdf", "uploads/2025/b-9.pdf", "uploads/2025/b-1.exe", "uploads/25/b-1.pdf"]:
+        bundel["collecties"]["bijlagen"][0]["pad"] = pad
+        weigert_zonder_writes(bundel, "ongeldig bijlage-pad")
+        schoon()
+    schoon()
+wow
+
+such test_weigert_ontbrekend_bestand:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    bundel["bestanden"].remove("b-2")
+    weigert_zonder_writes(bundel, "bestand ontbreekt")
+    schoon()
+wow
+
+such test_weigert_afwijkende_grootte:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    bundel["bestanden"]["b-1"] = bytes("ander").b64()
+    weigert_zonder_writes(bundel, "verwachte grootte")
+    schoon()
+wow
+
+such test_weigert_onbalans:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    bundel["collecties"]["journaal"][0]["regels"][0]["debet"] = "1250.01"
+    weigert_zonder_writes(bundel, "balanceert niet")
+    schoon()
+wow
+
+such test_weigert_onbekende_collectie:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    bundel["collecties"]["../evil"] = []
+    weigert_zonder_writes(bundel, "onbekende collectie")
+    schoon()
+wow
+
+such test_weigert_kapotte_audit:
+    schoon()
+    such bundel = bundel_van(overdracht.exporteer(gevulde_bron()))
+    bundel["audit"] = bundel["audit"] + "geen dson\n"
+    weigert_zonder_writes(bundel, "export ongeldig")
+    schoon()
+wow
+
+such test_weigert_vreemde_invoer:
+    schoon()
+    such doel = verse(DOEL)
+    amaze strings.contains(import_fout(doel, "geen json"), "geen JSON")
+    amaze strings.contains(import_fout(doel, "[1, 2]"), "geen Boekhond-export")
+    amaze strings.contains(import_fout(doel, "\{\"formaat\": \"iets\"\}"), "geen Boekhond-export")
+    such bundel = bundel_van(overdracht.exporteer(verse(BRON)))
+    bundel["versie"] = 2
+    amaze strings.contains(import_fout(doel, json.emit(bundel)), "onbekende exportversie: 2")
+    amaze overdracht.is_leeg(doel)
+    schoon()
+wow
+# Multipart-upload zoals de browser 'm stuurt, met het exportbestand in veld "export".
+such upload_req much s, tekst:
+    such grens = "X-GRENS-42"
+    such kop = "--{grens}\r\nContent-Disposition: form-data; name=\"export\"; filename=\"export.json\"\r\nContent-Type: application/json\r\n\r\n"
+    such body = bytes(kop) + bytes(tekst) + bytes("\r\n--{grens}--\r\n")
+    such ct = "multipart/form-data; boundary={grens}"
+    return {"ctx": {"store": s, "config": {}}, "headers": {"content-type": [ct]}, "body": body, "params": {}}
+wow
+
+such test_handler_export_en_import:
+    schoon()
+    such bron = gevulde_bron()
+    such resp = overdracht_h.export_json({"ctx": {"store": bron, "config": {}}})
+    amaze resp["status"] == 200
+    amaze resp["headers"]["Content-Type"] == "application/json"
+    amaze strings.contains(resp["headers"]["Content-Disposition"], "boekhond-export-")
+    such doel = verse(DOEL)
+    such voor = overdracht_h.pagina({"ctx": {"store": doel, "config": {}}})
+    amaze strings.contains(voor["body"], "/overdracht/import")
+    such na = overdracht_h.importeer(upload_req(doel, resp["body"]))
+    amaze strings.contains(na["body"], "Import geslaagd: 1 journaalposten, 2 bijlagen")
+    amaze not strings.contains(na["body"], "action=\"/overdracht/import\"")
+    such nogmaals = overdracht_h.importeer(upload_req(doel, resp["body"]))
+    amaze strings.contains(nogmaals["body"], "class=\"fout\"")
+    amaze len(doel.laad("journaal", [])) == 1
+    schoon()
+wow
+wow

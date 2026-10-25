@@ -138,6 +138,15 @@ such memoriaal_post much datum_s, omschrijving, relatie, regels:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": relatie, "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
 wow
 
+# Alle waarden van veld (bv. mollie_payment_id) die al op een journaalpost staan (idempotentie-scan).
+such geboekte_sleutels much store, veld:
+    such uit = []
+    for p in store.laad("journaal", []):
+        if p.has(veld) and p[veld] != none:
+            uit.append(p[veld])
+    return uit
+wow
+
 # De post met dit id uit een lijst, of none.
 such zoek_post much lijst, id:
     for p in lijst:

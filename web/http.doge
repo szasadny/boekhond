@@ -44,7 +44,8 @@ such parse_cookies much headers:
 wow
 
 # Parse één request van conn. none als de verbinding sluit vóór een request-line.
-such parse_request much conn:
+# caps = {pad: max-bytes} voor routes die een grotere body mogen dan MAX_BODY.
+such parse_request much conn, caps = {}:
     such regel = howl.recv_line(conn)
     if regel == none or regel == "":
         return none
@@ -81,7 +82,10 @@ such parse_request much conn:
             very n = int(headers["content-length"][0])
         oh no err!
             very n = 0
-        if n > MAX_BODY:
+        such cap = MAX_BODY
+        if caps.has(path):
+            very cap = caps[path]
+        if n > cap:
             return {"oversize": true}
         such buf = bytes("")
         while len(buf) < n:

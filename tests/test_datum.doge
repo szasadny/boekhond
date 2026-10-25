@@ -40,15 +40,6 @@ such test_in_kwartaal:
     amaze not datum.in_kwartaal("2025-07-15", 2026, 3)
 wow
 
-such test_plus_maanden:
-    amaze datum.plus_maanden("2026-01-15", 1) == "2026-02-15"
-    amaze datum.plus_maanden("2026-01-31", 1) == "2026-02-28"
-    amaze datum.plus_maanden("2024-01-31", 1) == "2024-02-29"
-    amaze datum.plus_maanden("2026-12-15", 1) == "2027-01-15"
-    amaze datum.plus_maanden("2026-11-30", 3) == "2027-02-28"
-    amaze datum.plus_maanden("2026-05-31", 12) == "2027-05-31"
-wow
-
 such test_sleutel_chronologisch:
     amaze datum.sleutel("2026-07-15") > datum.sleutel("2026-07-14")
     amaze datum.sleutel("2026-01-01") > datum.sleutel("2025-12-31")

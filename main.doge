@@ -10,6 +10,7 @@ so "web/router.doge"
 so "web/static.doge"
 so "app/store/store.doge"
 so "app/services/rekeningen.doge"
+so "app/services/overdracht.doge"
 so "app/handlers/rekeningen_h.doge"
 so "app/handlers/journaal_h.doge"
 so "app/handlers/dashboard_h.doge"
@@ -19,6 +20,7 @@ so "app/handlers/rapporten_h.doge"
 so "app/handlers/mollie_h.doge"
 so "app/handlers/terugkerend_h.doge"
 so "app/handlers/intern_h.doge"
+so "app/handlers/overdracht_h.doge"
 
 # Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
 # het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
@@ -132,6 +134,9 @@ such maak_router:
     r.voeg_toe("POST", "/inbox/scan", bijlagen_h.scan)
     r.voeg_toe("POST", "/koppel", bijlagen_h.koppel)
     r.voeg_toe("GET", "/bijlagen/\{id\}", bijlagen_h.download)
+    r.voeg_toe("GET", "/overdracht", overdracht_h.pagina)
+    r.voeg_toe("GET", "/overdracht/export.json", overdracht_h.export_json)
+    r.voeg_toe("POST", "/overdracht/import", overdracht_h.importeer)
     return r
 wow
 
@@ -145,7 +150,7 @@ wow
 # zodat een fout een schone 500 geeft en de accept-loop nooit sneuvelt.
 such afhandel much conn, r, winkel, cfg:
     pls
-        such req = http.parse_request(conn)
+        such req = http.parse_request(conn, {"/overdracht/import": overdracht.MAX_IMPORT_BYTES})
         if req == none:
             return
         if req.has("oversize"):

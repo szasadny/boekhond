@@ -195,4 +195,15 @@ such test_scan_zonder_map:
     amaze len(res["overgeslagen"]) == 0
     schoon()
 wow
+such test_geldig_pad:
+    amaze bijlagen.geldig_pad("b-1", "uploads/2026/b-1.pdf")
+    amaze bijlagen.geldig_pad("b-12", "uploads/2025/b-12.jpeg")
+    amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-2.pdf")
+    amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-1.exe")
+    amaze not bijlagen.geldig_pad("b-1", "uploads/2026/../b-1.pdf")
+    amaze not bijlagen.geldig_pad("b-1", "../uploads/2026/b-1.pdf")
+    amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-1.pdf/x")
+    amaze not bijlagen.geldig_pad("../b-1", "uploads/2026/../b-1.pdf")
+    amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-1.PDF")
+wow
 wow
