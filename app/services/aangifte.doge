@@ -11,6 +11,28 @@ so "../../lib/geld.doge"
 
 so SUPPLETIE_DREMPEL = dec("1000")
 
+such vroegste_datum much posten:
+    such vroegste = none
+    for p in posten:
+        if vroegste == none or datum.sleutel(p["datum"]) < datum.sleutel(vroegste):
+            very vroegste = p["datum"]
+    return vroegste
+wow
+
+# Ondergrens is de start van de administratie, met ruimte voor een nihil-aangifte over het jaar ervoor.
+such controleer_tijdvak much j, kw, vandaag, posten:
+    if kw < 1 or kw > 4:
+        bonk "ongeldig kwartaal {kw}, kies 1 t/m 4"
+    such huidig = datum.jaar(vandaag)
+    such min_j = huidig - 1
+    such vroegste = vroegste_datum(posten)
+    if vroegste != none and datum.jaar(vroegste) < min_j:
+        very min_j = datum.jaar(vroegste)
+    such max_j = huidig + 1
+    if j < min_j or j > max_j:
+        bonk "ongeldig jaar {j}, kies {min_j} t/m {max_j}"
+wow
+
 such vind much aangiften, j, kw:
     such tv = "Q{kw}"
     for a in aangiften:
@@ -80,6 +102,7 @@ wow
 # Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
 # Weigert dubbel indienen en een nog-niet-afgelopen tijdvak. Audit vóór de state-write.
 such dien_in much store, j, kw:
+    controleer_tijdvak(j, kw, datum.vandaag(), store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
     if is_ingediend(aangiften, j, kw):
         bonk "tijdvak Q{kw}-{j} is al ingediend"
@@ -128,10 +151,7 @@ such te_doen_tijdvak much store, vandaag:
     # Bepaal het kwartaal waarin de administratie begint. Posten in een later (bijvoorbeeld
     # huidig) kwartaal mogen de scan niet voorbij het voorafgaande kwartaal duwen.
     such vloer_sleutel = j * 4 + (kw - 1)
-    such vroegste = none
-    for p in posten:
-        if vroegste == none or datum.sleutel(p["datum"]) < datum.sleutel(vroegste):
-            very vroegste = p["datum"]
+    such vroegste = vroegste_datum(posten)
     if vroegste != none:
         such vloer_j = datum.jaar(vroegste)
         such vloer_kw = datum.kwartaal(vroegste)

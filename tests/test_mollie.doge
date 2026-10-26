@@ -1,4 +1,5 @@
 so fetch
+so strings
 so "../app/store/store.doge"
 so "../app/services/mollie.doge"
 so "../app/services/journaal.doge"
@@ -175,6 +176,81 @@ such test_vandaag_ook_ingediend_slaat_over:
     amaze res["geboekt"] == 0
     amaze res["vergrendeld"] == ["tr_10"]
     amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such in_usd much b:
+    b["amount"] = {"value": b["amount"]["value"], "currency": "USD"}
+    return b
+wow
+
+such audit_regels much actie:
+    such uit = []
+    for r in strings.split(fetch.read(fetch.join(TMPMAP, "audit.dsonl")), "\n"):
+        if actie in r:
+            uit.append(r)
+    return uit
+wow
+
+such test_usd_betaling_geweigerd:
+    such s = verse_store()
+    such res = mollie.boek_betalingen(s, [in_usd(betaling("tr_u", "25.00"))])
+    amaze res["geboekt"] == 0
+    amaze res["geweigerd"] == ["tr_u (USD 25.00)"]
+    amaze len(s.laad("journaal", [])) == 0
+    amaze len(audit_regels("mollie-geweigerd")) == 1
+    such opnieuw = mollie.boek_betalingen(s, [in_usd(betaling("tr_u", "25.00"))])
+    amaze opnieuw["geweigerd"] == ["tr_u (USD 25.00)"]
+    amaze len(audit_regels("mollie-geweigerd")) == 2
+    schoon()
+wow
+
+such test_usd_refund_geweigerd:
+    such s = verse_store()
+    such res = mollie.boek_refund_lijst(s, [in_usd(refund_sample("re_u"))])
+    amaze res["geboekt"] == 0
+    amaze res["geweigerd"] == ["re_u (USD 12.10)"]
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_ontbrekende_valuta_geweigerd:
+    such b = betaling("tr_x", "12.10")
+    b["amount"] = {"value": "12.10"}
+    such s = verse_store()
+    amaze mollie.boek_betalingen(s, [b])["geweigerd"] == ["tr_x (? 12.10)"]
+    schoon()
+wow
+
+such test_naar_post_weigert_vreemde_valuta:
+    such gebonkt = false
+    pls
+        mollie.betaling_naar_post(in_usd(betaling("tr_u", "25.00")))
+    oh no err!
+        very gebonkt = true
+    amaze gebonkt
+    very gebonkt = false
+    pls
+        mollie.refund_naar_post(in_usd(refund_sample("re_u")))
+    oh no err!
+        very gebonkt = true
+    amaze gebonkt
+wow
+
+such test_gemengde_batch_boekt_eur:
+    such s = verse_store()
+    such lijst = [betaling("tr_1", "12.10"), in_usd(betaling("tr_u", "25.00")), betaling("tr_2", "24.20")]
+    such res = mollie.boek_betalingen(s, lijst)
+    amaze res["geboekt"] == 2
+    amaze res["geweigerd"] == ["tr_u (USD 25.00)"]
+    such rres = mollie.boek_refund_lijst(s, [refund_sample("re_1"), in_usd(refund_sample("re_u"))])
+    amaze rres["geboekt"] == 1
+    amaze rres["geweigerd"] == ["re_u (USD 12.10)"]
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 20
+    amaze r["rubrieken"]["1a"]["btw"] == 4
+    amaze mollie.boek_betalingen(s, lijst)["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 3
     schoon()
 wow
 wow

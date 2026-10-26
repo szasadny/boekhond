@@ -85,8 +85,13 @@ such lijst much req:
     such jk = gekozen_tijdvak(store, req["query"])
     such j = jk[0]
     such kw = jk[1]
+    such fout = weergave.tijdvak_fout(store, j, kw)
+    if fout != none:
+        return fout
     such body = ""
-    for p in store.laad("journaal", []):
+    such posten = store.laad("journaal", [])
+    such gestorneerd = journaal.storno_index(posten)
+    for p in posten:
         if not datum.in_kwartaal(p["datum"], j, kw):
             continue
         such totaal = dec("0")
@@ -97,8 +102,15 @@ such lijst much req:
         such bron = html.escape(p["bron"])
         such bedrag = html.escape(geld.formatteer(totaal))
         such pid = p["id"]
-        such shref = "/journaal/storno?id={pid}"
-        such slink = html.link(shref, "Storneer")
+        such slink = ""
+        if p.has("storno_van") and p["storno_van"] != none:
+            such van = p["storno_van"]
+            very slink = html.escape("storno van {van}")
+        elif gestorneerd.has(pid):
+            such door = gestorneerd[pid]
+            very slink = html.escape("gestorneerd door {door}")
+        else:
+            very slink = html.link("/journaal/storno?id={pid}", "Storneer")
         very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td class=\"num\">{bedrag}</td><td>{slink}</td></tr>"
     such tabel = "<table><thead><tr><th>Datum</th><th>Omschrijving</th><th>Bron</th><th class=\"num\">Bedrag</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such l_ink = html.link("/journaal/inkoop", "Inkoop boeken")
@@ -248,6 +260,11 @@ such storno_inhoud much store, post_id, melding:
     such oms = html.escape(orig["omschrijving"])
     such pid = html.escape(post_id)
     such info = "<p>Storno van {pid}: {d} — {oms}</p>"
+    such reden = journaal.storno_weigering(posten, orig)
+    if reden != "":
+        such r = html.escape(reden)
+        such uitleg = "<p>{r}</p>" if melding == "" else melding
+        return "{uitleg}<h1>Storno</h1>{info}"
     such vid = "<input type=\"hidden\" name=\"id\" value=\"{pid}\">"
     such vd = html.veld("datum", "Datum storno", "date", datum.vandaag())
     such kn = html.knop("Storneer")
@@ -266,12 +283,7 @@ such storno much req:
     such v = forms.decode(req["body"])
     such id = forms.enkel(v, "id", "")
     pls
-        such posten = store.laad("journaal", [])
-        such orig = journaal.zoek_post(posten, id)
-        if orig == none:
-            bonk "onbekende journaalpost: {id}"
-        such sp = journaal.storno_post(orig, forms.enkel(v, "datum", datum.vandaag()))
-        journaal.bewaar(store, sp)
+        such sp = journaal.storneer(store, id, forms.enkel(v, "datum", datum.vandaag()))
         return http.redirect(tijdvak_url(sp["datum"]))
     oh no err!
         return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.fout(err.message))))
@@ -282,6 +294,9 @@ such export_csv much req:
     such jk = gekozen_tijdvak(store, req["query"])
     such j = jk[0]
     such kw = jk[1]
+    such fout = weergave.tijdvak_fout(store, j, kw)
+    if fout != none:
+        return fout
     such rijen = []
     for p in store.laad("journaal", []):
         if not datum.in_kwartaal(p["datum"], j, kw):

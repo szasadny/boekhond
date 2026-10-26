@@ -1,6 +1,9 @@
 so "../../web/html.doge"
+so "../../web/http.doge"
 so "../services/btw.doge"
 so "../../lib/geld.doge"
+so "../services/aangifte.doge"
+so "../../lib/datum.doge"
 
 # Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
 # Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
@@ -31,6 +34,14 @@ wow
 # Rode foutmelding; bericht = tekst (ge-escaped).
 such fout much bericht:
     return "<p class=\"fout\">{html.escape(bericht)}</p>"
+wow
+
+such tijdvak_fout much store, j, kw:
+    pls
+        aangifte.controleer_tijdvak(j, kw, datum.vandaag(), store.laad("journaal", []))
+    oh no err!
+        return http.tekst_response(400, err.message)
+    return none
 wow
 
 # Nav-loze schil voor printversies.

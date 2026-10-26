@@ -34,6 +34,9 @@ so STANDAARD = [
     {"nummer": "8900", "naam": "Afrondingsverschillen", "type": "kosten", "btw_code": none, "actief": true},
 ]
 
+# Alleen deze types kent de balans/W&V; een ander type valt uit de rapporten.
+so TYPES = ["activa", "passiva", "eigen_vermogen", "omzet", "kosten"]
+
 # Idempotent: alleen seeden als de collectie nog leeg is.
 such seed much store:
     such huidig = store.laad("rekeningen", [])
@@ -55,6 +58,11 @@ such zoek much lijst, nummer:
 wow
 
 such voeg_toe much store, rekening:
+    if rekening["nummer"] == "":
+        bonk "rekeningnummer is verplicht"
+    if not TYPES.contains(rekening["type"]):
+        such t = rekening["type"]
+        bonk "onbekend rekeningtype: {t}"
     such lijst = store.laad("rekeningen", [])
     if zoek(lijst, rekening["nummer"]) != none:
         such n = rekening["nummer"]

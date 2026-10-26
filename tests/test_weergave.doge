@@ -1,5 +1,10 @@
 so strings
+so fetch
 so "../app/handlers/weergave.doge"
+so "../app/store/store.doge"
+so "../lib/datum.doge"
+
+so TMPMAP = "tmp_test_weergave"
 
 such test_btw_legenda_inkoop:
     such h = weergave.btw_legenda("inkoop")
@@ -19,5 +24,16 @@ such test_nav_actief:
     such n = weergave.nav("/journaal")
     amaze strings.contains(n, "<a href=\"/journaal\" class=\"actief\">Journaal</a>")
     amaze strings.contains(n, "<a href=\"/mollie\">Inkomsten</a>")
+wow
+
+such test_tijdvak_fout:
+    such s = store.Store(TMPMAP)
+    such j = datum.jaar(datum.vandaag())
+    amaze weergave.tijdvak_fout(s, j, 1) == none
+    amaze weergave.tijdvak_fout(s, j, 7)["status"] == 400
+    amaze weergave.tijdvak_fout(s, j + 2, 1)["status"] == 400
+    amaze weergave.tijdvak_fout(s, j - 2, 1)["status"] == 400
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
 wow
 wow

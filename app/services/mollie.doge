@@ -12,6 +12,8 @@ so "../../lib/datum.doge"
 # Getriggerd door de handmatige knop (mollie_h) en straks de scheduler-pup (Fase 5).
 
 so BASIS = "https://api.mollie.com/v2"
+so TEGENREKENING = "1100"
+so VALUTA = "EUR"
 
 # --- Netwerk (impure; niet unit-getest) ---
 such haal_json much key, url:
@@ -40,6 +42,15 @@ such datum_van much iso:
     return iso[0:10]
 wow
 
+# Geen koersconversie: een niet-EUR bedrag als euro boeken vervalst rubriek 1a.
+such vreemde_valuta much bedrag:
+    such cur = bedrag["currency"] if bedrag.has("currency") else "?"
+    if cur == VALUTA:
+        return none
+    such waarde = bedrag["value"] if bedrag.has("value") else ""
+    return "{cur} {waarde}"
+wow
+
 such voeg_afronding_toe much regels:
     such d = dec("0")
     such c = dec("0")
@@ -57,6 +68,9 @@ wow
 # Betaalde payment -> omzet-post: incl op de bank-kant (debet), ex als omzet-grondslag
 # (credit, hoog_21), btw op af te dragen (credit); een cent-afrondingsverschil sluit de post.
 such betaling_naar_post much betaling:
+    such vv = vreemde_valuta(betaling["amount"])
+    if vv != none:
+        bonk "Mollie-payment in {vv} niet geboekt, alleen {VALUTA}"
     such incl = dec(betaling["amount"]["value"])
     such split = btw.splits_incl(incl, "hoog_21")
     such ex = split[0]
@@ -71,6 +85,9 @@ wow
 # Refund -> tegenboeking: gespiegeld t.o.v. de omzet-post (geld eraf, omzet + btw terug).
 # hoog_21 op de debet-kant -> regel_grondslag negatief -> trekt af van rubriek 1a.
 such refund_naar_post much refund:
+    such vv = vreemde_valuta(refund["amount"])
+    if vv != none:
+        bonk "Mollie-refund in {vv} niet geboekt, alleen {VALUTA}"
     such incl = dec(refund["amount"]["value"])
     such split = btw.splits_incl(incl, "hoog_21")
     such ex = split[0]
@@ -83,6 +100,12 @@ such refund_naar_post much refund:
 wow
 
 # --- Idempotente boeking (store-only, getest) ---
+# Niet gemarkeerd als geboekt, dus elke volgende sync meldt (en audit) 'm opnieuw.
+such weiger much store, soort, id, vv, geweigerd:
+    store.audit("mollie-geweigerd", soort, id, {"reden": "valuta", "bedrag": vv})
+    geweigerd.append("{id} ({vv})")
+wow
+
 # Ingediend tijdvak is op slot (Hard Rule 3): boek als correctie in het open tijdvak van vandaag.
 such verschuif much post, soort:
     such orig = post["datum"]
@@ -101,10 +124,15 @@ such boek_betalingen much store, betalingen:
     such overgeslagen = 0
     such verschoven = []
     such vergrendeld = []
+    such geweigerd = []
     for b in betalingen:
         such pid = b["id"]
         if b["status"] != "paid" or gezien.contains(pid):
             very overgeslagen = overgeslagen + 1
+            continue
+        such vv = vreemde_valuta(b["amount"])
+        if vv != none:
+            weiger(store, "mollie-payment", pid, vv, geweigerd)
             continue
         such post = betaling_naar_post(b)
         if not journaal.tijdvak_open(aangiften, post["datum"]):
@@ -116,7 +144,7 @@ such boek_betalingen much store, betalingen:
         journaal.bewaar(store, post)
         gezien.append(pid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd}
 wow
 
 such boek_refund_lijst much store, refunds:
@@ -126,10 +154,15 @@ such boek_refund_lijst much store, refunds:
     such overgeslagen = 0
     such verschoven = []
     such vergrendeld = []
+    such geweigerd = []
     for r in refunds:
         such rid = r["id"]
         if r["status"] != "refunded" or gezien.contains(rid):
             very overgeslagen = overgeslagen + 1
+            continue
+        such vv = vreemde_valuta(r["amount"])
+        if vv != none:
+            weiger(store, "mollie-refund", rid, vv, geweigerd)
             continue
         such post = refund_naar_post(r)
         if not journaal.tijdvak_open(aangiften, post["datum"]):
@@ -141,7 +174,7 @@ such boek_refund_lijst much store, refunds:
         journaal.bewaar(store, post)
         gezien.append(rid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd}
 wow
 
 # Mollie stuurt amountRefunded alleen mee bij betalingen die (deels) terugbetaald kunnen worden
@@ -182,6 +215,6 @@ such sync much store, key:
     such pres = boek_betalingen(store, betalingen)
     such rres = boek_refunds(store, key, betalingen)
     onthoud_sync(store)
-    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"]}
+    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"]}
 wow
 wow

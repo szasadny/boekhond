@@ -47,9 +47,7 @@ such geldige_maand much m:
         return false
 wow
 
-# Valideer + persisteer een sjabloon. Weigert (bonk) bij een onbekende/inactieve
-# kostenrekening, onbekende btw-code, niet-positief bedrag, een dag buiten 1..28
-# (28-cap houdt de boekdatum geldig in korte maanden) of een ongeldige vanaf-maand.
+# Dag max 28 houdt de boekdatum geldig in korte maanden.
 such voeg_toe much store, sjabloon:
     such rek = rekeningen.zoek(rekeningen.alle(store), sjabloon["kosten_rek"])
     if rek == none:
@@ -58,9 +56,14 @@ such voeg_toe much store, sjabloon:
     if not rek["actief"]:
         such nr2 = sjabloon["kosten_rek"]
         bonk "kostenrekening is inactief: {nr2}"
-    if not btw.bestaat(sjabloon["btw_code"]):
-        such code = sjabloon["btw_code"]
+    if rek["type"] != "kosten":
+        such nr3 = sjabloon["kosten_rek"]
+        bonk "rekening {nr3} is geen kostenrekening"
+    such code = sjabloon["btw_code"]
+    if not btw.bestaat(code):
         bonk "onbekende btw-code: {code}"
+    if btw.info(code)["soort"] != "inkoop":
+        bonk "btw-code {code} hoort bij verkoop, terugkerende kosten vragen een inkoop-code"
     if dec(sjabloon["bedrag_ex"]) <= dec("0"):
         bonk "bedrag moet groter dan nul zijn"
     such dag = sjabloon["dag"]

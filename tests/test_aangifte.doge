@@ -6,6 +6,7 @@ so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
 so "../app/handlers/aangifte_h.doge"
+so "../lib/datum.doge"
 
 so TMPMAP = "tmp_test_aangifte"
 
@@ -356,5 +357,77 @@ such test_conclusie_tekst:
     amaze aangifte_h.conclusie(210) == "Je betaalt € 210 btw aan de Belastingdienst."
     amaze aangifte_h.conclusie(-1) == "Je krijgt € 1 btw terug van de Belastingdienst."
     amaze aangifte_h.conclusie(0) == "Je hoeft niets te betalen en krijgt niets terug."
+wow
+
+such tijdvak_ok much j, kw, vandaag, posten:
+    pls
+        aangifte.controleer_tijdvak(j, kw, vandaag, posten)
+        return true
+    oh no err!
+        return false
+wow
+
+such test_controleer_tijdvak_zonder_posten:
+    such v = "2026-10-26"
+    amaze tijdvak_ok(2026, 1, v, [])
+    amaze tijdvak_ok(2026, 4, v, [])
+    amaze not tijdvak_ok(2026, 0, v, [])
+    amaze not tijdvak_ok(2026, 5, v, [])
+    amaze not tijdvak_ok(2026, -1, v, [])
+    amaze tijdvak_ok(2025, 1, v, [])
+    amaze not tijdvak_ok(2024, 4, v, [])
+    amaze tijdvak_ok(2027, 4, v, [])
+    amaze not tijdvak_ok(2028, 1, v, [])
+    amaze not tijdvak_ok(1, 1, v, [])
+    amaze not tijdvak_ok(0, 1, v, [])
+wow
+
+such test_controleer_tijdvak_vloer_uit_vroegste_post:
+    such v = "2026-10-26"
+    such posten = [verkoop21("2024-03-10"), verkoop21("2017-05-02"), verkoop21("2026-02-01")]
+    amaze aangifte.vroegste_datum(posten) == "2017-05-02"
+    amaze tijdvak_ok(2017, 1, v, posten)
+    amaze tijdvak_ok(2018, 3, v, posten)
+    amaze not tijdvak_ok(2016, 4, v, posten)
+    amaze not tijdvak_ok(1, 1, v, posten)
+    amaze not tijdvak_ok(0, 1, v, posten)
+    amaze tijdvak_ok(2027, 1, v, posten)
+wow
+
+such test_controleer_tijdvak_recente_post_houdt_vorig_jaar:
+    such posten = [verkoop21("2026-08-01")]
+    amaze tijdvak_ok(2025, 1, "2026-10-26", posten)
+    amaze not tijdvak_ok(2024, 4, "2026-10-26", posten)
+wow
+
+such test_dien_in_ongeldig_tijdvak_schrijft_niets:
+    such s = verse_store()
+    for jk in [[2026, 0], [0, 1], [0, 0], [2026, 5]]:
+        such gevangen = false
+        pls
+            aangifte.dien_in(s, jk[0], jk[1])
+        oh no err!
+            very gevangen = true
+            amaze err.type == "Bonk"
+        amaze gevangen
+    amaze len(aangifte.alle(s)) == 0
+    schoon()
+wow
+
+such test_dien_in_handler_ongeldig_kwartaal_400:
+    such s = verse_store()
+    such j = datum.jaar(datum.vandaag()) - 1
+    such resp = aangifte_h.dien_in({"ctx": {"store": s}, "body": "j={j}&kw=5"})
+    amaze resp["status"] == 400
+    amaze resp["body"] == "ongeldig kwartaal 5, kies 1 t/m 4"
+    amaze len(aangifte.alle(s)) == 0
+    schoon()
+wow
+
+such test_overzicht_handler_ongeldig_kwartaal_400:
+    such s = verse_store()
+    such resp = aangifte_h.overzicht({"ctx": {"store": s}, "query": {"j": ["2026"], "kw": ["7"]}})
+    amaze resp["status"] == 400
+    schoon()
 wow
 wow

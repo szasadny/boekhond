@@ -77,4 +77,24 @@ such test_deactiveer:
     amaze gevangen
     schoon()
 wow
+
+such test_voeg_toe_weigert_type_en_leeg_nummer:
+    such gevallen = [
+        [{"nummer": "4700", "naam": "Raar", "type": "hacker", "btw_code": none}, "onbekend rekeningtype: hacker"],
+        [{"nummer": "4700", "naam": "Raar", "type": "", "btw_code": none}, "onbekend rekeningtype: "],
+        [{"nummer": "", "naam": "Leeg", "type": "kosten", "btw_code": none}, "rekeningnummer is verplicht"],
+    ]
+    for g in gevallen:
+        schoon()
+        such s = store.Store(TMPMAP)
+        rekeningen.seed(s)
+        such melding = ""
+        pls
+            rekeningen.voeg_toe(s, g[0])
+        oh no err!
+            very melding = err.message
+        amaze melding == g[1], g[1]
+        amaze len(rekeningen.alle(s)) == len(rekeningen.STANDAARD)
+    schoon()
+wow
 wow

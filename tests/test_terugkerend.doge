@@ -224,4 +224,23 @@ such test_oud_sjabloon_zonder_valuta_boekt_als_eur:
     amaze not p.has("valuta")
     schoon()
 wow
+
+such test_validatie_soort_en_rekeningtype:
+    such gevallen = [
+        ["4000", "hoog_21", "btw-code hoog_21 hoort bij verkoop, terugkerende kosten vragen een inkoop-code"],
+        ["4000", "levering_eu", "btw-code levering_eu hoort bij verkoop, terugkerende kosten vragen een inkoop-code"],
+        ["0800", "geen_btw", "rekening 0800 is geen kostenrekening"],
+        ["1100", "geen_btw", "rekening 1100 is geen kostenrekening"],
+    ]
+    for g in gevallen:
+        such s = verse_store()
+        such melding = ""
+        pls
+            terugkerend.voeg_toe(s, {"leverancier": "X", "omschrijving": "Y", "kosten_rek": g[0], "btw_code": g[1], "bedrag_ex": "20.00", "dag": 1, "vanaf": "2026-01"})
+        oh no err!
+            very melding = err.message
+        amaze melding == g[2], g[2]
+        amaze len(s.laad("terugkerend", [])) == 0
+    schoon()
+wow
 wow

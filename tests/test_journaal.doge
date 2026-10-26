@@ -6,6 +6,7 @@ so "../app/services/btw.doge"
 so "../app/services/aangifte.doge"
 so "../app/handlers/journaal_h.doge"
 so "../lib/datum.doge"
+so "../app/services/mollie.doge"
 
 so TMPMAP = "tmp_test_journaal"
 
@@ -153,6 +154,119 @@ such test_gekozen_tijdvak:
     such e = journaal_h.gekozen_tijdvak(s, {"tv": ["abcd-1"]})
     amaze e[0] == te[0] and e[1] == te[1]
     amaze journaal_h.tijdvak_url("2026-10-18") == "/journaal?tv=2026-4"
+    schoon()
+wow
+
+such verkoop_1000:
+    return journaal.memoriaal_post("2026-04-10", "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}])
+wow
+
+such test_storneer_boekt_eenmalig:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, verkoop_1000())
+    such sp = journaal.storneer(s, orig["id"], "2026-05-10")
+    amaze sp["storno_van"] == orig["id"]
+    such fout = ""
+    pls
+        journaal.storneer(s, orig["id"], "2026-05-11")
+    oh no err!
+        very fout = err.message
+    amaze fout == "post {orig["id"]} is al gestorneerd door {sp["id"]}"
+    amaze len(s.laad("journaal", [])) == 2
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 2)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 0
+    amaze r["rubrieken"]["1a"]["btw"] == 0
+    schoon()
+wow
+
+such test_storno_van_storno_geweigerd:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, verkoop_1000())
+    such sp = journaal.storneer(s, orig["id"], "2026-05-10")
+    such fout = ""
+    pls
+        journaal.storneer(s, sp["id"], "2026-05-11")
+    oh no err!
+        very fout = err.message
+    amaze fout == "post {sp["id"]} is zelf een storno van {orig["id"]} en kan niet gestorneerd worden"
+    amaze len(s.laad("journaal", [])) == 2
+    schoon()
+wow
+
+such test_storno_index:
+    such s = verse_store()
+    such a = journaal.bewaar(s, verkoop_1000())
+    such b = journaal.bewaar(s, verkoop_1000())
+    such sp = journaal.storneer(s, a["id"], "2026-05-10")
+    such lijst = s.laad("journaal", [])
+    such idx = journaal.storno_index(lijst)
+    amaze idx == {a["id"]: sp["id"]}
+    amaze journaal.storno_weigering(lijst, b) == ""
+    schoon()
+wow
+
+such regel much rek, debet, credit, code:
+    return {"rekening": rek, "debet": debet, "credit": credit, "btw_code": code}
+wow
+
+such memo much regels, bron:
+    such p = journaal.memoriaal_post("2026-07-15", "validatie", "", regels)
+    p["bron"] = bron
+    return p
+wow
+
+such weigering much s, post:
+    pls
+        journaal.bewaar(s, post)
+    oh no err!
+        return err.message
+    return ""
+wow
+
+such test_bewaar_weigert_ongeldige_regels:
+    such gevallen = [
+        [memo([regel("", "50", "", none), regel("1100", "", "50", none)], "memoriaal"), "regel zonder rekening"],
+        [memo([regel("9999", "50", "", none), regel("1100", "", "50", none)], "memoriaal"), "onbekende rekening: 9999"],
+        [memo([regel("4200", "50", "50", none), regel("1100", "50", "", none), regel("1600", "", "50", none)], "memoriaal"), "regel op rekening 4200 moet precies één bedrag hebben: debet of credit"],
+        [memo([regel("4200", "", "", none), regel("1100", "50", "", none), regel("1600", "", "50", none)], "memoriaal"), "regel op rekening 4200 moet precies één bedrag hebben: debet of credit"],
+        [memo([regel("4200", "-20", "", none), regel("1600", "", "-20", none)], "memoriaal"), "negatief bedrag op rekening 4200"],
+        [memo([regel("4200", "0", "", none), regel("1600", "", "0", none)], "memoriaal"), "een journaalpost moet een bedrag groter dan nul hebben"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", "-20.00", "voorbelasting_hoog", "4200"), "negatief bedrag op rekening 4200"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", "0.00", "geen_btw", "4200"), "een journaalpost moet een bedrag groter dan nul hebben"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", "50.00", "hoog_21", "4200"), "btw-code hoog_21 hoort bij verkoop, deze boeking vraagt een inkoop-code"],
+        [memo([regel("4200", "50", "", "hoog_21"), regel("1600", "", "50", none)], "terugkerend"), "btw-code hoog_21 hoort bij verkoop, deze boeking vraagt een inkoop-code"],
+        [memo([regel("1100", "121", "", none), regel("8000", "", "100", "voorbelasting_hoog"), regel("1510", "", "21", none)], "mollie"), "btw-code voorbelasting_hoog hoort bij inkoop, deze boeking vraagt een verkoop-code"],
+    ]
+    for g in gevallen:
+        such s = verse_store()
+        amaze weigering(s, g[0]) == g[1], g[1]
+        amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_memoriaal_mag_elke_soort:
+    such s = verse_store()
+    such p = memo([regel("1300", "121", "", none), regel("8000", "", "100", "hoog_21"), regel("1510", "", "21", none), regel("4200", "10", "", "voorbelasting_hoog"), regel("1600", "", "10", none)], "memoriaal")
+    amaze weigering(s, p) == ""
+    schoon()
+wow
+
+such test_inactieve_rekening_geweigerd_behalve_storno:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, memo([regel("4500", "100", "", none), regel("1100", "", "100", none)], "memoriaal"))
+    rekeningen.deactiveer(s, "4500")
+    amaze weigering(s, memo([regel("4500", "10", "", none), regel("1100", "", "10", none)], "memoriaal")) == "rekening is inactief: 4500"
+    amaze weigering(s, journaal.storno_post(orig, "2026-08-01")) == ""
+    amaze len(s.laad("journaal", [])) == 2
+    schoon()
+wow
+
+such test_mollie_cent_betaling_met_nul_btw_regel:
+    such s = verse_store()
+    such b = {"id": "tr_c", "status": "paid", "amount": {"value": "0.01", "currency": "EUR"}, "paidAt": "2026-07-15T10:00:00+00:00", "description": "x", "amountRefunded": {"value": "0.00", "currency": "EUR"}}
+    such p = mollie.betaling_naar_post(b)
+    amaze dec(p["regels"][2]["credit"]) == dec("0")
+    amaze weigering(s, p) == ""
     schoon()
 wow
 wow

@@ -198,6 +198,9 @@ wow
 such overzicht much req:
     such store = req["ctx"]["store"]
     such jk = huidig_jkw(req)
+    such fout = weergave.tijdvak_fout(store, jk[0], jk[1])
+    if fout != none:
+        return fout
     such ov = aangifte.overzicht(store, jk[0], jk[1])
     return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, ""), "breed"))
 wow
@@ -207,6 +210,9 @@ such dien_in much req:
     such v = forms.decode(req["body"])
     such j = forms.geheel(v, "j", 0)
     such kw = forms.geheel(v, "kw", 0)
+    such fout = weergave.tijdvak_fout(store, j, kw)
+    if fout != none:
+        return fout
     pls
         aangifte.dien_in(store, j, kw)
         such loc = "/aangifte?j={j}&kw={kw}"
@@ -219,6 +225,9 @@ wow
 such export_csv much req:
     such store = req["ctx"]["store"]
     such jk = huidig_jkw(req)
+    such fout = weergave.tijdvak_fout(store, jk[0], jk[1])
+    if fout != none:
+        return fout
     such j = jk[0]
     such kw = jk[1]
     such ov = aangifte.overzicht(store, j, kw)
@@ -238,6 +247,9 @@ wow
 such print_view much req:
     such store = req["ctx"]["store"]
     such jk = huidig_jkw(req)
+    such fout = weergave.tijdvak_fout(store, jk[0], jk[1])
+    if fout != none:
+        return fout
     such ov = aangifte.overzicht(store, jk[0], jk[1])
     such kw = ov["kwartaal"]
     such j = ov["jaar"]
@@ -363,6 +375,9 @@ such doen much req:
     such store = req["ctx"]["store"]
     such cfg = req["ctx"]["config"]
     such jk = huidig_jkw(req)
+    such fout = weergave.tijdvak_fout(store, jk[0], jk[1])
+    if fout != none:
+        return fout
     such ov = aangifte.overzicht(store, jk[0], jk[1])
     such inhoud = doen_inhoud(store, cfg, ov, "")
     return http.html_response(weergave.render("Aangifte doen", inhoud, "breed"))
@@ -375,6 +390,9 @@ such boek_privegebruik much req:
     such v = forms.decode(req["body"])
     such j = forms.geheel(v, "j", 0)
     such kw = forms.geheel(v, "kw", 0)
+    such fout = weergave.tijdvak_fout(store, j, kw)
+    if fout != none:
+        return fout
     such grondslag = forms.enkel(v, "grondslag", "")
     such datum_s = forms.enkel(v, "datum", "")
     pls

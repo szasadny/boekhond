@@ -29,8 +29,41 @@ such balans_klopt much regels:
     return geld.rond2(debet) == geld.rond2(credit)
 wow
 
+# Sjabloonflows mogen alleen codes van hun eigen soort dragen; memoriaal en storno zijn vrij.
+so SOORT_PER_BRON = {"handmatig": "inkoop", "terugkerend": "inkoop", "mollie": "verkoop"}
+
+such is_gevuld much bedrag:
+    return bedrag != "" and bedrag != none
+wow
+
+# Een storno mag een inmiddels inactieve rekening raken: hij spiegelt een post die toen geldig was.
+such controleer_regel much r, rek_lijst, soort, storno:
+    such nr = r["rekening"]
+    if nr == "" or nr == none:
+        bonk "regel zonder rekening"
+    such rek = rekeningen.zoek(rek_lijst, nr)
+    if rek == none:
+        bonk "onbekende rekening: {nr}"
+    if not rek["actief"] and not storno:
+        bonk "rekening is inactief: {nr}"
+    such heeft_debet = is_gevuld(r["debet"])
+    if heeft_debet == is_gevuld(r["credit"]):
+        bonk "regel op rekening {nr} moet precies één bedrag hebben: debet of credit"
+    such bedrag = geld.bedrag(r["debet"] if heeft_debet else r["credit"])
+    if bedrag < dec("0"):
+        bonk "negatief bedrag op rekening {nr}"
+    if r.has("btw_code") and r["btw_code"]:
+        such code = r["btw_code"]
+        if not btw.bestaat(code):
+            bonk "onbekende btw-code: {code}"
+        such code_soort = btw.info(code)["soort"]
+        if soort != none and code_soort != soort:
+            bonk "btw-code {code} hoort bij {code_soort}, deze boeking vraagt een {soort}-code"
+    return bedrag
+wow
+
 # Valideer + persisteer een gebalanceerde post. Weigert (bonk) bij ongeldige datum,
-# te weinig regels, onbalans of een vergrendeld tijdvak. Audit vóór de state-write.
+# te weinig regels, onbalans, een ongeldige regel of een vergrendeld tijdvak. Audit vóór de state-write.
 such bewaar much store, post:
     such d = post["datum"]
     if not datum.is_geldig(d):
@@ -39,10 +72,16 @@ such bewaar much store, post:
         bonk "een journaalpost heeft minstens twee regels"
     if not balans_klopt(post["regels"]):
         bonk "post balanceert niet: som(debet) != som(credit)"
+    such rek_lijst = rekeningen.alle(store)
+    such soort = none
+    if SOORT_PER_BRON.has(post["bron"]):
+        very soort = SOORT_PER_BRON[post["bron"]]
+    such storno = post.has("storno_van") and post["storno_van"] != none
+    such totaal = dec("0")
     for r in post["regels"]:
-        if r.has("btw_code") and r["btw_code"] and not btw.bestaat(r["btw_code"]):
-            such code = r["btw_code"]
-            bonk "onbekende btw-code: {code}"
+        very totaal = totaal + controleer_regel(r, rek_lijst, soort, storno)
+    if totaal <= dec("0"):
+        bonk "een journaalpost moet een bedrag groter dan nul hebben"
     if not tijdvak_open(store.laad("aangiften", []), d):
         such tv = datum.kwartaal(d)
         such j = datum.jaar(d)
@@ -174,5 +213,37 @@ such storno_post much oorspronkelijke_post, datum_s:
     if oorspronkelijke_post.has("relatie"):
         very rel = oorspronkelijke_post["relatie"]
     return {"datum": datum_s, "omschrijving": "Storno van {oid}", "relatie": rel, "regels": regels, "bron": "memoriaal", "bijlage_ids": [], "storno_van": oid}
+wow
+
+such storno_index much lijst:
+    such idx = {}
+    for p in lijst:
+        if p.has("storno_van") and p["storno_van"] != none:
+            idx[p["storno_van"]] = p["id"]
+    return idx
+wow
+
+# Een storno corrigeer je met een nieuwe post, niet met een storno van de storno.
+such storno_weigering much lijst, post:
+    such pid = post["id"]
+    if post.has("storno_van") and post["storno_van"] != none:
+        such van = post["storno_van"]
+        return "post {pid} is zelf een storno van {van} en kan niet gestorneerd worden"
+    such idx = storno_index(lijst)
+    if idx.has(pid):
+        such sid = idx[pid]
+        return "post {pid} is al gestorneerd door {sid}"
+    return ""
+wow
+
+such storneer much store, post_id, datum_s:
+    such lijst = store.laad("journaal", [])
+    such orig = zoek_post(lijst, post_id)
+    if orig == none:
+        bonk "onbekende journaalpost: {post_id}"
+    such reden = storno_weigering(lijst, orig)
+    if reden != "":
+        bonk reden
+    return bewaar(store, storno_post(orig, datum_s))
 wow
 wow
