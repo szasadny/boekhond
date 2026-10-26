@@ -1,15 +1,27 @@
 so strings
+so hunt
 
 # Generieke CSV-writer (RFC 4180-stijl). Scheidingsteken is ';' — NL-bedragen dragen een
 # komma als decimaalteken ("1.234,56"), dus ';' houdt geldkolommen heel en opent native
 # in Excel-NL. Domeinvrij: de aanroepende service formatteert bedragen zelf (geld.formatteer).
 so SCHEIDING = ";"
 so REGELEINDE = "\r\n"
+so FORMULE_START = ["=", "+", "-", "@", "\t", "\r"]
+
+# Spreadsheets voeren cellen die met een formuleteken beginnen uit (OWASP CSV injection);
+# een bedrag als "-12,50" blijft numeriek.
+such ontwapen much s:
+    if s == "" or s[0] not in FORMULE_START:
+        return s
+    if hunt.test("^-?[0-9]+([.,][0-9]+)*$", s):
+        return s
+    return "'" + s
+wow
 
 # Eén veld: quote alleen als het scheidingsteken, een quote of een newline erin zit;
 # interne quotes verdubbeld.
 such veld_escape much waarde:
-    such s = str(waarde)
+    such s = ontwapen(str(waarde))
     such moet = strings.contains(s, SCHEIDING) or strings.contains(s, "\"")
     very moet = moet or strings.contains(s, "\n") or strings.contains(s, "\r")
     if not moet:

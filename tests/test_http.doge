@@ -53,6 +53,20 @@ such test_bouw_response_content_length_is_bytes:
     amaze strings.contains(txt, "Content-Type: text/html")
 wow
 
+such test_veiligheidskoppen_op_elke_response:
+    for resp in [http.html_response("x"), http.redirect("/"), http.csv_response("a.csv", "x"), {"status": 200, "headers": {"Content-Type": "image/png"}, "body": bytes("")}]:
+        such txt = http.bouw_response(resp).decode()
+        amaze strings.contains(txt, "Content-Security-Policy: default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'{CRLF}")
+        amaze strings.contains(txt, "X-Frame-Options: DENY{CRLF}")
+        amaze strings.contains(txt, "X-Content-Type-Options: nosniff{CRLF}")
+        amaze strings.contains(txt, "Referrer-Policy: same-origin{CRLF}")
+wow
+
+such test_csp_staat_geen_inline_toe:
+    amaze not strings.contains(http.CSP, "unsafe")
+    amaze not strings.contains(http.CSP, "*")
+wow
+
 such test_redirect:
     such txt = http.bouw_response(http.redirect("/inbox")).decode()
     amaze strings.contains(txt, "303 See Other")

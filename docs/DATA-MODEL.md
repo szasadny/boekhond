@@ -27,8 +27,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 ─── rekeningen.dson (List) — rekeningschema (chart of accounts) ───
   Rekening — grootboekrekening; geseed met een standaard-schema voor een
   eenmanszaak, uitbreidbaar in de UI (nummer is uniek en onwijzigbaar)
-    nummer                   "1300" (vrij gekozen, RGS-geïnspireerd)
-    naam                     "Debiteuren"
+    nummer                   "1300" (vrij gekozen, RGS-geïnspireerd; alleen cijfers, getrimd)
+    naam                     "Debiteuren" (verplicht, getrimd)
     type                     "activa" | "passiva" | "eigen_vermogen" | "omzet" | "kosten"
                              (allow-list `rekeningen.TYPES`; andere types geweigerd)
     btw_code                 optionele default voor regels op deze rekening

@@ -14,4 +14,23 @@ wow
 such test_nl_bedrag_blijft_heel:
     amaze csv.veld_escape("1.234,56") == "1.234,56"
 wow
+
+such test_formule_injectie:
+    such gevallen = [
+        ["=HYPERLINK(\"http://evil\",\"klik\")", "\"'=HYPERLINK(\"\"http://evil\"\",\"\"klik\"\")\""],
+        ["@SUM(A1:A2)", "'@SUM(A1:A2)"],
+        ["+1+1", "'+1+1"],
+        ["-1+1", "'-1+1"],
+        ["\tx", "'\tx"],
+        ["\r=x", "\"'\r=x\""],
+        ["=a;b", "\"'=a;b\""],
+        ["-12,50", "-12,50"],
+        ["-1.234,56", "-1.234,56"],
+        ["Mollie betaling", "Mollie betaling"],
+        ["2026-Q4", "2026-Q4"],
+        ["", ""],
+    ]
+    for g in gevallen:
+        amaze csv.veld_escape(g[0]) == g[1], g[0]
+wow
 wow

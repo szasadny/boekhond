@@ -70,7 +70,7 @@ such sync much req:
             very m = m + weergave.fout("Niet geboekt, post geweigerd: {ml}.")
         return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
     oh no err!
-        such m = weergave.fout(err.message)
-        return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
+        such m = weergave.domeinfout(err)
+        return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)), 400)
 wow
 wow

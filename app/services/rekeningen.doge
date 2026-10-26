@@ -1,4 +1,6 @@
 so btw
+so hunt
+so strings
 
 # Rekeningschema (chart of accounts) — master-data, los van het boeken zelf.
 # journaal.doge bindt aan de REK_*-constanten hieronder (single source of truth).
@@ -62,8 +64,15 @@ such zoek much lijst, nummer:
 wow
 
 such voeg_toe much store, rekening:
+    rekening["nummer"] = strings.trim(rekening["nummer"])
+    rekening["naam"] = strings.trim(rekening["naam"])
     if rekening["nummer"] == "":
         bonk "rekeningnummer is verplicht"
+    # Het nummer staat in URL-paden (/rekeningen/{nummer}/deactiveer).
+    if not hunt.test("^[0-9]+$", rekening["nummer"]):
+        bonk "rekeningnummer mag alleen cijfers bevatten"
+    if rekening["naam"] == "":
+        bonk "rekeningnaam is verplicht"
     if not TYPES.contains(rekening["type"]):
         such t = rekening["type"]
         bonk "onbekend rekeningtype: {t}"

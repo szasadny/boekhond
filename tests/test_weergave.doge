@@ -76,4 +76,12 @@ such test_kwartaal_nav_over_jaargrens_en_bereik:
     if fetch.exists(TMPMAP):
         fetch.remove_dir(TMPMAP)
 wow
+
+# Deadline Q1-2026 is 2026-04-30: die dag zelf nog op tijd, een ingediend tijdvak nooit verstreken.
+such test_termijn_status:
+    such gevallen = [["open", "2026-04-30", false], ["open", "2026-05-01", true], ["ingediend", "2026-05-01", false]]
+    for g in gevallen:
+        such uit = weergave.termijn_status(g[0], 2026, 1, g[1])
+        amaze strings.contains(uit, "Termijn verstreken.") == g[2]
+wow
 wow

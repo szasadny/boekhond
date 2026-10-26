@@ -108,7 +108,8 @@ such scan_import much store:
             store.import_verwijder(naam)
             very geimporteerd = geimporteerd + 1
         oh no err!
-            overgeslagen.append({"naam": naam, "reden": err.message})
+            such reden = err.message if err.type == "Bonk" else "bestand niet te verwerken"
+            overgeslagen.append({"naam": naam, "reden": reden})
     return {"geimporteerd": geimporteerd, "overgeslagen": overgeslagen}
 wow
 wow

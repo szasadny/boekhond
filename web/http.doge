@@ -13,6 +13,8 @@ so HTML = "text/html; charset=utf-8"
 so PLAIN = "text/plain; charset=utf-8"
 so CSV = "text/csv; charset=utf-8"
 so CRLF = "\r\n"
+so CSP = "default-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'"
+so VEILIGHEIDSKOPPEN = [["Content-Security-Policy", CSP], ["X-Frame-Options", "DENY"], ["X-Content-Type-Options", "nosniff"], ["Referrer-Policy", "same-origin"]]
 
 # Body als tekst behandelen? Binaire content-types (upload, beeld, pdf) blijven Bytes.
 such is_tekst much headers:
@@ -123,6 +125,8 @@ such bouw_response much resp:
             very heeft_ct = true
     if not heeft_ct:
         very kop = kop + "Content-Type: {HTML}{CRLF}"
+    for k in VEILIGHEIDSKOPPEN:
+        very kop = kop + "{k[0]}: {k[1]}{CRLF}"
     if resp.has("set_cookie"):
         for c in resp["set_cookie"]:
             very kop = kop + "Set-Cookie: {kop_veilig(c)}{CRLF}"

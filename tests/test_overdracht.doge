@@ -230,6 +230,15 @@ such test_weigert_vreemde_invoer:
     amaze overdracht.is_leeg(doel)
     schoon()
 wow
+
+such test_weigert_onverwachte_structuur_zonder_details:
+    schoon()
+    such doel = verse(DOEL)
+    such fout = import_fout(doel, "\{\"formaat\": \"{overdracht.FORMAAT}\"\}")
+    amaze fout == "export ongeldig: onverwachte structuur"
+    amaze overdracht.is_leeg(doel)
+    schoon()
+wow
 # Multipart-upload zoals de browser 'm stuurt, met het exportbestand in veld "export".
 such upload_req much s, tekst:
     such grens = "X-GRENS-42"
@@ -253,8 +262,19 @@ such test_handler_export_en_import:
     amaze strings.contains(na["body"], "Import geslaagd: 1 journaalposten, 2 bijlagen")
     amaze not strings.contains(na["body"], "action=\"/overdracht/import\"")
     such nogmaals = overdracht_h.importeer(upload_req(doel, resp["body"]))
+    amaze nogmaals["status"] == 400
     amaze strings.contains(nogmaals["body"], "class=\"fout\"")
     amaze len(doel.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_handler_import_geen_json_geeft_400:
+    schoon()
+    such doel = verse(DOEL)
+    such resp = overdracht_h.importeer(upload_req(doel, "geen json"))
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "geen geldige export: geen JSON")
+    amaze overdracht.is_leeg(doel)
     schoon()
 wow
 wow

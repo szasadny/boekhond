@@ -52,6 +52,12 @@ such tijdvak_fout much store, j, kw:
     return none
 wow
 
+such termijn_status much status, j, kw, vandaag:
+    if status != "ingediend" and aangifte.te_laat(j, kw, vandaag):
+        return " <strong class=\"fout\">Termijn verstreken.</strong>"
+    return ""
+wow
+
 # Redirect-doel na boeken, zodat je de post ziet.
 such tijdvak_href much pad, d:
     such j = datum.jaar(d)

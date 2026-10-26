@@ -108,7 +108,9 @@ such importeer much store, tekst:
     pls
         very b = lees(tekst)
     oh no err!
-        bonk "export ongeldig: {err.message}"
+        if err.type == "Bonk":
+            bonk "export ongeldig: {err.message}"
+        bonk "export ongeldig: onverwachte structuur"
     such collecties = b["collecties"]
     such aantallen = {}
     for naam in ADMINISTRATIE:

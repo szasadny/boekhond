@@ -40,8 +40,8 @@ such upload much req:
         for best in p["bestanden"]:
             bijlagen.bewaar(store, best, "upload")
     oh no err!
-        such fh = weergave.fout(err.message) + upload_formulier()
-        return http.html_response(weergave.render("Uploaden", fh))
+        such fh = weergave.domeinfout(err) + upload_formulier()
+        return http.html_response(weergave.render("Uploaden", fh), 400)
     return http.redirect("/inbox")
 wow
 
@@ -125,7 +125,7 @@ such scan much req:
         such res = bijlagen.scan_import(store)
         very melding = scan_melding(res)
     oh no err!
-        very melding = weergave.fout(err.message)
+        return http.html_response(weergave.render("Inbox", inbox_inhoud(store, weergave.domeinfout(err))), 400)
     return http.html_response(weergave.render("Inbox", inbox_inhoud(store, melding)))
 wow
 
@@ -142,7 +142,7 @@ such koppel much req:
     pls
         bijlagen.koppel(store, bijlage_id, post_id)
     oh no err!
-        return http.html_response(weergave.render("Inbox", inbox_inhoud(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Inbox", inbox_inhoud(store, weergave.domeinfout(err))), 400)
     return http.redirect("/inbox")
 wow
 

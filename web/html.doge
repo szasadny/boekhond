@@ -124,8 +124,8 @@ such knop much tekst, type = "submit":
 wow
 
 # Staafgrafiek (CSS, geen JS). titel = tekst; rijen = List van [label, pct, waarde, klasse]:
-# label/waarde ge-escaped; pct = server-berekende Int 0-100 (geen user-input, dus de inline
-# width is veilig); klasse = code (bv. "" of "negatief").
+# label/waarde ge-escaped; pct = server-berekende Int 0-100; klasse = code (bv. "" of "negatief").
+# Een SVG-rect i.p.v. style="width" omdat de CSP inline styles blokkeert.
 such staafgrafiek much titel, rijen:
     such body = ""
     for rij in rijen:
@@ -133,7 +133,7 @@ such staafgrafiek much titel, rijen:
         such pct = rij[1]
         such waarde = escape(rij[2])
         such kl = rij[3]
-        such balk = "<span class=\"balk {kl}\" style=\"width:{pct}%\"></span>"
+        such balk = "<svg class=\"balk-svg\" aria-hidden=\"true\"><rect class=\"balk {kl}\" width=\"{pct}%\" height=\"100%\" rx=\"3\"></rect></svg>"
         very body = body + "<div class=\"balk-rij\"><span class=\"balk-label\">{label}</span><span class=\"balk-baan\">{balk}</span><span class=\"balk-waarde\">{waarde}</span></div>"
     return "<figure class=\"grafiek\"><figcaption>{escape(titel)}</figcaption>{body}</figure>"
 wow

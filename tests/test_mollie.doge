@@ -6,6 +6,7 @@ so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
 so "../app/services/aangifte.doge"
+so "../app/handlers/mollie_h.doge"
 so "../lib/datum.doge"
 
 so TMPMAP = "tmp_test_mollie"
@@ -343,6 +344,54 @@ such test_haal_alle_paginacap_bonkt:
     oh no err!
         very gebonkt = "200 pagina" in err.message
     amaze gebonkt
+wow
+
+such haal_fout much key, url:
+    pls
+        mollie.haal_json(key, url)
+    oh no err!
+        return err
+    return none
+wow
+
+such antwoord_fout much resp:
+    pls
+        mollie.lees_antwoord(resp)
+    oh no err!
+        return err
+    return none
+wow
+
+such test_lees_antwoord_parset_json:
+    such data = mollie.lees_antwoord({"status": 200, "body": "\{\"_embedded\": \{\"payments\": []\}\}"})
+    amaze data["_embedded"]["payments"] == []
+wow
+
+such test_lees_antwoord_status_bonkt:
+    such err = antwoord_fout({"status": 401, "body": "\{\}"})
+    amaze err.type == "Bonk"
+    amaze err.message == "Mollie API gaf status 401"
+wow
+
+such test_lees_antwoord_ongeldige_json_bonkt:
+    for body in ["<html>storing</html>", ""]:
+        such err = antwoord_fout({"status": 200, "body": body})
+        amaze err.type == "Bonk"
+        amaze err.message == "ongeldig antwoord van Mollie"
+wow
+
+such test_onbereikbaar_bonkt_zonder_url:
+    such err = haal_fout("k", "http://127.0.0.1:1/v2/payments")
+    amaze err.type == "Bonk"
+    amaze err.message == "Mollie is niet bereikbaar"
+wow
+
+such test_sync_handler_zonder_key_geeft_400:
+    such s = verse_store()
+    such resp = mollie_h.sync({"ctx": {"store": s, "config": {"mollie_key": none}}})
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "geen MOLLIE_API_KEY geconfigureerd")
+    schoon()
 wow
 
 such post_met much s, veld, waarde:

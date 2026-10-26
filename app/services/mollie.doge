@@ -19,11 +19,26 @@ so MAX_PAGINAS = 200
 # --- Netwerk ---
 such haal_json much key, url:
     such opts = {"headers": {"Authorization": "Bearer {key}"}}
-    such resp = howl.request("GET", url, opts)
+    such resp = none
+    pls
+        very resp = howl.request("GET", url, opts)
+    oh no err!
+        if err.type != "IOError":
+            bonk err
+        bonk "Mollie is niet bereikbaar"
+    return lees_antwoord(resp)
+wow
+
+such lees_antwoord much resp:
     such st = resp["status"]
     if st != 200:
         bonk "Mollie API gaf status {st}"
-    return json.parse(resp["body"])
+    pls
+        return json.parse(resp["body"])
+    oh no err!
+        if err.type != "ValueError":
+            bonk err
+        bonk "ongeldig antwoord van Mollie"
 wow
 
 # Geen early stop op mollie_laatste_sync: een oudere payment kan na de vorige sync nog betaald worden.

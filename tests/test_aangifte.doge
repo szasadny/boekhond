@@ -368,6 +368,19 @@ such test_doen_eerdere_tijdvakken:
     schoon()
 wow
 
+such test_overzicht_termijn_status:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2025-05-15"))
+    such open = aangifte_h.overzicht_inhoud(aangifte.overzicht(s, 2025, 2), "")
+    amaze "Uiterste indiendatum: 2025-07-31." in open
+    amaze "Termijn verstreken." in open
+    aangifte.dien_in(s, 2025, 2)
+    such ingediend = aangifte_h.overzicht_inhoud(aangifte.overzicht(s, 2025, 2), "")
+    amaze "Termijn verstreken." not in ingediend
+    amaze "Uiterste indiendatum" not in ingediend
+    schoon()
+wow
+
 # Privégebruik-correctie: gebalanceerde post via journaal.privegebruik_post -> rubriek 1d + 5a stijgen.
 such test_privegebruik_post_overzicht:
     such s = verse_store()
@@ -597,6 +610,18 @@ such test_dien_in_met_bevestiging_vergrendelt:
     amaze resp["status"] == 303
     amaze len(aangifte.alle(s)) == 1
     amaze journaal.tijdvak_open(s.laad("aangiften", []), "2020-05-01") == false
+    schoon()
+wow
+
+such test_dien_in_fout_toont_kwartaalnavigatie:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    aangifte.dien_in(s, 2020, 2)
+    such resp = aangifte_h.dien_in({"ctx": {"store": s}, "body": "j=2020&kw=2&bevestig=ja"})
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "is al ingediend")
+    amaze strings.contains(resp["body"], "/aangifte?j=2020&amp;kw=1")
+    amaze strings.contains(resp["body"], "/aangifte?j=2020&amp;kw=3")
     schoon()
 wow
 

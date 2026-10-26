@@ -100,6 +100,11 @@ such test_voeg_toe_weigert_type_en_leeg_nummer:
         [{"nummer": "4700", "naam": "Raar", "type": "hacker", "btw_code": none}, "onbekend rekeningtype: hacker"],
         [{"nummer": "4700", "naam": "Raar", "type": "", "btw_code": none}, "onbekend rekeningtype: "],
         [{"nummer": "", "naam": "Leeg", "type": "kosten", "btw_code": none}, "rekeningnummer is verplicht"],
+        [{"nummer": "   ", "naam": "Leeg", "type": "kosten", "btw_code": none}, "rekeningnummer is verplicht"],
+        [{"nummer": "49/00", "naam": "Pad", "type": "kosten", "btw_code": none}, "rekeningnummer mag alleen cijfers bevatten"],
+        [{"nummer": "4a00", "naam": "Letter", "type": "kosten", "btw_code": none}, "rekeningnummer mag alleen cijfers bevatten"],
+        [{"nummer": "4700", "naam": "", "type": "kosten", "btw_code": none}, "rekeningnaam is verplicht"],
+        [{"nummer": "4700", "naam": "  ", "type": "kosten", "btw_code": none}, "rekeningnaam is verplicht"],
     ]
     for g in gevallen:
         schoon()
@@ -112,6 +117,32 @@ such test_voeg_toe_weigert_type_en_leeg_nummer:
             very melding = err.message
         amaze melding == g[1], g[1]
         amaze len(rekeningen.alle(s)) == len(rekeningen.STANDAARD)
+    schoon()
+wow
+
+such test_voeg_toe_trimt_nummer_en_naam:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    rekeningen.voeg_toe(s, {"nummer": " 4900 ", "naam": " Reiskosten ", "type": "kosten", "btw_code": none})
+    such r = rekeningen.zoek(rekeningen.alle(s), "4900")
+    amaze r != none
+    amaze r["naam"] == "Reiskosten"
+    schoon()
+wow
+
+such test_toevoegen_handler_fout_geeft_400_en_houdt_invoer:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such req = {"ctx": {"store": s}, "params": {}, "body": "nummer=49%2F00&naam=Reiskosten&type=kosten&btw_code="}
+    such resp = rekeningen_h.toevoegen(req)
+    amaze resp["status"] == 400
+    such body = str(resp["body"])
+    amaze strings.contains(body, "rekeningnummer mag alleen cijfers bevatten")
+    amaze strings.contains(body, "value=\"49/00\"")
+    amaze strings.contains(body, "value=\"Reiskosten\"")
+    amaze len(rekeningen.alle(s)) == len(rekeningen.STANDAARD)
     schoon()
 wow
 

@@ -251,6 +251,56 @@ such test_scan_zonder_map:
     amaze len(res["overgeslagen"]) == 0
     schoon()
 wow
+
+# Store waarvan de importmap een bestand meldt dat niet te lezen is (IOError).
+many OnleesbareImport:
+    such import_lijst:
+        return ["weg.pdf"]
+    wow
+
+    such laad_bestand much relpad:
+        return fetch.read_bytes(fetch.join(TMPMAP, "bestaat-niet.pdf"))
+    wow
+wow
+
+such test_scan_onleesbaar_bestand_geeft_vaste_reden:
+    schoon()
+    such res = bijlagen.scan_import(OnleesbareImport())
+    amaze res["geimporteerd"] == 0
+    amaze res["overgeslagen"] == [{"naam": "weg.pdf", "reden": "bestand niet te verwerken"}]
+wow
+
+such upload_req much s, filename:
+    such grens = "X-GRENS-7"
+    such kop = "--{grens}\r\nContent-Disposition: form-data; name=\"bestand\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
+    such body = bytes(kop) + bytes("inhoud") + bytes("\r\n--{grens}--\r\n")
+    return {"ctx": {"store": s, "config": {}}, "headers": {"content-type": ["multipart/form-data; boundary={grens}"]}, "body": body, "params": {}}
+wow
+
+such test_upload_handler_weigert_met_400:
+    such s = verse()
+    such resp = bijlagen_h.upload(upload_req(s, "virus.exe"))
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "bestandstype niet toegestaan: exe")
+    amaze len(bijlagen.alle(s)) == 0
+    schoon()
+wow
+
+such test_upload_handler_slaat_op:
+    such s = verse()
+    such resp = bijlagen_h.upload(upload_req(s, "bon.pdf"))
+    amaze resp["status"] == 303
+    amaze len(bijlagen.inbox(s)) == 1
+    schoon()
+wow
+
+such test_koppel_handler_onbekende_bijlage_geeft_400:
+    such s = verse()
+    such resp = bijlagen_h.koppel({"ctx": {"store": s, "config": {}}, "body": "bijlage_id=b-9&post_id=j-1"})
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "onbekende bijlage: b-9")
+    schoon()
+wow
 such test_geldig_pad:
     amaze bijlagen.geldig_pad("b-1", "uploads/2026/b-1.pdf")
     amaze bijlagen.geldig_pad("b-12", "uploads/2025/b-12.jpeg")

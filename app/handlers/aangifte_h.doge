@@ -181,7 +181,8 @@ such overzicht_inhoud much ov, melding, bladeren = "":
     such dl = aangifte.deadline(j, kw)
     such dlregel = ""
     if ov["status"] != "ingediend":
-        very dlregel = "<p>Uiterste indiendatum: {dl}</p>"
+        such st = weergave.termijn_status(ov["status"], j, kw, datum.vandaag())
+        very dlregel = "<p>Uiterste indiendatum: {dl}.{st}</p>"
     such ban = banners(ov)
     such actie = ""
     if ov["status"] == "ingediend":
@@ -267,7 +268,8 @@ such dien_in much req:
         return http.redirect(loc)
     oh no err!
         such ov = aangifte.overzicht(store, j, kw)
-        return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, weergave.domeinfout(err)), "breed"), 400)
+        such bladeren = weergave.kwartaal_nav(store, "/aangifte", j, kw)
+        return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, weergave.domeinfout(err), bladeren), "breed"), 400)
 wow
 
 such export_csv much req:
@@ -401,9 +403,7 @@ such doen_inhoud much store, cfg, ov, melding:
     such ptabel = html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3])
     such saldo = ov["saldo"]
     such dl = aangifte.deadline(j, kw)
-    such verstreken = ""
-    if ov["status"] != "ingediend" and aangifte.te_laat(j, kw, datum.vandaag()):
-        very verstreken = " <strong class=\"fout\">Termijn verstreken.</strong>"
+    such verstreken = weergave.termijn_status(ov["status"], j, kw, datum.vandaag())
     such actie = ""
     if ov["status"] == "ingediend":
         such op = html.escape(ov["ingediend_op"])
