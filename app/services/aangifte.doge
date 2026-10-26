@@ -137,42 +137,38 @@ such deadline much j, kw:
     return datum.laatste_dag_van_maand(nj, m)
 wow
 
-# Het tijdvak dat nu "te doen" is: het meest recente afgelopen kwartaal dat nog niet is
-# ingediend. De scan begint altijd bij het direct voorafgaande kwartaal. Zodra er oudere posten
-# zijn, loopt hij verder terug tot het kwartaal van de vroegste post; lege kwartalen binnen die
-# administratie worden dus niet overgeslagen.
-such te_doen_tijdvak much store, vandaag:
+such te_laat much j, kw, vandaag:
+    return datum.sleutel(vandaag) > datum.sleutel(deadline(j, kw))
+wow
+
+# Begint bij de vroegste post, of bij het vorige kwartaal voor een nihil-aangifte;
+# lege kwartalen daartussen tellen mee.
+such openstaande_tijdvakken much store, vandaag:
     such aangiften = store.laad("aangiften", [])
-    such posten = store.laad("journaal", [])
-    such huidig_j = datum.jaar(vandaag)
-    such huidig_kw = datum.kwartaal(vandaag)
-    such j = huidig_j
-    such kw = huidig_kw - 1
-    if kw < 1:
-        very kw = 4
-        very j = j - 1
-
-    # Bepaal het kwartaal waarin de administratie begint. Posten in een later (bijvoorbeeld
-    # huidig) kwartaal mogen de scan niet voorbij het voorafgaande kwartaal duwen.
-    such vloer_sleutel = j * 4 + (kw - 1)
-    such vroegste = vroegste_datum(posten)
+    such hoog = kwartaal_nummer(datum.jaar(vandaag), datum.kwartaal(vandaag)) - 1
+    such laag = hoog
+    such vroegste = vroegste_datum(store.laad("journaal", []))
     if vroegste != none:
-        such vloer_j = datum.jaar(vroegste)
-        such vloer_kw = datum.kwartaal(vroegste)
-        such vroegste_sleutel = vloer_j * 4 + (vloer_kw - 1)
-        if vroegste_sleutel < vloer_sleutel:
-            very vloer_sleutel = vroegste_sleutel
-    such kandidaat_sleutel = j * 4 + (kw - 1)
-
-    while kandidaat_sleutel >= vloer_sleutel:
+        such n0 = kwartaal_nummer(datum.jaar(vroegste), datum.kwartaal(vroegste))
+        if n0 < laag:
+            very laag = n0
+    such uit = []
+    such n = laag
+    while n <= hoog:
+        such j = n // 4
+        such kw = n % 4 + 1
         if not is_ingediend(aangiften, j, kw):
-            return [j, kw]
-        very kw = kw - 1
-        if kw < 1:
-            very kw = 4
-            very j = j - 1
-        very kandidaat_sleutel = j * 4 + (kw - 1)
-    return [huidig_j, huidig_kw]
+            uit.append({"jaar": j, "kwartaal": kw, "deadline": deadline(j, kw), "te_laat": te_laat(j, kw, vandaag)})
+        very n = n + 1
+    return uit
+wow
+
+# Oudste openstaande kwartaal, of het huidige als alles is ingediend.
+such te_doen_tijdvak much store, vandaag:
+    such rij = openstaande_tijdvakken(store, vandaag)
+    if len(rij) > 0:
+        return [rij[0]["jaar"], rij[0]["kwartaal"]]
+    return [datum.jaar(vandaag), datum.kwartaal(vandaag)]
 wow
 # Kwartaal als doorlopend getal (jaar * 4 + kwartaal - 1), zodat tijdvakken te vergelijken en
 # af te tellen zijn.

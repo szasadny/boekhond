@@ -10,12 +10,12 @@ so weergave
 
 so TYPE_OPTIES = [["activa", "activa"], ["passiva", "passiva"], ["eigen_vermogen", "eigen_vermogen"], ["omzet", "omzet"], ["kosten", "kosten"]]
 
-such toevoeg_formulier:
-    such vn = html.veld("nummer", "Nummer", "text", "")
-    such vnaam = html.veld("naam", "Naam", "text", "")
-    such stype = html.select("type", TYPE_OPTIES, "kosten")
+such toevoeg_formulier much invoer = {}:
+    such vn = html.veld("nummer", "Nummer", "text", forms.enkel(invoer, "nummer", ""))
+    such vnaam = html.veld("naam", "Naam", "text", forms.enkel(invoer, "naam", ""))
+    such stype = html.select("type", TYPE_OPTIES, forms.enkel(invoer, "type", "kosten"))
     such vtype = "<label>Type {stype}</label>"
-    such sbtw = html.select("btw_code", weergave.btw_opties_leeg(), "")
+    such sbtw = html.select("btw_code", weergave.btw_opties_leeg(), forms.enkel(invoer, "btw_code", ""))
     such vbtw = "<label>Btw-code {sbtw}</label>"
     return html.formulier("/rekeningen", "post", [vn, vnaam, vtype, vbtw, html.knop("Toevoegen")])
 wow
@@ -27,20 +27,25 @@ such rij much r:
     such code = ""
     if r["btw_code"] != none:
         very code = html.escape(btw.label(r["btw_code"]))
-    such actie = "inactief"
-    if r["actief"]:
+    such actie = ""
+    if r["actief"] and rekeningen.SYSTEEM.contains(r["nummer"]):
+        very actie = "systeemrekening"
+    elif r["actief"]:
         such knop = html.knop("Deactiveren")
-        very actie = "<form action=\"/rekeningen/{nummer}/deactiveer\" method=\"post\" class=\"inline\">{knop}</form>"
+        very actie = "<form action=\"/rekeningen/{nummer}/deactiveer\" method=\"get\" class=\"inline\">{knop}</form>"
+    else:
+        such knop2 = html.knop("Activeren")
+        very actie = "inactief <form action=\"/rekeningen/{nummer}/activeer\" method=\"post\" class=\"inline\">{knop2}</form>"
     return "<tr><td>{nummer}</td><td>{naam}</td><td>{type}</td><td>{code}</td><td>{actie}</td></tr>"
 wow
 
-such inhoud_van much store, melding:
+such inhoud_van much store, melding, invoer = {}:
     such body = ""
     for r in rekeningen.alle(store):
         very body = body + rij(r)
     such tabel = "<table><thead><tr><th>Nummer</th><th>Naam</th><th>Type</th><th>Btw-code</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such leg = weergave.btw_legenda("alle")
-    return "{melding}<h1>Rekeningen</h1>{tabel}<h2>Nieuwe rekening</h2>{toevoeg_formulier()}{leg}"
+    return "{melding}<h1>Rekeningen</h1>{tabel}<h2>Nieuwe rekening</h2>{toevoeg_formulier(invoer)}{leg}"
 wow
 
 such lijst much req:
@@ -59,15 +64,45 @@ such toevoegen much req:
     pls
         rekeningen.voeg_toe(store, rek)
     oh no err!
-        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message), velden)), 400)
     return http.redirect("/rekeningen")
+wow
+
+such bevestig_inhoud much r:
+    such nummer = html.escape(r["nummer"])
+    such naam = html.escape(r["naam"])
+    such vb = "<input type=\"hidden\" name=\"bevestig\" value=\"ja\">"
+    such nr = r["nummer"]
+    such knop = html.knop("Rekening {nr} deactiveren")
+    such terug = html.link("/rekeningen", "Annuleren")
+    such form = "<form action=\"/rekeningen/{nummer}/deactiveer\" method=\"post\">{vb}{knop}</form>"
+    return "<h1>Rekening deactiveren</h1><p>Rekening {nummer} {naam} deactiveren? Daarna kun je er niet meer op boeken. Bestaande boekingen blijven staan, en je kunt de rekening later weer activeren.</p>{form}<p>{terug}</p>"
+wow
+
+such deactiveer_bevestig much req:
+    such store = req["ctx"]["store"]
+    such r = rekeningen.zoek(rekeningen.alle(store), req["params"]["nummer"])
+    if r == none:
+        return http.tekst_response(404, "onbekende rekening")
+    return http.html_response(weergave.render("Rekeningen", bevestig_inhoud(r)))
 wow
 
 such deactiveer much req:
     such store = req["ctx"]["store"]
     such nummer = req["params"]["nummer"]
+    if forms.enkel(forms.decode(req["body"]), "bevestig", "") != "ja":
+        return deactiveer_bevestig(req)
     pls
         rekeningen.deactiveer(store, nummer)
+    oh no err!
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+    return http.redirect("/rekeningen")
+wow
+
+such activeer much req:
+    such store = req["ctx"]["store"]
+    pls
+        rekeningen.activeer(store, req["params"]["nummer"])
     oh no err!
         return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
     return http.redirect("/rekeningen")

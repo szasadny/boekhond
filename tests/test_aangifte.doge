@@ -254,13 +254,16 @@ such test_te_doen_tijdvak_post_in_lopend_kwartaal:
 wow
 
 # Eerste post in Q1, Q2 leeg: lege kwartalen na de start van de administratie worden niet
-# overgeslagen; op 19 juli is Q2 dus het te-doen tijdvak.
+# overgeslagen; op 19 juli is het oudste, Q1, het te-doen tijdvak en staat Q2 ook open.
 such test_te_doen_tijdvak_leeg_tussenruimte:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-02-10"))
     such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
     amaze tv[0] == 2026
-    amaze tv[1] == 2
+    amaze tv[1] == 1
+    such open = aangifte.openstaande_tijdvakken(s, "2026-07-19")
+    amaze len(open) == 2
+    amaze open[1]["kwartaal"] == 2
     schoon()
 wow
 
@@ -285,6 +288,82 @@ such test_te_doen_tijdvak_eerder_met_posten:
     such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
     amaze tv[0] == 2026
     amaze tv[1] == 1
+    schoon()
+wow
+
+# Posten sinds Q2-2025, alleen Q3-2026 ingediend, vandaag 2026-10-26: Q2-2025 t/m Q2-2026 staan
+# open en zijn allemaal te laat; het oudste is het te-doen tijdvak.
+such test_openstaande_tijdvakken_achterstallig:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2025-05-15"))
+    journaal.bewaar(s, verkoop21("2026-08-15"))
+    aangifte.dien_in(s, 2026, 3)
+    such verwacht = [[2025, 2, "2025-07-31"], [2025, 3, "2025-10-31"], [2025, 4, "2026-01-31"], [2026, 1, "2026-04-30"], [2026, 2, "2026-07-31"]]
+    such open = aangifte.openstaande_tijdvakken(s, "2026-10-26")
+    amaze len(open) == len(verwacht)
+    such i = 0
+    for v in verwacht:
+        amaze open[i]["jaar"] == v[0]
+        amaze open[i]["kwartaal"] == v[1]
+        amaze open[i]["deadline"] == v[2]
+        amaze open[i]["te_laat"]
+        very i = i + 1
+    such tv = aangifte.te_doen_tijdvak(s, "2026-10-26")
+    amaze tv[0] == 2025 and tv[1] == 2
+    schoon()
+wow
+
+# Het afgelopen kwartaal vóór zijn deadline staat open maar is niet te laat.
+such test_openstaande_tijdvakken_voor_deadline:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-08-15"))
+    such open = aangifte.openstaande_tijdvakken(s, "2026-10-26")
+    amaze len(open) == 1
+    amaze open[0]["jaar"] == 2026 and open[0]["kwartaal"] == 3
+    amaze open[0]["deadline"] == "2026-10-31"
+    amaze not open[0]["te_laat"]
+    schoon()
+wow
+
+# Te laat pas ná de uiterste datum; de deadline-dag zelf is nog op tijd.
+such test_te_laat_grenzen:
+    such gevallen = [[2026, 3, "2026-10-31", false], [2026, 3, "2026-11-01", true], [2025, 4, "2026-01-31", false], [2025, 4, "2026-02-01", true], [2026, 1, "2026-03-31", false]]
+    for g in gevallen:
+        amaze aangifte.te_laat(g[0], g[1], g[2]) == g[3]
+wow
+
+# Zonder posten geen achterstand: alleen het vorige kwartaal (nihil-aangifte), niet te laat.
+such test_openstaande_tijdvakken_zonder_posten:
+    such s = verse_store()
+    such open = aangifte.openstaande_tijdvakken(s, "2026-10-26")
+    amaze len(open) == 1
+    amaze open[0]["jaar"] == 2026 and open[0]["kwartaal"] == 3
+    amaze not open[0]["te_laat"]
+    schoon()
+wow
+
+# Alles met posten ingediend -> niets te doen; het te-doen tijdvak is het lopende kwartaal.
+such test_openstaande_tijdvakken_alles_ingediend:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-08-15"))
+    aangifte.dien_in(s, 2026, 3)
+    amaze len(aangifte.openstaande_tijdvakken(s, "2026-10-26")) == 0
+    such tv = aangifte.te_doen_tijdvak(s, "2026-10-26")
+    amaze tv[0] == 2026 and tv[1] == 4
+    schoon()
+wow
+
+# De doen-checklist noemt elk eerder openstaand tijdvak, met termijn verstreken, maar niet het
+# bekeken tijdvak zelf.
+such test_doen_eerdere_tijdvakken:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2025-05-15"))
+    journaal.bewaar(s, verkoop21("2026-05-15"))
+    such ov = aangifte.overzicht(s, 2026, 2)
+    such uit = aangifte_h.doen_inhoud(s, {"mollie_key": none}, ov, "")
+    amaze "Eerder tijdvak Q2-2025 is nog niet ingediend. Termijn verstreken." in uit
+    amaze "Eerder tijdvak Q1-2026 is nog niet ingediend. Termijn verstreken." in uit
+    amaze "Eerder tijdvak Q2-2026" not in uit
     schoon()
 wow
 
@@ -490,6 +569,38 @@ such test_overzicht_handler_ongeldig_kwartaal_400:
     such s = verse_store()
     such resp = aangifte_h.overzicht({"ctx": {"store": s}, "query": {"j": ["2026"], "kw": ["7"]}})
     amaze resp["status"] == 400
+    schoon()
+wow
+
+such test_dien_in_zonder_bevestiging_vergrendelt_niet:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    such resp = aangifte_h.dien_in({"ctx": {"store": s}, "body": "j=2020&kw=2"})
+    amaze resp["status"] == 200
+    amaze strings.contains(resp["body"], "name=\"bevestig\" value=\"ja\"")
+    amaze len(aangifte.alle(s)) == 0
+    amaze journaal.tijdvak_open(s.laad("aangiften", []), "2020-05-01")
+    schoon()
+wow
+
+such test_dien_in_met_bevestiging_vergrendelt:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    such resp = aangifte_h.dien_in({"ctx": {"store": s}, "body": "j=2020&kw=2&bevestig=ja"})
+    amaze resp["status"] == 303
+    amaze len(aangifte.alle(s)) == 1
+    amaze journaal.tijdvak_open(s.laad("aangiften", []), "2020-05-01") == false
+    schoon()
+wow
+
+such test_dien_in_form_toont_bevestiging_met_saldo:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2020-06-15"))
+    such resp = aangifte_h.dien_in_form({"ctx": {"store": s}, "query": {"j": ["2020"], "kw": ["2"]}})
+    amaze resp["status"] == 200
+    amaze strings.contains(resp["body"], "Saldo: 210")
+    amaze strings.contains(resp["body"], "vergrendeld")
+    amaze len(aangifte.alle(s)) == 0
     schoon()
 wow
 wow

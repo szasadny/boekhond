@@ -1,4 +1,5 @@
 so fetch
+so strings
 so "../app/store/store.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
@@ -332,6 +333,59 @@ such test_detail_toont_regels_bijlagen_en_storno:
     amaze "Gestorneerd door <a href=\"/journaal/j-2\">j-2</a>" in h
     such hs = journaal_h.detail(detail_req(s, "j-2"))["body"]
     amaze "Storno van <a href=\"/journaal/j-1\">j-1</a>" in hs
+    schoon()
+wow
+
+such post_req much s, body:
+    return {"ctx": {"store": s}, "method": "POST", "body": body}
+wow
+
+such aantal much tekst, deel:
+    return len(strings.split(tekst, deel)) - 1
+wow
+
+such test_inkoop_fout_toont_invoer_terug:
+    such s = verse_store()
+    such resp = journaal_h.inkoop(post_req(s, "datum=2026-07-15&leverancier=A%3C%22%26B&omschrijving=bon&bedrag_ex=abc&btw_code=voorbelasting_laag&kosten_rek=4200"))
+    amaze resp["status"] == 400
+    such h = resp["body"]
+    amaze "class=\"fout\"" in h
+    amaze "name=\"leverancier\" type=\"text\" value=\"A&lt;&quot;&amp;B\"" in h
+    amaze "A<\"&B" not in h
+    amaze "name=\"bedrag_ex\" type=\"text\" value=\"abc\"" in h
+    amaze "name=\"datum\" type=\"date\" value=\"2026-07-15\"" in h
+    amaze "<option value=\"voorbelasting_laag\" selected>" in h
+    amaze "<option value=\"4200\" selected>" in h
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_memoriaal_fout_behoudt_alle_regels:
+    such s = verse_store()
+    such rijen = "regel_rekening=4200&regel_debet=10%2C00&regel_credit=&regel_btw=geen_btw&regel_rekening=1600&regel_debet=&regel_credit=9%2C00&regel_btw="
+    for i in range(4):
+        very rijen = rijen + "&regel_rekening=&regel_debet=&regel_credit=&regel_btw="
+    very rijen = rijen + "&regel_rekening=1100&regel_debet=&regel_credit=0%2C50&regel_btw="
+    such body = "datum=2026-07-15&omschrijving=A%3C%22%26B&relatie=&correctie_van=&" + rijen
+    such resp = journaal_h.memoriaal(post_req(s, body))
+    amaze resp["status"] == 400
+    such h = resp["body"]
+    amaze aantal(h, "name=\"regel_rekening\"") == 7
+    amaze "name=\"omschrijving\" type=\"text\" value=\"A&lt;&quot;&amp;B\"" in h
+    amaze "value=\"10,00\"" in h
+    amaze "value=\"9,00\"" in h
+    amaze "value=\"0,50\"" in h
+    amaze "<option value=\"1100\" selected>" in h
+    amaze "<option value=\"1600\" selected>" in h
+    amaze "<option value=\"geen_btw\" selected>" in h
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_memoriaal_leeg_formulier_ongewijzigd:
+    such h = journaal_h.memoriaal_inhoud(verse_store(), "")
+    amaze aantal(h, "name=\"regel_rekening\"") == journaal_h.MEMO_RIJEN
+    amaze aantal(h, " selected>") == aantal(h, "<option value=\"\" selected>")
     schoon()
 wow
 wow

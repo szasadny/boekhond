@@ -93,6 +93,7 @@ such lijst much req:
     such body = ""
     such posten = store.laad("journaal", [])
     such gestorneerd = journaal.storno_index(posten)
+    such terugbetaald = journaal.refund_index(posten)
     for p in posten:
         if not datum.in_kwartaal(p["datum"], j, kw):
             continue
@@ -111,6 +112,9 @@ such lijst much req:
         elif gestorneerd.has(pid):
             such door = gestorneerd[pid]
             very slink = html.escape("gestorneerd door {door}")
+        elif terugbetaald.has(pid):
+            such rid = terugbetaald[pid]
+            very slink = html.escape("terugbetaald via {rid}")
         else:
             very slink = html.link("/journaal/storno?id={pid}", "Storneer")
         very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td class=\"num\">{bedrag}</td><td>{slink}</td></tr>"
@@ -146,6 +150,11 @@ such storno_status much posten, p:
         such door = gestorneerd[pid]
         such l = html.link("/journaal/{door}", door)
         return "Gestorneerd door {l}"
+    such terugbetaald = journaal.refund_index(posten)
+    if terugbetaald.has(pid):
+        such rid = terugbetaald[pid]
+        such l = html.link("/journaal/{rid}", rid)
+        return "Terugbetaald via {l}"
     return html.link("/journaal/storno?id={pid}", "Storneer")
 wow
 
@@ -197,14 +206,14 @@ such detail much req:
     return http.html_response(weergave.render("Journaalpost", detail_inhoud(store, posten, p)))
 wow
 
-such inkoop_inhoud much store, melding:
-    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
-    such vlev = html.veld("leverancier", "Leverancier", "text", "")
-    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
-    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", "")
-    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), "voorbelasting_hoog")
+such inkoop_inhoud much store, melding, invoer = {}:
+    such vd = html.veld("datum", "Datum", "date", forms.enkel(invoer, "datum", datum.vandaag()))
+    such vlev = html.veld("leverancier", "Leverancier", "text", forms.enkel(invoer, "leverancier", ""))
+    such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", forms.enkel(invoer, "bedrag_ex", ""))
+    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), forms.enkel(invoer, "btw_code", "voorbelasting_hoog"))
     such vbtw = "<label>Btw-code {sbtw}</label>"
-    such srek = html.select("kosten_rek", rekening_opties(store), "")
+    such srek = html.select("kosten_rek", rekening_opties(store), forms.enkel(invoer, "kosten_rek", ""))
     such vrek = "<label>Kostenrekening {srek}</label>"
     such form = html.formulier("/journaal/inkoop", "post", [vd, vlev, voms, vbedrag, vbtw, vrek, html.knop("Boeken")])
     such leg = weergave.btw_legenda("inkoop")
@@ -225,17 +234,17 @@ such inkoop much req:
         journaal.bewaar(store, post)
         return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message), v)), 400)
 wow
 
-such bank_inhoud much store, melding:
-    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
-    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
-    such srek = html.select("rekening", rekening_opties(store), "")
+such bank_inhoud much store, melding, invoer = {}:
+    such vd = html.veld("datum", "Datum", "date", forms.enkel(invoer, "datum", datum.vandaag()))
+    such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
+    such srek = html.select("rekening", rekening_opties(store), forms.enkel(invoer, "rekening", ""))
     such vrek = "<label>Rekening {srek}</label>"
-    such vbedrag = html.veld("bedrag", "Bedrag", "text", "")
+    such vbedrag = html.veld("bedrag", "Bedrag", "text", forms.enkel(invoer, "bedrag", ""))
     such kant_opties = [["storting", "storting (geld erin)"], ["onttrekking", "onttrekking (geld eruit)"]]
-    such skant = html.select("kant", kant_opties, "storting")
+    such skant = html.select("kant", kant_opties, forms.enkel(invoer, "kant", "storting"))
     such vkant = "<label>Soort {skant}</label>"
     such form = html.formulier("/journaal/bank", "post", [vd, voms, vrek, vbedrag, vkant, html.knop("Boeken")])
     return "{melding}<h1>Bank/privé boeken</h1>{form}"
@@ -255,25 +264,29 @@ such bank much req:
         journaal.bewaar(store, post)
         return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message), v)), 400)
 wow
 
-such memoriaal_rij much store:
-    such rk = html.select("regel_rekening", rekening_opties(store), "")
-    such db = "<input name=\"regel_debet\" type=\"text\" inputmode=\"decimal\">"
-    such cr = "<input name=\"regel_credit\" type=\"text\" inputmode=\"decimal\">"
-    such bt = html.select("regel_btw", weergave.btw_opties_leeg(), "")
+such memoriaal_rij much store, rek = "", deb = "", cred = "", code = "":
+    such rk = html.select("regel_rekening", rekening_opties(store), rek)
+    such db = "<input name=\"regel_debet\" type=\"text\" inputmode=\"decimal\" value=\"{html.escape(deb)}\">"
+    such cr = "<input name=\"regel_credit\" type=\"text\" inputmode=\"decimal\" value=\"{html.escape(cred)}\">"
+    such bt = html.select("regel_btw", weergave.btw_opties_leeg(), code)
     return "<tr><td>{rk}</td><td>{db}</td><td>{cr}</td><td>{bt}</td></tr>"
 wow
 
-such memoriaal_inhoud much store, melding:
-    such vd = html.veld("datum", "Datum", "date", datum.vandaag())
-    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
-    such vrel = html.veld("relatie", "Relatie", "text", "")
-    such vcor = html.veld("correctie_van", "Correctie van post (id, optioneel)", "text", "")
+such memoriaal_inhoud much store, melding, invoer = {}:
+    such vd = html.veld("datum", "Datum", "date", forms.enkel(invoer, "datum", datum.vandaag()))
+    such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
+    such vrel = html.veld("relatie", "Relatie", "text", forms.enkel(invoer, "relatie", ""))
+    such vcor = html.veld("correctie_van", "Correctie van post (id, optioneel)", "text", forms.enkel(invoer, "correctie_van", ""))
+    such reks = lijst_van(invoer, "regel_rekening")
+    such debs = lijst_van(invoer, "regel_debet")
+    such creds = lijst_van(invoer, "regel_credit")
+    such btws = lijst_van(invoer, "regel_btw")
     such rijen = ""
-    for i in range(MEMO_RIJEN):
-        very rijen = rijen + memoriaal_rij(store)
+    for i in range(len(reks) if len(reks) > MEMO_RIJEN else MEMO_RIJEN):
+        very rijen = rijen + memoriaal_rij(store, element(reks, i), element(debs, i), element(creds, i), element(btws, i))
     such tabel = "<table><thead><tr><th>Rekening</th><th>Debet</th><th>Credit</th><th>Btw-code</th></tr></thead><tbody>{rijen}</tbody></table>"
     such knop = html.knop("Boeken")
     such form = "<form action=\"/journaal/memoriaal\" method=\"post\">{vd}{voms}{vrel}{vcor}{tabel}{knop}</form>"
@@ -321,7 +334,7 @@ such memoriaal much req:
         journaal.bewaar(store, post)
         return http.redirect(tijdvak_url(post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message), v)), 400)
 wow
 
 such storno_inhoud much store, post_id, melding:

@@ -129,6 +129,19 @@ such weiger much store, soort, id, vv, geweigerd:
     geweigerd.append("{id} ({vv})")
 wow
 
+# Een weigering van bewaar (bv. inactieve rekening) mag de rest van de batch niet blokkeren.
+such probeer_bewaar much store, post, soort, id, mislukt:
+    pls
+        journaal.bewaar(store, post)
+        return true
+    oh no err!
+        if err.type != "Bonk":
+            bonk err
+        store.audit("mollie-mislukt", soort, id, {"reden": err.message})
+        mislukt.append("{id} ({err.message})")
+        return false
+wow
+
 # Ingediend tijdvak is op slot (Hard Rule 3): boek als correctie in het open tijdvak van vandaag.
 such verschuif much post, soort:
     such orig = post["datum"]
@@ -148,6 +161,7 @@ such boek_betalingen much store, betalingen:
     such verschoven = []
     such vergrendeld = []
     such geweigerd = []
+    such mislukt = []
     for b in betalingen:
         such pid = b["id"]
         if b["status"] != "paid" or gezien.contains(pid):
@@ -157,27 +171,52 @@ such boek_betalingen much store, betalingen:
         if vv != none:
             weiger(store, "mollie-payment", pid, vv, geweigerd)
             continue
+        # Een betaling van 0,00 (bv. mandaat-eerste-betaling) heeft geen omzet en dus geen post.
+        if dec(b["amount"]["value"]) == dec("0"):
+            very overgeslagen = overgeslagen + 1
+            continue
         such post = betaling_naar_post(b)
+        such verschuift = false
         if not journaal.tijdvak_open(aangiften, post["datum"]):
             if not journaal.tijdvak_open(aangiften, datum.vandaag()):
                 vergrendeld.append(pid)
                 continue
             verschuif(post, "betaald")
+            very verschuift = true
+        if not probeer_bewaar(store, post, "mollie-payment", pid, mislukt):
+            continue
+        if verschuift:
             verschoven.append(pid)
-        journaal.bewaar(store, post)
         gezien.append(pid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "mislukt": mislukt}
+wow
+
+such betaal_index much posten:
+    such idx = {}
+    for p in posten:
+        if p.has("mollie_payment_id") and p["mollie_payment_id"] != none:
+            idx[p["mollie_payment_id"]] = p["id"]
+    return idx
+wow
+
+# De link zit op de refund-post, zodat de betaal-post in een ingediend tijdvak onaangeroerd blijft (Hard Rule 3).
+such koppel_betaling much post, refund, betaal_posten:
+    if refund.has("paymentId") and betaal_posten.has(refund["paymentId"]):
+        post["refund_van"] = betaal_posten[refund["paymentId"]]
+    return post
 wow
 
 such boek_refund_lijst much store, refunds:
     such gezien = journaal.geboekte_sleutels(store, "mollie_refund_id")
+    such betaal_posten = betaal_index(store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
     such geboekt = 0
     such overgeslagen = 0
     such verschoven = []
     such vergrendeld = []
     such geweigerd = []
+    such mislukt = []
     for r in refunds:
         such rid = r["id"]
         if r["status"] != "refunded" or gezien.contains(rid):
@@ -188,16 +227,21 @@ such boek_refund_lijst much store, refunds:
             weiger(store, "mollie-refund", rid, vv, geweigerd)
             continue
         such post = refund_naar_post(r)
+        koppel_betaling(post, r, betaal_posten)
+        such verschuift = false
         if not journaal.tijdvak_open(aangiften, post["datum"]):
             if not journaal.tijdvak_open(aangiften, datum.vandaag()):
                 vergrendeld.append(rid)
                 continue
             verschuif(post, "terugbetaald")
+            very verschuift = true
+        if not probeer_bewaar(store, post, "mollie-refund", rid, mislukt):
+            continue
+        if verschuift:
             verschoven.append(rid)
-        journaal.bewaar(store, post)
         gezien.append(rid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "mislukt": mislukt}
 wow
 
 # --- Laatste sync (instellingen.dson; alleen weergave, geen filter) ---
@@ -220,6 +264,6 @@ such sync much store, key:
     such pres = boek_betalingen(store, betalingen)
     such rres = boek_refund_lijst(store, haal_refunds(key))
     onthoud_sync(store)
-    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"]}
+    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"], "mislukt": pres["mislukt"] + rres["mislukt"]}
 wow
 wow

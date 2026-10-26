@@ -32,7 +32,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     type                     "activa" | "passiva" | "eigen_vermogen" | "omzet" | "kosten"
                              (allow-list `rekeningen.TYPES`; andere types geweigerd)
     btw_code                 optionele default voor regels op deze rekening
-    actief                   Bool — deactiveren i.p.v. verwijderen (historie)
+    actief                   Bool — deactiveren (en weer activeren) i.p.v. verwijderen (historie)
+                             (systeemrekeningen `rekeningen.SYSTEEM` niet deactiveerbaar)
 
 ─── journaal.dson (List) — dubbel boekhouden (double-entry) ──
   Journaalpost — één transactie; de bron van elke rubriek én de balans
@@ -46,6 +47,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     mollie_payment_id        gezet bij bron "mollie" (betaling) — idempotentie-sleutel (§4.2);
                              geld-been op Bank (1100), omzet 21% -> rubriek 1a
     mollie_refund_id         gezet bij een Mollie-refund-tegenboeking — idempotentie-sleutel (§4.3)
+    refund_van               journaalpost-id van de betaal-post (via `paymentId`), als die al geboekt is;
+                             een post met een geboekte refund weigert `journaal.storneer` (§3.4)
     terugkerend_sleutel      gezet bij bron "terugkerend" — "{sjabloon-id}-{YYYY-MM}",
                              idempotentie-sleutel per sjabloon+maand (§4.2)
     valuta, bedrag_valuta    alleen bij bron "terugkerend" in vreemde valuta: "USD" en het
@@ -75,7 +78,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 ─── terugkerend.dson (List) ──────────────────────────────────
   KostenSjabloon — maandelijkse kosten-generator (vaste abonnementen);
   bedragen zijn instance-data, alleen hier (data/, gitignored), nooit in source
-    id, actief (Bool)         deactiveren i.p.v. verwijderen (Hard Rule 3)
+    id, actief (Bool)         deactiveren (en weer activeren) i.p.v. verwijderen (Hard Rule 3)
     leverancier               vrije tekst
     omschrijving              boekingsomschrijving
     kosten_rek                actieve rekening met type "kosten" (bv. "4000")
@@ -152,7 +155,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 - Inclusieve bedragen (Mollie levert incl) splitsen naar `[ex, btw]` via `btw.splits_incl`
   (`btw = btw_bedrag(ex)`, gelijk aan de aangifte-afleiding); een afrondingsverschil boekt op
   rekening 8900 (Afrondingsverschillen) — afronding blijft in `btw.doge` (Hard Rule 5).
-- Alleen Mollie-bedragen met `amount.currency == "EUR"` worden geboekt; een payment of refund in een andere valuta wordt geweigerd (geen koersconversie), niet als geboekt gemarkeerd en bij elke sync opnieuw gemeld (`geweigerd` + audit-event `mollie-geweigerd`).
+- Alleen Mollie-bedragen met `amount.currency == "EUR"` worden geboekt; een payment of refund in een andere valuta wordt geweigerd (geen koersconversie), niet als geboekt gemarkeerd en bij elke sync opnieuw gemeld (`geweigerd` + audit-event `mollie-geweigerd`). Een betaalde payment van 0,00 (bv. een mandaat-eerste-betaling) heeft geen omzet en wordt overgeslagen. Weigert `journaal.bewaar` een post (bv. een inactieve rekening), dan wordt die payment of refund evenmin als geboekt gemarkeerd, gemeld als `mislukt` + audit-event `mollie-mislukt`, en boekt de rest van de batch gewoon door.
 
 ---
 
@@ -161,8 +164,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 1. Een kwartaaltijdvak (`Q1`..`Q4`) is **open** zolang er geen Aangifte met status `ingediend` voor bestaat; rubrieken worden live berekend uit de journaalposten met `datum` in het tijdvak. Een tijdvak is alleen geldig met kwartaal 1 t/m 4 en een jaar vanaf het jaar van de vroegste journaalpost (uiterlijk vorig jaar, ook zonder posten, voor een nihil-aangifte) t/m volgend jaar; `aangifte.controleer_tijdvak` bewaakt dit voor `dien_in` en voor elke pagina die `j`/`kw` uit query of formulier leest (400 via `weergave.tijdvak_fout`).
 2. De ondernemer neemt de berekende rubrieken over in **Mijn Belastingdienst Zakelijk** (handmatig — geen publieke API; Digipoort is out of scope) en markeert het tijdvak **ingediend** → Aangifte-record met rubrieken-snapshot + `ingediend_op`.
 3. Vanaf dat moment is het tijdvak **vergrendeld** (Hard Rule 3): journaalposten met een datum in een ingediend tijdvak zijn immutable; nieuwe posten kunnen er niet in gedateerd worden.
-4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`) en geboekt via `journaal.storneer`, dat een tweede storno van dezelfde post en een storno van een storno weigert. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het signaal leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het btw-effect per post via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5). Het signaal nettoot de signed effecten per oorspronkelijk ingediend tijdvak en telt de absolute netto bedragen per tijdvak op; tijdvakken netten niet tegen elkaar. Een Mollie-payment of -refund waarvan het eigen tijdvak al ingediend is, boekt `mollie.doge` op vandaag in het open tijdvak met `correctie_van_datum`. Een herboeking na een storno krijgt `correctie_van_datum` via het veld "Correctie van post" op de memoriaalpost: `journaal.markeer_correctie` neemt de datum van die post over en weigert een post buiten een ingediend tijdvak. Storno € 1.500 btw + herboeking € 1.400 telt zo als € 100.
-5. De default voor **te doen** is het meest recente afgelopen, nog niet ingediende kwartaal. Lege kwartalen ná de start van de administratie worden niet overgeslagen; op een clean install is dat het direct voorafgaande kwartaal.
+4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`) en geboekt via `journaal.storneer`, dat een tweede storno van dezelfde post, een storno van een storno en een storno van een Mollie-betaling met een geboekte (ook gedeeltelijke) refund (`refund_van`) weigert, want die refund draait de omzet al terug. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het signaal leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het btw-effect per post via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5). Het signaal nettoot de signed effecten per oorspronkelijk ingediend tijdvak en telt de absolute netto bedragen per tijdvak op; tijdvakken netten niet tegen elkaar. Een Mollie-payment of -refund waarvan het eigen tijdvak al ingediend is, boekt `mollie.doge` op vandaag in het open tijdvak met `correctie_van_datum`. Een herboeking na een storno krijgt `correctie_van_datum` via het veld "Correctie van post" op de memoriaalpost: `journaal.markeer_correctie` neemt de datum van die post over en weigert een post buiten een ingediend tijdvak. Storno € 1.500 btw + herboeking € 1.400 telt zo als € 100.
+5. De default voor **te doen** is het oudste afgelopen, nog niet ingediende kwartaal. Dashboard en doen-pagina noemen alle afgelopen, niet-ingediende kwartalen; een kwartaal is **te laat** na zijn uiterste datum (laatste dag van de maand na het tijdvak). Lege kwartalen ná de start van de administratie worden niet overgeslagen; op een clean install is dat het direct voorafgaande kwartaal.
 
 ---
 

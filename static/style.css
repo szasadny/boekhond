@@ -286,6 +286,12 @@ form.inline button {
     color: #6b4a12;
 }
 
+.banner.te-laat {
+    background: #fdecee;
+    border-color: var(--fout);
+    color: var(--fout);
+}
+
 /* Overzicht-grafiekjes: responsive grid van CSS-staafgrafieken (geen JS). */
 .grafieken {
     display: grid;

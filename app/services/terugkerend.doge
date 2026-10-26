@@ -95,6 +95,20 @@ such deactiveer much store, id:
     store.commit("terugkerend", lijst, "gedeactiveerd", "kostensjabloon", id, s)
 wow
 
+# Geen dubbele boeking na heractiveren: genereer slaat een al geboekte sjabloon+maand over.
+such activeer much store, id:
+    such lijst = store.laad("terugkerend", [])
+    such s = zoek(lijst, id)
+    if s == none:
+        bonk "onbekend kostensjabloon: {id}"
+    such rek = rekeningen.zoek(rekeningen.alle(store), s["kosten_rek"])
+    if rek == none or not rek["actief"]:
+        such nr = s["kosten_rek"]
+        bonk "kostenrekening {nr} is inactief, activeer die eerst"
+    s["actief"] = true
+    store.commit("terugkerend", lijst, "geactiveerd", "kostensjabloon", id, s)
+wow
+
 # Boek de kostenpost van de huidige maand voor elk actief sjabloon dat aan de beurt is:
 # op/na zijn dag, niet vóór zijn vanaf-maand, en nog niet geboekt deze maand. Alleen de
 # lopende maand (geen backfill van gemiste maanden). Getriggerd door de knop en de

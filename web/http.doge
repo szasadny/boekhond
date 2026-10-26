@@ -131,8 +131,8 @@ such bouw_response much resp:
     return bytes(kop + CRLF) + body_bytes
 wow
 
-such html_response much body:
-    return {"status": 200, "headers": {"Content-Type": HTML}, "body": body}
+such html_response much body, status = 200:
+    return {"status": status, "headers": {"Content-Type": HTML}, "body": body}
 wow
 
 such tekst_response much status, body:

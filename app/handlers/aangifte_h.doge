@@ -180,7 +180,7 @@ such overzicht_inhoud much ov, melding:
         such kn = html.knop("Markeer ingediend")
         such vj = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
         such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
-        very actie = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{kn}</form>"
+        very actie = "<form action=\"/aangifte/dien-in\" method=\"get\">{vj}{vkw}{kn}</form>"
     such csvhref = "/aangifte/export.csv?j={j}&kw={kw}"
     such printhref = "/aangifte/print?j={j}&kw={kw}"
     such lcsv = html.link(csvhref, "CSV")
@@ -205,6 +205,40 @@ such overzicht much req:
     return http.html_response(weergave.render("Aangifte", overzicht_inhoud(ov, ""), "breed"))
 wow
 
+such bevestig_inhoud much ov:
+    such j = ov["jaar"]
+    such kw = ov["kwartaal"]
+    such r5a = ov["5a"]
+    such r5b = ov["5b"]
+    such saldo = ov["saldo"]
+    such cijfers = "<p>5a verschuldigd: {r5a}. 5b voorbelasting: {r5b}. Saldo: {saldo}.</p>"
+    such vj = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
+    such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
+    such vb = "<input type=\"hidden\" name=\"bevestig\" value=\"ja\">"
+    such kn = html.knop("Q{kw}-{j} definitief markeren als ingediend")
+    such form = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{vb}{kn}</form>"
+    such terug = html.link("/aangifte?j={j}&kw={kw}", "Annuleren")
+    such waarschuwing = "<p class=\"banner\">Daarna is het tijdvak definitief vergrendeld: posten in Q{kw}-{j} kun je niet meer wijzigen of toevoegen. Een correctie gaat dan alleen nog via een storno in een open tijdvak. Markeer pas als je de aangifte in Mijn Belastingdienst Zakelijk hebt ingediend.</p>"
+    return "<h1>Aangifte Q{kw}-{j} markeren als ingediend</h1>{waarschuwing}{cijfers}{form}<p>{terug}</p>"
+wow
+
+such dien_in_bevestig much store, j, kw:
+    such ov = aangifte.overzicht(store, j, kw)
+    if ov["status"] == "ingediend":
+        return http.redirect("/aangifte?j={j}&kw={kw}")
+    return http.html_response(weergave.render("Aangifte", bevestig_inhoud(ov)))
+wow
+
+such dien_in_form much req:
+    such store = req["ctx"]["store"]
+    such j = forms.geheel(req["query"], "j", 0)
+    such kw = forms.geheel(req["query"], "kw", 0)
+    such fout = weergave.tijdvak_fout(store, j, kw)
+    if fout != none:
+        return fout
+    return dien_in_bevestig(store, j, kw)
+wow
+
 such dien_in much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
@@ -213,6 +247,8 @@ such dien_in much req:
     such fout = weergave.tijdvak_fout(store, j, kw)
     if fout != none:
         return fout
+    if forms.enkel(v, "bevestig", "") != "ja":
+        return dien_in_bevestig(store, j, kw)
     pls
         aangifte.dien_in(store, j, kw)
         such loc = "/aangifte?j={j}&kw={kw}"
@@ -329,15 +365,14 @@ such doen_inhoud much store, cfg, ov, melding:
     else:
         such inboxlink = html.link("/inbox", "Naar inbox")
         very items = items + "<li>{inboxn} ongekoppelde bewijzen in de inbox. {inboxlink}</li>"
-    such te = aangifte.te_doen_tijdvak(store, datum.vandaag())
-    such eerder = te[0] < j or (te[0] == j and te[1] < kw)
-    if eerder:
-        such tj = te[0]
-        such tkw = te[1]
-        such tehref = "/aangifte/doen?j={tj}&kw={tkw}"
-        such telabel = "Naar Q{tkw}-{tj}"
-        such tlink = html.link(tehref, telabel)
-        very items = items + "<li>Eerder tijdvak Q{tkw}-{tj} is nog niet ingediend. {tlink}</li>"
+    for t in aangifte.openstaande_tijdvakken(store, datum.vandaag()):
+        such tj = t["jaar"]
+        such tkw = t["kwartaal"]
+        if tj < j or (tj == j and tkw < kw):
+            such tehref = "/aangifte/doen?j={tj}&kw={tkw}"
+            such tlink = html.link(tehref, "Naar Q{tkw}-{tj}")
+            such status = " Termijn verstreken." if t["te_laat"] else ""
+            very items = items + "<li>Eerder tijdvak Q{tkw}-{tj} is nog niet ingediend.{status} {tlink}</li>"
     such checklist = "<ul>{items}</ul>"
     such ban = banners(ov)
     such prive = ""
@@ -354,6 +389,9 @@ such doen_inhoud much store, cfg, ov, melding:
     such ptabel = html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3])
     such saldo = ov["saldo"]
     such dl = aangifte.deadline(j, kw)
+    such verstreken = ""
+    if ov["status"] != "ingediend" and aangifte.te_laat(j, kw, datum.vandaag()):
+        very verstreken = " <strong class=\"fout\">Termijn verstreken.</strong>"
     such actie = ""
     if ov["status"] == "ingediend":
         such op = html.escape(ov["ingediend_op"])
@@ -362,11 +400,11 @@ such doen_inhoud much store, cfg, ov, melding:
         such vj = "<input type=\"hidden\" name=\"j\" value=\"{j}\">"
         such vkw = "<input type=\"hidden\" name=\"kw\" value=\"{kw}\">"
         such kn = html.knop("Markeer ingediend")
-        very actie = "<form action=\"/aangifte/dien-in\" method=\"post\">{vj}{vkw}{kn}</form>"
+        very actie = "<form action=\"/aangifte/dien-in\" method=\"get\">{vj}{vkw}{kn}</form>"
     such concl = html.escape(conclusie(saldo))
     such uhref = "/aangifte?j={j}&kw={kw}#uitleg"
     such ulink = html.link(uhref, "Hoe komt dit saldo tot stand?")
-    such indien = "<p>Saldo: {saldo} (positief = te betalen, negatief = terug te vragen). {concl} {ulink}</p><p>Uiterste indien- en betaaldatum: {dl}. Het betalingskenmerk vind je in Mijn Belastingdienst Zakelijk.</p>{actie}"
+    such indien = "<p>Saldo: {saldo} (positief = te betalen, negatief = terug te vragen). {concl} {ulink}</p><p>Uiterste indien- en betaaldatum: {dl}.{verstreken} Het betalingskenmerk vind je in Mijn Belastingdienst Zakelijk.</p>{actie}"
     such kop = "<h2>2. Over te typen in Mijn Belastingdienst Zakelijk</h2><p>Neem elk veld exact over; lege velden vul je in met 0.</p>"
     return "{melding}<h1>Aangifte doen Q{kw}-{j}</h1><h2>1. Controleer</h2>{checklist}{prive}{ban}{kop}{ptabel}<h2>3. Indienen</h2>{indien}"
 wow

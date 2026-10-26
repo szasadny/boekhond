@@ -5,8 +5,9 @@ so "../services/rapporten.doge"
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 so weergave
+so strings
 
-# Overzichtspagina: het te-doen tijdvak (meest recente afgelopen, nog niet ingediende kwartaal)
+# Overzichtspagina: het te-doen tijdvak (oudste afgelopen, nog niet ingediende kwartaal)
 # met live-berekende rubrieken + saldo + indien-deadline, een reeks CSS-staafgrafiekjes en de
 # laatst geboekte posten.
 
@@ -38,6 +39,31 @@ such staaf_rijen much paren:
     return rijen
 wow
 
+such openstaand_banner much lijst:
+    if len(lijst) == 0:
+        return ""
+    such eerste = lijst[0]
+    such j = eerste["jaar"]
+    such kw = eerste["kwartaal"]
+    such dl = eerste["deadline"]
+    such klasse = "banner"
+    such status = ""
+    if eerste["te_laat"]:
+        very klasse = "banner te-laat"
+        very status = " Termijn verstreken."
+    such lb = html.link("/aangifte", "Naar aangifte")
+    such overig = ""
+    if len(lijst) > 1:
+        such labels = []
+        for t in lijst[1:]:
+            such tj = t["jaar"]
+            such tkw = t["kwartaal"]
+            labels.append("Q{tkw}-{tj}")
+        such lt = strings.join(labels, ", ")
+        very overig = " Ook nog niet ingediend: {lt}."
+    return "<p class=\"{klasse}\">Aangifte Q{kw}-{j} nog indienen, uiterlijk {dl}.{status}{overig} {lb}</p>"
+wow
+
 such home much req:
     such store = req["ctx"]["store"]
     such vandaag = datum.vandaag()
@@ -46,14 +72,7 @@ such home much req:
     such kw = tv[1]
     such posten = store.laad("journaal", [])
     such dl = aangifte.deadline(j, kw)
-    such aangiften = store.laad("aangiften", [])
-    such grenzen = datum.kwartaal_grenzen(j, kw)
-    such afgelopen = datum.sleutel(grenzen[1]) < datum.sleutel(vandaag)
-    such tedoen = afgelopen and not aangifte.is_ingediend(aangiften, j, kw)
-    such banner = ""
-    if tedoen:
-        such lb = html.link("/aangifte", "Naar aangifte")
-        very banner = "<p class=\"banner\">Aangifte Q{kw}-{j} nog indienen, uiterlijk {dl}. {lb}</p>"
+    such banner = openstaand_banner(aangifte.openstaande_tijdvakken(store, vandaag))
     such deadlineregel = "<p>Uiterste indiendatum: {dl}</p>"
     such opm = rapporten.omzet_per_maand(store, j)
     such omzetparen = []

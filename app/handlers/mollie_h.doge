@@ -53,7 +53,7 @@ such sync much req:
         if key == none:
             bonk "geen MOLLIE_API_KEY geconfigureerd"
         such res = mollie.sync(store, key)
-        if len(res["verschoven"]) == 0 and len(res["vergrendeld"]) == 0 and len(res["geweigerd"]) == 0:
+        if len(res["verschoven"]) == 0 and len(res["vergrendeld"]) == 0 and len(res["geweigerd"]) == 0 and len(res["mislukt"]) == 0:
             return http.redirect("/mollie")
         such m = ""
         if len(res["verschoven"]) > 0:
@@ -65,6 +65,9 @@ such sync much req:
         if len(res["geweigerd"]) > 0:
             such gw = strings.join(res["geweigerd"], ", ")
             very m = m + weergave.fout("Niet geboekt, bedrag niet in EUR: {gw}.")
+        if len(res["mislukt"]) > 0:
+            such ml = strings.join(res["mislukt"], ", ")
+            very m = m + weergave.fout("Niet geboekt, post geweigerd: {ml}.")
         return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
     oh no err!
         such m = weergave.fout(err.message)

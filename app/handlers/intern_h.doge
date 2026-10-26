@@ -35,6 +35,8 @@ such run_recurring much req:
                 very mt = mt + ", vergrendeld: " + strings.join(mr["vergrendeld"], ", ")
             if len(mr["geweigerd"]) > 0:
                 very mt = mt + ", geweigerd (geen EUR): " + strings.join(mr["geweigerd"], ", ")
+            if len(mr["mislukt"]) > 0:
+                very mt = mt + ", mislukt: " + strings.join(mr["mislukt"], ", ")
             regels.append(mt)
         oh no err!
             regels.append("mollie fout: {err.message}")

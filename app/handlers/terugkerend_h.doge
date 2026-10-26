@@ -36,18 +36,18 @@ such koersbron_van much cfg:
     return none
 wow
 
-such toevoeg_formulier much store:
-    such vlev = html.veld("leverancier", "Leverancier", "text", "")
-    such voms = html.veld("omschrijving", "Omschrijving", "text", "")
-    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw (in gekozen valuta)", "text", "")
-    such sval = html.select("valuta", valuta_opties(), "EUR")
+such toevoeg_formulier much store, invoer = {}:
+    such vlev = html.veld("leverancier", "Leverancier", "text", forms.enkel(invoer, "leverancier", ""))
+    such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw (in gekozen valuta)", "text", forms.enkel(invoer, "bedrag_ex", ""))
+    such sval = html.select("valuta", valuta_opties(), forms.enkel(invoer, "valuta", "EUR"))
     such vval = "<label>Valuta {sval}</label>"
-    such srek = html.select("kosten_rek", kosten_opties(store), "")
+    such srek = html.select("kosten_rek", kosten_opties(store), forms.enkel(invoer, "kosten_rek", ""))
     such vrek = "<label>Kostenrekening {srek}</label>"
-    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), "import_buiten_eu")
+    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), forms.enkel(invoer, "btw_code", "import_buiten_eu"))
     such vbtw = "<label>Btw-code {sbtw}</label>"
-    such vdag = html.veld("dag", "Dag van de maand (1-28)", "number", "1")
-    such vvanaf = html.veld("vanaf", "Vanaf (maand)", "month", datum.vandaag()[0:7])
+    such vdag = html.veld("dag", "Dag van de maand (1-28)", "number", forms.enkel(invoer, "dag", "1"))
+    such vvanaf = html.veld("vanaf", "Vanaf (maand)", "month", forms.enkel(invoer, "vanaf", datum.vandaag()[0:7]))
     return html.formulier("/terugkerend", "post", [vlev, voms, vbedrag, vval, vrek, vbtw, vdag, vvanaf, html.knop("Toevoegen")])
 wow
 
@@ -61,22 +61,25 @@ such rij much s:
     such code = html.escape(btw.label(s["btw_code"]))
     such dag = html.escape(s["dag"])
     such vanaf = html.escape(s["vanaf"])
-    such actie = "inactief"
+    such id = html.escape(s["id"])
+    such actie = ""
     if s["actief"]:
-        such id = html.escape(s["id"])
         such knop = html.knop("Deactiveren")
-        very actie = "<form action=\"/terugkerend/{id}/deactiveer\" method=\"post\" class=\"inline\">{knop}</form>"
+        very actie = "<form action=\"/terugkerend/{id}/deactiveer\" method=\"get\" class=\"inline\">{knop}</form>"
+    else:
+        such knop2 = html.knop("Activeren")
+        very actie = "inactief <form action=\"/terugkerend/{id}/activeer\" method=\"post\" class=\"inline\">{knop2}</form>"
     return "<tr><td>{lev}</td><td>{oms}</td><td class=\"num\">{bedrag}</td><td>{rek}</td><td>{code}</td><td class=\"num\">{dag}</td><td>{vanaf}</td><td>{actie}</td></tr>"
 wow
 
-such inhoud_van much store, melding:
+such inhoud_van much store, melding, invoer = {}:
     such body = ""
     for s in terugkerend.alle(store):
         very body = body + rij(s)
     such tabel = "<table><thead><tr><th>Leverancier</th><th>Omschrijving</th><th class=\"num\">Bedrag ex</th><th>Rekening</th><th>Btw-code</th><th class=\"num\">Dag</th><th>Vanaf</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such gk = html.knop("Genereer nu")
     such genform = "<form action=\"/terugkerend/genereer\" method=\"post\">{gk}</form>"
-    such form = toevoeg_formulier(store)
+    such form = toevoeg_formulier(store, invoer)
     such leg = weergave.btw_legenda("inkoop")
     such hint = "<p>Dollarbedragen worden bij het boeken omgerekend met de actuele Wise-koers. Koers en dollarbedrag worden bij de journaalpost bewaard.</p>"
     return "{melding}<h1>Terugkerende kosten</h1>{tabel}{genform}<h2>Nieuw sjabloon</h2>{hint}{form}{leg}"
@@ -95,14 +98,44 @@ such toevoegen much req:
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!
-        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message), v)), 400)
+wow
+
+such bevestig_inhoud much s:
+    such id = html.escape(s["id"])
+    such lev = html.escape(s["leverancier"])
+    such oms = html.escape(s["omschrijving"])
+    such vb = "<input type=\"hidden\" name=\"bevestig\" value=\"ja\">"
+    such knop = html.knop("Sjabloon deactiveren")
+    such terug = html.link("/terugkerend", "Annuleren")
+    such form = "<form action=\"/terugkerend/{id}/deactiveer\" method=\"post\">{vb}{knop}</form>"
+    return "<h1>Kostensjabloon deactiveren</h1><p>Sjabloon {lev}: {oms} deactiveren? Er worden dan geen nieuwe maandposten meer geboekt. Bestaande posten blijven staan, en je kunt het sjabloon later weer activeren.</p>{form}<p>{terug}</p>"
+wow
+
+such deactiveer_bevestig much req:
+    such store = req["ctx"]["store"]
+    such s = terugkerend.zoek(terugkerend.alle(store), req["params"]["id"])
+    if s == none:
+        return http.tekst_response(404, "onbekend kostensjabloon")
+    return http.html_response(weergave.render("Kosten", bevestig_inhoud(s)))
 wow
 
 such deactiveer much req:
     such store = req["ctx"]["store"]
     such id = req["params"]["id"]
+    if forms.enkel(forms.decode(req["body"]), "bevestig", "") != "ja":
+        return deactiveer_bevestig(req)
     pls
         terugkerend.deactiveer(store, id)
+    oh no err!
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+    return http.redirect("/terugkerend")
+wow
+
+such activeer much req:
+    such store = req["ctx"]["store"]
+    pls
+        terugkerend.activeer(store, req["params"]["id"])
     oh no err!
         return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
     return http.redirect("/terugkerend")

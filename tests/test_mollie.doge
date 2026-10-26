@@ -253,6 +253,46 @@ such test_gemengde_batch_boekt_eur:
     schoon()
 wow
 
+# Direct via de store: deactiveer weigert een systeemrekening.
+such zet_actief much s, nummer, actief:
+    such lijst = s.laad("rekeningen", [])
+    rekeningen.zoek(lijst, nummer)["actief"] = actief
+    s.bewaar("rekeningen", lijst)
+wow
+
+such test_geweigerde_post_blokkeert_batch_niet:
+    such s = verse_store()
+    zet_actief(s, "8000", false)
+    such lijst = [betaling("tr_1", "12.10"), betaling("tr_2", "24.20")]
+    such res = mollie.boek_betalingen(s, lijst)
+    amaze res["geboekt"] == 0
+    amaze res["mislukt"] == ["tr_1 (rekening is inactief: 8000)", "tr_2 (rekening is inactief: 8000)"]
+    amaze len(audit_regels("mollie-mislukt")) == 2
+    zet_actief(s, "8000", true)
+    such opnieuw = mollie.boek_betalingen(s, lijst)
+    amaze opnieuw["geboekt"] == 2
+    amaze opnieuw["mislukt"] == []
+    such nul = refund_sample("re_0")
+    nul["amount"] = {"value": "0.00", "currency": "EUR"}
+    such rres = mollie.boek_refund_lijst(s, [nul, refund_sample("re_1")])
+    amaze rres["geboekt"] == 1
+    amaze rres["mislukt"] == ["re_0 (een journaalpost moet een bedrag groter dan nul hebben)"]
+    such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze r["rubrieken"]["1a"]["bedrag"] == 20
+    amaze r["rubrieken"]["1a"]["btw"] == 4
+    schoon()
+wow
+
+such test_betaling_van_nul_overgeslagen:
+    such s = verse_store()
+    such res = mollie.boek_betalingen(s, [betaling("tr_0", "0.00"), betaling("tr_1", "12.10")])
+    amaze res["geboekt"] == 1
+    amaze res["overgeslagen"] == 1
+    amaze res["mislukt"] == []
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
 so NEP_PAGINAS = {"p1": {"_embedded": {"payments": [{"id": "tr_3"}, {"id": "tr_2"}]}, "_links": {"next": {"href": "p2"}}}, "p2": {"_embedded": {"payments": [{"id": "tr_1"}]}, "_links": {"next": none}}, "lus": {"_embedded": {"payments": []}, "_links": {"next": {"href": "lus"}}}}
 
 such nep_mollie much key, url:
@@ -282,5 +322,74 @@ such test_haal_alle_paginacap_bonkt:
     oh no err!
         very gebonkt = "200 pagina" in err.message
     amaze gebonkt
+wow
+
+such post_met much s, veld, waarde:
+    for p in s.laad("journaal", []):
+        if p.has(veld) and p[veld] == waarde:
+            return p
+    return none
+wow
+
+such storno_fout much s, post_id:
+    such fout = ""
+    pls
+        journaal.storneer(s, post_id, "2026-07-25")
+    oh no err!
+        very fout = err.message
+    return fout
+wow
+
+such test_refund_post_linkt_betaal_post:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such r = refund_sample("re_1")
+    r["paymentId"] = "tr_1"
+    mollie.boek_refund_lijst(s, [r])
+    such bp = post_met(s, "mollie_payment_id", "tr_1")
+    such rp = post_met(s, "mollie_refund_id", "re_1")
+    amaze rp["refund_van"] == bp["id"]
+    amaze not bp.has("refund_van")
+    schoon()
+wow
+
+such test_terugbetaalde_post_niet_storneerbaar:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such r = refund_sample("re_1")
+    r["paymentId"] = "tr_1"
+    mollie.boek_refund_lijst(s, [r])
+    such bp = post_met(s, "mollie_payment_id", "tr_1")
+    such rp = post_met(s, "mollie_refund_id", "re_1")
+    such fout = storno_fout(s, bp["id"])
+    amaze fout == "post {bp["id"]} is al deels of geheel terugbetaald via refund-post {rp["id"]} en kan niet gestorneerd worden"
+    amaze len(s.laad("journaal", [])) == 2
+    such rub = btw.rubrieken(s.laad("journaal", []), 2026, 3)
+    amaze rub["rubrieken"]["1a"]["bedrag"] == 0
+    schoon()
+wow
+
+# Elke geboekte refund blokkeert, ook een gedeeltelijke: de rest corrigeer je met een memoriaalpost.
+such test_deels_terugbetaalde_post_niet_storneerbaar:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "121.00")])
+    such r = refund_sample("re_1")
+    r["paymentId"] = "tr_1"
+    mollie.boek_refund_lijst(s, [r])
+    such bp = post_met(s, "mollie_payment_id", "tr_1")
+    amaze "terugbetaald" in storno_fout(s, bp["id"])
+    schoon()
+wow
+
+such test_mollie_post_zonder_refund_storneerbaar:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10"), betaling("tr_2", "12.10")])
+    such r = refund_sample("re_1")
+    r["paymentId"] = "tr_1"
+    mollie.boek_refund_lijst(s, [r])
+    such bp = post_met(s, "mollie_payment_id", "tr_2")
+    amaze storno_fout(s, bp["id"]) == ""
+    amaze post_met(s, "storno_van", bp["id"]) != none
+    schoon()
 wow
 wow

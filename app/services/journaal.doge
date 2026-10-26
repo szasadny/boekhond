@@ -240,6 +240,15 @@ such storno_index much lijst:
     return idx
 wow
 
+# Een Mollie-refund draait de omzet al terug; een storno erbovenop zou die dubbel terugdraaien.
+such refund_index much lijst:
+    such idx = {}
+    for p in lijst:
+        if p.has("refund_van") and p["refund_van"] != none:
+            idx[p["refund_van"]] = p["id"]
+    return idx
+wow
+
 # Een storno corrigeer je met een nieuwe post, niet met een storno van de storno.
 such storno_weigering much lijst, post:
     such pid = post["id"]
@@ -250,6 +259,10 @@ such storno_weigering much lijst, post:
     if idx.has(pid):
         such sid = idx[pid]
         return "post {pid} is al gestorneerd door {sid}"
+    such refunds = refund_index(lijst)
+    if refunds.has(pid):
+        such rid = refunds[pid]
+        return "post {pid} is al deels of geheel terugbetaald via refund-post {rid} en kan niet gestorneerd worden"
     return ""
 wow
 

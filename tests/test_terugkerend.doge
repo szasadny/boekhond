@@ -1,9 +1,11 @@
 so fetch
+so strings
 so "../app/store/store.doge"
 so "../app/services/terugkerend.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
+so "../app/handlers/terugkerend_h.doge"
 
 so TMPMAP = "tmp_test_terugkerend"
 
@@ -241,6 +243,51 @@ such test_validatie_soort_en_rekeningtype:
             very melding = err.message
         amaze melding == g[2], g[2]
         amaze len(s.laad("terugkerend", [])) == 0
+    schoon()
+wow
+
+such test_heractiveren_boekt_niet_dubbel:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    amaze terugkerend.genereer(s, "2026-07-15", none)["geboekt"] == 1
+    terugkerend.deactiveer(s, sj["id"])
+    terugkerend.activeer(s, sj["id"])
+    amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == true
+    amaze terugkerend.genereer(s, "2026-07-20", none)["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 1
+    amaze terugkerend.genereer(s, "2026-08-01", none)["geboekt"] == 1
+    such audit = s.laad_audit()
+    amaze strings.contains(audit, "gedeactiveerd")
+    amaze strings.contains(audit, "geactiveerd")
+    schoon()
+wow
+
+such test_activeer_weigert_bij_inactieve_kostenrekening:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    terugkerend.deactiveer(s, sj["id"])
+    rekeningen.deactiveer(s, "4000")
+    such gevangen = false
+    pls
+        terugkerend.activeer(s, sj["id"])
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == false
+    schoon()
+wow
+
+such test_deactiveer_handler_vraagt_bevestiging:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    such req = {"ctx": {"store": s}, "params": {"id": sj["id"]}, "body": ""}
+    amaze terugkerend_h.deactiveer(req)["status"] == 200
+    amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == true
+    req["body"] = "bevestig=ja"
+    amaze terugkerend_h.deactiveer(req)["status"] == 303
+    amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == false
+    amaze terugkerend_h.activeer(req)["status"] == 303
+    amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == true
     schoon()
 wow
 wow

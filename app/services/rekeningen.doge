@@ -11,6 +11,10 @@ so REK_AF_TE_DRAGEN = "1510"
 so REK_VOORBELASTING = "1520"
 so REK_CREDITEUREN = "1600"
 so REK_AFRONDING = "8900"
+so REK_OMZET_HOOG = "8000"
+
+# De app boekt hier zelf op (sjabloonflows, Mollie, privégebruik); inactief zou die flows breken.
+so SYSTEEM = [REK_PRIVE, REK_BANK, REK_AF_TE_DRAGEN, REK_VOORBELASTING, REK_CREDITEUREN, REK_AFRONDING, REK_OMZET_HOOG]
 
 # Standaardschema voor een NL-eenmanszaak (RGS-geïnspireerd). Bij eerste boot
 # geseed; uitbreidbaar via de UI. nummer is uniek en onwijzigbaar.
@@ -82,7 +86,18 @@ such deactiveer much store, nummer:
     such r = zoek(lijst, nummer)
     if r == none:
         bonk "onbekende rekening: {nummer}"
+    if SYSTEEM.contains(nummer):
+        bonk "rekening {nummer} kan niet gedeactiveerd worden: de app boekt hier zelf op"
     r["actief"] = false
     store.commit("rekeningen", lijst, "gedeactiveerd", "rekening", nummer, r)
+wow
+
+such activeer much store, nummer:
+    such lijst = store.laad("rekeningen", [])
+    such r = zoek(lijst, nummer)
+    if r == none:
+        bonk "onbekende rekening: {nummer}"
+    r["actief"] = true
+    store.commit("rekeningen", lijst, "geactiveerd", "rekening", nummer, r)
 wow
 wow

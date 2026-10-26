@@ -1,6 +1,8 @@
 so fetch
+so strings
 so "../app/store/store.doge"
 so "../app/services/rekeningen.doge"
+so "../app/handlers/rekeningen_h.doge"
 
 so TMPMAP = "tmp_test_rekeningen"
 
@@ -78,6 +80,21 @@ such test_deactiveer:
     schoon()
 wow
 
+such test_deactiveer_systeemrekening_geweigerd:
+    for nummer in ["0900", "1100", "1510", "1520", "1600", "8000", "8900"]:
+        schoon()
+        such s = store.Store(TMPMAP)
+        rekeningen.seed(s)
+        such melding = ""
+        pls
+            rekeningen.deactiveer(s, nummer)
+        oh no err!
+            very melding = err.message
+        amaze melding == "rekening {nummer} kan niet gedeactiveerd worden: de app boekt hier zelf op", nummer
+        amaze rekeningen.zoek(rekeningen.alle(s), nummer)["actief"], nummer
+    schoon()
+wow
+
 such test_voeg_toe_weigert_type_en_leeg_nummer:
     such gevallen = [
         [{"nummer": "4700", "naam": "Raar", "type": "hacker", "btw_code": none}, "onbekend rekeningtype: hacker"],
@@ -96,5 +113,55 @@ such test_voeg_toe_weigert_type_en_leeg_nummer:
         amaze melding == g[1], g[1]
         amaze len(rekeningen.alle(s)) == len(rekeningen.STANDAARD)
     schoon()
+wow
+
+such test_deactiveer_activeer_roundtrip_met_audit:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    rekeningen.deactiveer(s, "4200")
+    amaze rekeningen.zoek(rekeningen.alle(s), "4200")["actief"] == false
+    rekeningen.activeer(s, "4200")
+    amaze rekeningen.zoek(rekeningen.alle(s), "4200")["actief"] == true
+    such audit = s.laad_audit()
+    amaze strings.contains(audit, "gedeactiveerd")
+    amaze strings.contains(audit, "geactiveerd")
+    schoon()
+wow
+
+such test_activeer_onbekende_rekening_weigert:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such gevangen = false
+    pls
+        rekeningen.activeer(s, "9999")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    schoon()
+wow
+
+such test_deactiveer_handler_vraagt_bevestiging:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such req = {"ctx": {"store": s}, "params": {"nummer": "4200"}, "body": ""}
+    such resp = rekeningen_h.deactiveer(req)
+    amaze resp["status"] == 200
+    amaze rekeningen.zoek(rekeningen.alle(s), "4200")["actief"] == true
+    req["body"] = "bevestig=ja"
+    amaze rekeningen_h.deactiveer(req)["status"] == 303
+    amaze rekeningen.zoek(rekeningen.alle(s), "4200")["actief"] == false
+    amaze rekeningen_h.activeer(req)["status"] == 303
+    amaze rekeningen.zoek(rekeningen.alle(s), "4200")["actief"] == true
+    schoon()
+wow
+
+such test_rij_systeemrekening_zonder_deactiveerknop:
+    such bank = rekeningen.zoek(rekeningen.STANDAARD, "1100")
+    amaze not strings.contains(rekeningen_h.rij(bank), "deactiveer")
+    such kantoor = rekeningen.zoek(rekeningen.STANDAARD, "4200")
+    amaze strings.contains(rekeningen_h.rij(kantoor), "deactiveer")
 wow
 wow
