@@ -27,8 +27,13 @@ such run_recurring much req:
     such regels = []
     if cfg["mollie_key"] != none:
         pls
-            mollie.sync(store, cfg["mollie_key"])
-            regels.append("mollie ok")
+            such mr = mollie.sync(store, cfg["mollie_key"])
+            such mt = "mollie ok"
+            if len(mr["verschoven"]) > 0:
+                very mt = mt + ", verschoven: " + strings.join(mr["verschoven"], ", ")
+            if len(mr["vergrendeld"]) > 0:
+                very mt = mt + ", vergrendeld: " + strings.join(mr["vergrendeld"], ", ")
+            regels.append(mt)
         oh no err!
             regels.append("mollie fout: {err.message}")
     pls

@@ -53,7 +53,7 @@ Dubbel boekhouden: elke transactie is een **Journaalpost** met debet-/creditrege
 - **Web:** own micro-framework on `howl` raw TCP in `web/` (HTTP/1.1 parse, router, cookies, forms, html escaping, static). No JS framework.
 - **Frontend:** server-rendered HTML + **Dogescript** (compiles to JS; source `static/djs/`, build → `static/js/`). **Never file issues on dogescript** — gaps → plain JS.
 - **Persistence:** DSON files in `data/` via `app/store/` (atomic writes + append-only `audit.dsonl`). No database — volume is tiny.
-- **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`, `WISE_API_TOKEN`).
+- **Geen app-auth:** single user, geen login/wachtwoord. De enige toegangsgrens is het netwerk (LAN/VPN-only, achter een reverse proxy) — bewuste keuze, geen zwakke auth. `web/herkomst.doge` weigert vreemde `Host` (`TOEGESTANE_HOSTS`) en cross-site POSTs. `.env` houdt alleen niet-user-secrets (`INTERN_TOKEN`, `MOLLIE_API_KEY`, `WISE_API_TOKEN`).
 - **Scheduler:** one `pack.zoom` pup (daily ~06:00) POSTs loopback `/internal/run-recurring` — guarded on `INTERN_TOKEN` (`crypto.same`) + a loopback-peer-check (`howl.peer`), runs Mollie-sync + terugkerende kosten + import-scan (each idempotent). Pups share no state — loopback HTTP is the only channel.
 - **Deploy:** `doge build` → single binary in a Docker container inside a VM/LXC (`data/` as volume), LAN/VPN only. Compose publishes on `PUBLISH_HOST` (default `127.0.0.1`; set the instance's LAN/VPN address for direct network access); the container binds `0.0.0.0` via `BIND_HOST` so the published port reaches it.
 
@@ -64,7 +64,7 @@ Read only the folder relevant to the task; grep before scanning.
 ```text
 doge.toml               # manifest, entry = main.doge ([dependencies] header required even when empty)
 package.json            # npm-toolchain voor de Dogescript-build (build-js.mjs → static/js/; dogescript library-API)
-main.doge               # boot: config (.env), store load, scheduler pup, accept-loop, route table
+main.doge               # boot: config (.env), store load, scheduler pup, request loop (bowl from the connection pups), route table
 web/                    # generic HTTP micro-framework (HTTP/1.1 parse, router, cookies, forms, multipart, html escaping, static; never imports app/)
 app/handlers/           # one <resource>_h.doge per resource + weergave.doge (shared view helpers: nav, foutbanner, btw-opties); _h avoids the service-import name clash
 app/services/           # business logic: btw, journaal, rekeningen, bijlagen, mollie, wisselkoers, aangifte, rapporten, terugkerend, overdracht
@@ -85,6 +85,7 @@ docs/                   # ARCHITECTURE, DATA-MODEL — the on-demand reference s
 - **Layers:** handlers do HTTP (parse → service → render), services do behaviour, store does persistence. `web/` never imports from `app/`.
 - **Errors:** services `bonk` domain errors; the outer request loop catches everything and renders a 500 without leaking internals.
 - **Language:** identifiers in Dutch domain terms where the wet uses them (boeking, rubriek, tijdvak); user-facing copy in het Nederlands — kort en zakelijk, geen em-dashes of AI-marketingtoon. **Technical terms and jargon stay English** — never verdutchen (no "opslag", "persistentie", "domeinvrij"); mixed Dutch prose with English jargon is the house style.
+- **Comments:** sparse. Only a non-obvious *why* (a fiscal rule, a Hard Rule, a language quirk), at most one or two lines. Never restate what the code says, narrate a change ("nu", "fix", "voorheen"), or cite QA/finding IDs. Self-explanatory code gets no comment.
 - **Dates:** `YYYY-MM-DD` strings everywhere; all date math via `lib/datum.doge` (`nap` has no date arithmetic).
 - **No magic values:** tarieven/limieten → `app/services/btw.doge` (fiscaal); paden/secrets → `.env`.
 

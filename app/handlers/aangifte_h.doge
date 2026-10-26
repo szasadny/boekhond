@@ -9,6 +9,7 @@ so "../services/journaal.doge"
 so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 so "../../lib/csv.doge"
+so strings
 so weergave
 
 # Portaalvelden van Mijn Belastingdienst Zakelijk, in portaalvolgorde met de officiële labels —
@@ -41,6 +42,9 @@ wow
 
 such banners much ov:
     such uit = ""
+    if len(ov["onbekend"]) > 0:
+        such ids = html.escape(strings.join(ov["onbekend"], ", "))
+        very uit = uit + "<p class=\"banner\">Onbekende btw-code in post {ids}. Deze regels tellen niet mee in de aangifte.</p>"
     if ov["icp"]:
         very uit = uit + "<p class=\"banner\">ICP-opgaaf vereist</p>"
     such supp = ov["suppletie"]

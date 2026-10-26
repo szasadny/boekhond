@@ -30,6 +30,21 @@ such test_balans_balanceert:
     schoon()
 wow
 
+such test_balans_over_twee_jaren:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2025-06-01", "verkoop", "", [{"rekening": "1100", "debet": "121", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "100", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "21", "btw_code": none}]))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "kosten", "", [{"rekening": "4200", "debet": "50", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "50", "btw_code": none}]))
+    such tabel = [[2025, "121", "0", "100"], [2026, "71", "100", "-50"]]
+    for rij in tabel:
+        such b = rapporten.balans(s, rij[0])
+        amaze b["klopt"] == true
+        amaze b["totaal_activa"] == dec(rij[1])
+        amaze b["totaal_passiva_ev"] == dec(rij[1])
+        amaze b["resultaat_voorgaand"] == dec(rij[2])
+        amaze b["resultaat"] == dec(rij[3])
+    schoon()
+wow
+
 such test_winst_verlies:
     such s = verse_store()
     journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "verkoop", "", [{"rekening": "1300", "debet": "1000", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": none}]))

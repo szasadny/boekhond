@@ -1,0 +1,59 @@
+so strings
+
+# Request-level guard tegen CSRF en DNS rebinding. De host-allow-list komt van de caller.
+
+so VEILIGE_METHODES = ["GET", "HEAD", "OPTIONS"]
+so LOOPBACK = ["127.0.0.1", "localhost", "[::1]"]
+
+such kop much req, naam:
+    such headers = req["headers"]
+    if headers.has(naam):
+        return strings.smoll(strings.trim(headers[naam][0]))
+    return none
+wow
+
+such zonder_poort much host:
+    if len(host) > 0 and host[0] == "[":
+        return strings.split(host, "]")[0] + "]"
+    return strings.split(host, ":")[0]
+wow
+
+# Loopback mag altijd: de scheduler roept 127.0.0.1 aan. Een entry zonder poort matcht elke poort.
+such host_toegestaan much host, toegestaan:
+    if host == none or host == "":
+        return false
+    such h = strings.smoll(host)
+    such naam = zonder_poort(h)
+    if naam in LOOPBACK:
+        return true
+    for t in toegestaan:
+        such e = strings.smoll(strings.trim(t))
+        if e != "" and (e == h or e == naam):
+            return true
+    return false
+wow
+
+such origin_host much origin:
+    such delen = strings.split(origin, "://")
+    if len(delen) != 2:
+        return none
+    return strings.split(delen[1], "/")[0]
+wow
+
+# none = doorlaten, anders de reden voor een 403. Zonder Sec-Fetch-Site en Origin is het geen
+# browser (curl, scheduler); "none" is een door de user zelf gestarte navigatie.
+such weiger_reden much req, toegestaan:
+    such host = kop(req, "host")
+    if not host_toegestaan(host, toegestaan):
+        return "host niet toegestaan"
+    if req["method"] in VEILIGE_METHODES:
+        return none
+    such site = kop(req, "sec-fetch-site")
+    if site != none and site != "same-origin" and site != "none":
+        return "verzoek van andere herkomst geweigerd"
+    such origin = kop(req, "origin")
+    if origin != none and origin_host(origin) != host:
+        return "verzoek van andere herkomst geweigerd"
+    return none
+wow
+wow

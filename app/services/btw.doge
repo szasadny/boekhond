@@ -107,6 +107,7 @@ wow
 # Elke regel met een btw_code is een grondslagregel; de btw wordt hier afgeleid
 # (invariant 1 — nooit uit een opgeslagen veld gelezen).
 # Resultaat: {"rubrieken": {rubriek: {"bedrag", "btw"}}, "5a", "5b", "saldo"} — alles hele euro's (Int).
+# Onbekende codes (data van vóór validatie) tellen niet mee; hun post-id komt in "onbekend".
 such rubrieken much posten, j, kw:
     such grondslag = {}
     such btw_som = {}
@@ -114,6 +115,7 @@ such rubrieken much posten, j, kw:
         grondslag[r] = dec("0")
         btw_som[r] = dec("0")
     such voorbelasting = dec("0")
+    such onbekend = []
     for p in posten:
         if not datum.in_kwartaal(p["datum"], j, kw):
             continue
@@ -121,6 +123,10 @@ such rubrieken much posten, j, kw:
             if not regel.has("btw_code") or regel["btw_code"] == none:
                 continue
             such code = regel["btw_code"]
+            if not bestaat(code):
+                if not onbekend.contains(p["id"]):
+                    onbekend.append(p["id"])
+                continue
             such c = info(code)
             such ex = regel_grondslag(regel, c["soort"])
             such bb = btw_bedrag(ex, code)
@@ -137,7 +143,7 @@ such rubrieken much posten, j, kw:
         per_rubriek[r] = {"bedrag": euro_af(grondslag[r]), "btw": b_afgerond}
         r5a += b_afgerond
     such r5b = euro_op(voorbelasting)
-    return {"rubrieken": per_rubriek, "5a": r5a, "5b": r5b, "saldo": r5a - r5b}
+    return {"rubrieken": per_rubriek, "5a": r5a, "5b": r5b, "saldo": r5a - r5b, "onbekend": onbekend}
 wow
 
 # Netto btw-effect van één post op de cent (Decimal): verschuldigde btw minus voorbelasting.
@@ -150,6 +156,8 @@ such post_effect much post:
         if not regel.has("btw_code") or regel["btw_code"] == none:
             continue
         such code = regel["btw_code"]
+        if not bestaat(code):
+            continue
         such c = info(code)
         such ex = regel_grondslag(regel, c["soort"])
         such bb = btw_bedrag(ex, code)
@@ -229,6 +237,8 @@ such specificatie much posten, j, kw:
             if not regel.has("btw_code") or regel["btw_code"] == none:
                 continue
             such code = regel["btw_code"]
+            if not bestaat(code):
+                continue
             such c = info(code)
             such ex = regel_grondslag(regel, c["soort"])
             such bb = btw_bedrag(ex, code)

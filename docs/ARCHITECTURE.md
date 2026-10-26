@@ -68,25 +68,26 @@ Browser (LAN/VPN) ──HTTP──▶ VM/LXC ▸ Docker container ▸ boekhond b
                                                               │
                                     ┌─────────────────────────┤
                                     ▼                         ▼
-                              main accept-loop          scheduler pup (pack.zoom)
-                              (sequential)               sleeps until 06:00,
-                                    │                    POST /internal/run-recurring
-                                    ▼                    via howl.request loopback
-                          web/http.doge parse            (Mollie-sync + terugkerende
-                                    ▼                     kosten + scan data/import/)
+                              accept pup → pup per       scheduler pup (pack.zoom)
+                              verbinding (http.serveer)  sleeps until 06:00,
+                              parse, ──bowl──▶ main      POST /internal/run-recurring
+                                    │   (sequential)     via howl.request loopback
+                                    ▼                    (Mollie-sync + terugkerende
+                          static / herkomst check         kosten + scan data/import/)
                           router → handler → service → store
                                     ▼                      │
                           web/html.doge render        data/*.dson (atomic)
                                     ▼                 data/audit.dsonl (append)
-                          howl.send response          data/uploads/ (bijlagen)
+                          response-Bytes ──bowl──▶    data/uploads/ (bijlagen)
+                          verbinding-pup send/close
                                                       data/import/ (gemounte inbox-map)
 ```
 
 The container is only reachable on LAN/VPN (decided 2026-07-15) — no public exposure, no TLS terminator needed; `data/` is a mounted volume (the entire state, trivially backupable).
 
-- **Sequential accept-loop, deliberately single-threaded.** `howl.listen` → `accept` → handle → close, one request at a time. One user; no concurrent mutation, no locking, no races. Do not "fix" this with a pup-per-connection: Doge pups deep-copy all state (§6), so a threaded server could not share the store anyway.
+- **Socket-I/O per verbinding in a pup, request handling single-threaded on main.** `main.doge` `start` moves the listener into an accept pup (`web/http.doge` `serveer`), which zooms one pup per connection (`verbinding`): it parses the request, sets `req["peer_host"]`, drops `[req, antwoord-bowl]` into the shared `verzoeken` bowl, waits for the response-Bytes, sends and closes. The main thread loops `pack.sniff(verzoeken)` → `afhandel` → `pack.drop(antwoord, bytes)`, one request at a time on the only store: no concurrent mutation, no locking, no races. An idle or slow client (preconnect socket, body shorter than `Content-Length`) only blocks its own pup. `howl` has no read-timeout, so such a pup lives until the client closes. Never run handlers inside the connection pups: pups deep-copy all state (§6), so they could not share the store.
 - **Request lifecycle:** read request line + headers via `recv_line`; read the body with byte-accurate `Content-Length` framing — `recv_bytes` for binary (multipart PDF-upload), `recv` for text forms; dispatch on `(method, path)`; every handler runs inside one outer `pls`/`oh no` that renders a clean 500 and logs the error — internals never reach the response.
-- **Responses** are built as full strings (status line, headers incl. `Content-Length`, body) and sent in one `howl.send`. Static files under `static/` are served with correct content types; uploads are served back via a download handler (router route), never as static files.
+- **Responses** are built as full Bytes (status line, headers incl. `Content-Length`, body) by `bouw_response` on main and sent in one `howl.send_bytes` by the connection pup. Static files under `static/` are served with correct content types; uploads are served back via a download handler (router route), never as static files.
 
 ---
 
@@ -128,6 +129,8 @@ Concrete contract as built: `parse_request(conn, caps = {})` → `{method, path,
 
 **There is no login and no wachtwoord.** Single-user app; the only access boundary is the network — LAN/VPN-only (decided 2026-07-15), meant to sit behind a reverse proxy. An application password was deliberately dropped: with the plaintext already on the same host and no TLS in-app, a fast unsalted hash added no real protection, and Doge's `crypto` has no KDF (only `sha256`/`hmac`/`token`/`same`) to do it properly. Every route is served directly; `web/http.doge` still parses cookies generically, but nothing gates on them. `/internal/*` guards on `INTERN_TOKEN` (constant-time `crypto.same`) **plus** a loopback-peer-check (`howl.peer` → host must be loopback; helpers `is_loopback`/`peer_host` in `web/http.doge`, `req["peer_host"]` set in `main.doge`) — service-to-service auth, not user login. De reverse-proxy hoort `/internal/` extern te blokkeren.
 
+Every request first passes `web/herkomst.doge` `weiger_reden` (hooked in `main.doge` `afhandel`, before static and router): 403 when the `Host` isn't in `TOEGESTANE_HOSTS` (DNS rebinding; loopback hosts always pass, so an unset list means loopback-only), and for unsafe methods 403 when `Sec-Fetch-Site` is present and not `same-origin`/`none`, or `Origin` is present and doesn't match `Host` (CSRF without tokens). Non-browser clients (curl, the scheduler) send neither header and pass.
+
 ### 5.2 Scheduler (Mollie-sync + terugkerende kosten)
 
 A single pup (`pack.zoom(scheduler_lus, [cfg])`) started in `main.doge` `start()` (only when `INTERN_TOKEN` is set): loop { `nap.rest(datum.seconden_tot_uur(6))` (sleep to the next 06:00; timing is pure/tested via `seconden_tot_uur_vanaf`), `howl.request("POST", ...)` loopback with an `X-Intern-Token` header, log the status }. The handler `app/handlers/intern_h.doge` `run_recurring` runs on the main loop (so it *does* share the store), first guards the token with `crypto.same` (403 on missing/wrong), then does three things — each in its own `pls`/`oh no` so one failure doesn't stop the rest — all **idempotent**: (1) `mollie.sync(store, key)` (skipped when no key) calls the Mollie API (`howl.request`, `MOLLIE_API_KEY`) for paid payments + refunds since `instellingen.mollie_laatste_sync`, boekt elke als omzet-post (idempotent per `mollie_payment_id`), advances the hoogwatermerk; (2) `terugkerend.genereer(store, datum.vandaag(), koersbron)` walks `terugkerend.dson`, generates due kosten-journaalposten (idempotent per sjabloon+maand); USD-sjablonen are converted with the live Wise-koers (`wisselkoers.Wise`, only when `WISE_API_TOKEN` is set — otherwise reported as fout and left unbooked for the next run); (3) `bijlagen.scan_import(store)` scans the mounted `data/import/` map (via de store-methods `import_lijst`/`import_verwijder`) — every new file becomes a Bijlage (`bron = "import"`) in the inbox via `bijlagen.bewaar` (which already copies the bytes to `uploads/{jaar}/{id}.{ext}` + audit), and the **source file in `data/import/` is then deleted** (so import never double-ingests — idempotency is by source-file removal, not a stored key). An invalid file (ext/size) stays put and is reported skipped. Each step is ook los met de hand te draaien (`POST /mollie/sync`, `/terugkerend/genereer`, `/inbox/scan`). `/internal/*` accepts a request only when both the token en een loopback-peer (`howl.peer`) kloppen; de reverse-proxy blokkeert `/internal/` extern. Pups share no state (§6): loopback HTTP is the only correct channel; never give the pup its own store access.
@@ -142,7 +145,7 @@ All exports are GET endpoints rendering from the same services that render pages
 
 ### 5.5 Config
 
-`.env` read once at boot → config Dict → passed down explicitly. `main.doge` loads `.env` itself (a small parser; real environment variables win, so `docker compose env_file`/exports override the file). App keys: `INTERN_TOKEN` (none → scheduler-pup niet gestart, `/internal/*` weigert alles), `MOLLIE_API_KEY`, `WISE_API_TOKEN` (read-only Wise API token voor de USD→EUR-koers; none → USD-sjablonen worden niet geboekt), `POORT`, `DATA_DIR`, `BIND_HOST` (listener-bind; default `127.0.0.1`, in de container zet `docker-compose.yml` dit op `0.0.0.0` zodat de gepubliceerde poort/reverse-proxy hem bereikt — `main.doge` bindt `cfg["bind_host"]`). Compose consumes `PUBLISH_HOST` separately: default `127.0.0.1`; set the VM/LXC's LAN/VPN address for direct network access. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
+`.env` read once at boot → config Dict → passed down explicitly. `main.doge` loads `.env` itself (a small parser; real environment variables win, so `docker compose env_file`/exports override the file). App keys: `INTERN_TOKEN` (none → scheduler-pup niet gestart, `/internal/*` weigert alles), `MOLLIE_API_KEY`, `WISE_API_TOKEN` (read-only Wise API token voor de USD→EUR-koers; none → USD-sjablonen worden niet geboekt), `POORT`, `DATA_DIR`, `TOEGESTANE_HOSTS` (comma-separated `host[:port]` allow-list for the `Host` header; an entry without port matches any port; unset → loopback-only plus a startup warning), `BIND_HOST` (listener-bind; default `127.0.0.1`, in de container zet `docker-compose.yml` dit op `0.0.0.0` zodat de gepubliceerde poort/reverse-proxy hem bereikt — `main.doge` bindt `cfg["bind_host"]`). Compose consumes `PUBLISH_HOST` separately: default `127.0.0.1`; set the VM/LXC's LAN/VPN address for direct network access. Bedrijfsgegevens (naam, KvK, btw-id, IBAN, adres) are *not* secrets and live in `instellingen.dson`, editable in the UI.
 
 ### 5.6 Bijlagen — upload & download
 
@@ -154,7 +157,7 @@ The upload form posts `multipart/form-data`; the body arrives as raw Bytes and `
 
 Read this before proposing structural changes — these are language facts, not preferences:
 
-1. **Pups (threads) deep-copy everything and share no mutable state.** A shared in-memory store across threads is impossible by design → sequential accept-loop + loopback HTTP for the scheduler. Bowls/sockets are the only shared handles. A pup *does* see the top-level snapshot (imported modules incl. `nap`/`howl`/`datum` are usable inside `scheduler_lus` — verified). `/internal/*` is gated on the token (`crypto.same`) + a loopback-peer-check (`howl.peer`).
+1. **Pups (threads) deep-copy everything and share no mutable state.** A shared in-memory store across threads is impossible by design → connection pups only do socket-I/O and hand requests to the single-threaded main loop over a bowl (§2); the scheduler uses loopback HTTP. Bowls are the only shared handles; a socket passed in `pack.zoom` args is moved (the sender's handle is closed). A pup *does* see the top-level snapshot (imported modules incl. `nap`/`howl`/`datum` are usable inside `scheduler_lus` — verified). `/internal/*` is gated on the token (`crypto.same`) + a loopback-peer-check (`howl.peer`).
 2. **Binary bodies use `recv_bytes`/`send_bytes`, not `recv`.** `recv` is Str-typed and errors on non-UTF-8, and its `Content-Length` framing counts characters not bytes — so multipart PDF-upload reads the body with `recv_bytes` (byte-accurate) and downloads reply with `send_bytes`. `recv` stays for ASCII urlencoded forms only.
 3. **Decimal/Float never mix** (`TypeError`) and `json.emit(Decimal)` → Float on re-parse → amounts serialize as strings (§4).
 4. **`nap` has stamps only, no date arithmetic** → `lib/datum.doge` owns YYYY-MM-DD math (kwartalen, maandlengtes, schrikkeljaren) in pure string/Int code.

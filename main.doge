@@ -8,6 +8,7 @@ so "lib/datum.doge"
 so "web/http.doge"
 so "web/router.doge"
 so "web/static.doge"
+so "web/herkomst.doge"
 so "app/store/store.doge"
 so "app/services/rekeningen.doge"
 so "app/services/overdracht.doge"
@@ -83,7 +84,13 @@ such config:
     such bind_host = haal("BIND_HOST", envd)
     if bind_host == none:
         very bind_host = "127.0.0.1"
-    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key, "intern_token": intern_token, "wise_token": wise_token, "bind_host": bind_host}
+    such hosts = haal("TOEGESTANE_HOSTS", envd)
+    such toegestane_hosts = []
+    if hosts != none:
+        very toegestane_hosts = strings.split(hosts, ",")
+    if strings.trim(strings.join(toegestane_hosts, "")) == "":
+        bark "geen TOEGESTANE_HOSTS: alleen loopback-hosts worden bediend"
+    return {"poort": int(poort), "data_dir": data_dir, "mollie_key": mollie_key, "intern_token": intern_token, "wise_token": wise_token, "bind_host": bind_host, "toegestane_hosts": toegestane_hosts}
 wow
 
 such health much req:
@@ -146,31 +153,26 @@ such begint_met much s, voorvoegsel:
     return s[0:len(voorvoegsel)] == voorvoegsel
 wow
 
-# Eén verbinding: parse -> static / router -> stuur. Alles in één pls/oh no,
-# zodat een fout een schone 500 geeft en de accept-loop nooit sneuvelt.
-such afhandel much conn, r, winkel, cfg:
+# Eén request: static / router -> response-Bytes. Alles in één pls/oh no,
+# zodat een fout een schone 500 geeft en de verwerk-loop nooit sneuvelt.
+such afhandel much req, r, winkel, cfg:
     pls
-        such req = http.parse_request(conn, {"/overdracht/import": overdracht.MAX_IMPORT_BYTES})
-        if req == none:
-            return
         if req.has("oversize"):
-            howl.send_bytes(conn, http.bouw_response(http.tekst_response(413, "verzoek te groot")))
-            return
+            return http.bouw_response(http.tekst_response(413, "verzoek te groot"))
+        such reden = herkomst.weiger_reden(req, cfg["toegestane_hosts"])
+        if reden != none:
+            return http.bouw_response(http.tekst_response(403, reden))
         such pad = req["path"]
         such resp = none
         if begint_met(pad, STATIC_PREFIX):
             very resp = static.bedien(STATIC_ROOT, pad[7:])
         else:
             req["ctx"] = {"store": winkel, "config": cfg}
-            req["peer_host"] = http.peer_host(conn)
             very resp = r.verwerk(req)
-        howl.send_bytes(conn, http.bouw_response(resp))
+        return http.bouw_response(resp)
     oh no err!
         bark "verzoekfout: " + err.message
-        pls
-            howl.send_bytes(conn, http.bouw_response(http.tekst_response(500, "interne fout")))
-        oh no err2!
-            bark "kon 500 niet sturen: " + err2.message
+        return http.bouw_response(http.tekst_response(500, "interne fout"))
 wow
 
 # Scheduler-pup (§5.2): eigen thread, deelt geen state — loopback-HTTP is het enige kanaal.
@@ -205,10 +207,11 @@ such start:
         pack.zoom(scheduler_lus, [cfg])
     else:
         bark "geen INTERN_TOKEN: scheduler-pup niet gestart"
+    such verzoeken = pack.bowl()
+    pack.zoom(http.serveer, [listener, verzoeken, {"/overdracht/import": overdracht.MAX_IMPORT_BYTES}])
     while true:
-        such conn = howl.accept(listener)
-        afhandel(conn, r, winkel, cfg)
-        howl.close(conn)
+        such item = pack.sniff(verzoeken)
+        pack.drop(item[1], afhandel(item[0], r, winkel, cfg))
 wow
 
 start()

@@ -83,34 +83,65 @@ such refund_naar_post much refund:
 wow
 
 # --- Idempotente boeking (store-only, getest) ---
+# Ingediend tijdvak is op slot (Hard Rule 3): boek als correctie in het open tijdvak van vandaag.
+such verschuif much post, soort:
+    such orig = post["datum"]
+    such tv = "Q{datum.kwartaal(orig)}-{datum.jaar(orig)}"
+    such oms = post["omschrijving"]
+    post["datum"] = datum.vandaag()
+    post["omschrijving"] = "{oms} ({soort} {orig}, tijdvak {tv} ingediend)"
+    post["correctie_van_datum"] = orig
+    return post
+wow
+
 such boek_betalingen much store, betalingen:
     such gezien = journaal.geboekte_sleutels(store, "mollie_payment_id")
+    such aangiften = store.laad("aangiften", [])
     such geboekt = 0
     such overgeslagen = 0
+    such verschoven = []
+    such vergrendeld = []
     for b in betalingen:
         such pid = b["id"]
         if b["status"] != "paid" or gezien.contains(pid):
             very overgeslagen = overgeslagen + 1
             continue
-        journaal.bewaar(store, betaling_naar_post(b))
+        such post = betaling_naar_post(b)
+        if not journaal.tijdvak_open(aangiften, post["datum"]):
+            if not journaal.tijdvak_open(aangiften, datum.vandaag()):
+                vergrendeld.append(pid)
+                continue
+            verschuif(post, "betaald")
+            verschoven.append(pid)
+        journaal.bewaar(store, post)
         gezien.append(pid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld}
 wow
 
 such boek_refund_lijst much store, refunds:
     such gezien = journaal.geboekte_sleutels(store, "mollie_refund_id")
+    such aangiften = store.laad("aangiften", [])
     such geboekt = 0
     such overgeslagen = 0
+    such verschoven = []
+    such vergrendeld = []
     for r in refunds:
         such rid = r["id"]
         if r["status"] != "refunded" or gezien.contains(rid):
             very overgeslagen = overgeslagen + 1
             continue
-        journaal.bewaar(store, refund_naar_post(r))
+        such post = refund_naar_post(r)
+        if not journaal.tijdvak_open(aangiften, post["datum"]):
+            if not journaal.tijdvak_open(aangiften, datum.vandaag()):
+                vergrendeld.append(rid)
+                continue
+            verschuif(post, "terugbetaald")
+            verschoven.append(rid)
+        journaal.bewaar(store, post)
         gezien.append(rid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen}
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld}
 wow
 
 # Mollie stuurt amountRefunded alleen mee bij betalingen die (deels) terugbetaald kunnen worden
@@ -151,6 +182,6 @@ such sync much store, key:
     such pres = boek_betalingen(store, betalingen)
     such rres = boek_refunds(store, key, betalingen)
     onthoud_sync(store)
-    return {"betalingen": pres, "refunds": rres}
+    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"]}
 wow
 wow

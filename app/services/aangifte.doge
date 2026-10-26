@@ -24,8 +24,8 @@ such is_ingediend much aangiften, j, kw:
     return a != none and a["status"] == "ingediend"
 wow
 
-# Som van het absolute btw-effect van storno's in dit open tijdvak die een post in een AL
-# INGEDIEND eerder tijdvak terugdraaien. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
+# Som van het absolute btw-effect van correcties (storno's en verschoven Mollie-posten) in dit
+# open tijdvak die een AL INGEDIEND eerder tijdvak raken. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
 such suppletie_signaal much store, j, kw:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
@@ -34,14 +34,16 @@ such suppletie_signaal much store, j, kw:
     for p in posten:
         if not datum.in_kwartaal(p["datum"], j, kw):
             continue
-        if not p.has("storno_van") or p["storno_van"] == none:
+        such od = none
+        if p.has("correctie_van_datum") and p["correctie_van_datum"] != none:
+            very od = p["correctie_van_datum"]
+        elif p.has("storno_van") and p["storno_van"] != none:
+            such orig = journaal.zoek_post(posten, p["storno_van"])
+            if orig != none:
+                very od = orig["datum"]
+        if od == none:
             continue
-        such orig = journaal.zoek_post(posten, p["storno_van"])
-        if orig == none:
-            continue
-        such oj = datum.jaar(orig["datum"])
-        such okw = datum.kwartaal(orig["datum"])
-        if not is_ingediend(aangiften, oj, okw):
+        if not is_ingediend(aangiften, datum.jaar(od), datum.kwartaal(od)):
             continue
         such e = btw.post_effect(p)
         if e < 0:
@@ -59,9 +61,9 @@ such cijfers much store, j, kw:
     such aangiften = store.laad("aangiften", [])
     such a = vind(aangiften, j, kw)
     if a != none and a["status"] == "ingediend":
-        return {"rubrieken": a["rubrieken"], "5a": a["5a"], "5b": a["5b"], "saldo": a["saldo"], "status": "ingediend", "ingediend_op": a["ingediend_op"]}
+        return {"rubrieken": a["rubrieken"], "5a": a["5a"], "5b": a["5b"], "saldo": a["saldo"], "status": "ingediend", "ingediend_op": a["ingediend_op"], "onbekend": []}
     such r = btw.rubrieken(store.laad("journaal", []), j, kw)
-    return {"rubrieken": r["rubrieken"], "5a": r["5a"], "5b": r["5b"], "saldo": r["saldo"], "status": "open", "ingediend_op": none}
+    return {"rubrieken": r["rubrieken"], "5a": r["5a"], "5b": r["5b"], "saldo": r["saldo"], "status": "open", "ingediend_op": none, "onbekend": r["onbekend"]}
 wow
 
 # Paginamodel voor één tijdvak: de cijfers (snapshot of live) + ICP- en suppletie-signaal + de
@@ -72,7 +74,7 @@ such overzicht much store, j, kw:
     such icp = btw.grondslag_code_tijdvak(store.laad("journaal", []), j, kw, "levering_eu") > dec("0")
     such supp = suppletie_signaal(store, j, kw)
     such u = uitleg(store, j, kw)
-    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "uitleg": u}
+    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "onbekend": c["onbekend"], "uitleg": u}
 wow
 
 # Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.

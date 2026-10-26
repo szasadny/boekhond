@@ -33,10 +33,11 @@ such balans much req:
     such pas = regels_tabel(b["passiva"])
     such ev = regels_tabel(b["eigen_vermogen"])
     such res = html.escape(geld.formatteer(b["resultaat"]))
+    such vrg = html.escape(geld.formatteer(b["resultaat_voorgaand"]))
     such ta = html.escape(geld.formatteer(b["totaal_activa"]))
     such tp = html.escape(geld.formatteer(b["totaal_passiva_ev"]))
     such klopt = "ja" if b["klopt"] else "NEE"
-    such inhoud = "<h1>Balans {j}</h1><h2>Activa</h2><table>{act}</table><p>Totaal activa: {ta}</p><h2>Passiva</h2><table>{pas}</table><h2>Eigen vermogen</h2><table>{ev}</table><p>Resultaat boekjaar: {res}</p><p>Totaal passiva + eigen vermogen: {tp}</p><p>Balans klopt: {klopt}</p>"
+    such inhoud = "<h1>Balans {j}</h1><h2>Activa</h2><table>{act}</table><p>Totaal activa: {ta}</p><h2>Passiva</h2><table>{pas}</table><h2>Eigen vermogen</h2><table>{ev}</table><p>Resultaat voorgaande jaren: {vrg}</p><p>Resultaat boekjaar: {res}</p><p>Totaal passiva + eigen vermogen: {tp}</p><p>Balans klopt: {klopt}</p>"
     return http.html_response(weergave.render("Balans", inhoud))
 wow
 
@@ -51,6 +52,7 @@ such balans_csv much req:
         rijen.append(["passiva", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
     for row in b["eigen_vermogen"]:
         rijen.append(["eigen_vermogen", row["nummer"], row["naam"], geld.formatteer(row["bedrag"])])
+    rijen.append(["resultaat", "", "Resultaat voorgaande jaren", geld.formatteer(b["resultaat_voorgaand"])])
     rijen.append(["resultaat", "", "Resultaat boekjaar", geld.formatteer(b["resultaat"])])
     such body = csv.bouw(["groep", "nummer", "naam", "bedrag"], rijen)
     such naam = "balans-{j}.csv"

@@ -84,7 +84,7 @@ such winst_verlies much store, j:
 wow
 
 # Balans per jaareinde j. Activa positief (debet-credit), passiva/EV positief
-# (credit-debet); het jaarresultaat vouwt in het eigen vermogen.
+# (credit-debet); zonder jaarafsluiting vouwt het resultaat van alle jaren t/m j in het EV.
 such balans much store, j:
     such g = datum.kwartaal_grenzen(j, 4)
     such eind = g[1]
@@ -95,6 +95,7 @@ such balans much store, j:
     such ev = []
     such totaal_activa = dec("0")
     such totaal_passiva_ev = dec("0")
+    such cumulatief = dec("0")
     for nr in saldi:
         such netto = saldi[nr]
         if geld.rond2(netto) == dec("0"):
@@ -115,10 +116,13 @@ such balans much store, j:
             such b2 = 0 - netto
             ev.append({"nummer": nr, "naam": naam, "bedrag": b2})
             very totaal_passiva_ev = totaal_passiva_ev + b2
+        elif type == "omzet" or type == "kosten":
+            very cumulatief = cumulatief - netto
     such resultaat = winst_verlies(store, j)["resultaat"]
-    very totaal_passiva_ev = totaal_passiva_ev + resultaat
+    such resultaat_voorgaand = cumulatief - resultaat
+    very totaal_passiva_ev = totaal_passiva_ev + cumulatief
     such klopt = geld.rond2(totaal_activa) == geld.rond2(totaal_passiva_ev)
-    return {"activa": activa, "passiva": passiva, "eigen_vermogen": ev, "resultaat": resultaat, "totaal_activa": totaal_activa, "totaal_passiva_ev": totaal_passiva_ev, "klopt": klopt}
+    return {"activa": activa, "passiva": passiva, "eigen_vermogen": ev, "resultaat": resultaat, "resultaat_voorgaand": resultaat_voorgaand, "totaal_activa": totaal_activa, "totaal_passiva_ev": totaal_passiva_ev, "klopt": klopt}
 wow
 
 # Jaaroverzicht: per kwartaal de rubriektotalen + jaarsaldo, W&V, en vrijgestelde omzet.

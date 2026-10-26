@@ -4,6 +4,8 @@ so "../app/services/mollie.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
+so "../app/services/aangifte.doge"
+so "../lib/datum.doge"
 
 so TMPMAP = "tmp_test_mollie"
 
@@ -119,5 +121,60 @@ such test_terugbetaald_bedrag:
     such b = betaling("tr_1", "12.10")
     b["amountRefunded"] = {"value": "2.50", "currency": "EUR"}
     amaze mollie.terugbetaald(b) == dec("2.50")
+wow
+
+such betaling_op much id, paid_at:
+    such b = betaling(id, "12.10")
+    b["paidAt"] = paid_at
+    return b
+wow
+
+such boekingen_per_id much s:
+    such uit = {}
+    for p in s.laad("journaal", []):
+        such k = p["mollie_payment_id"] if p.has("mollie_payment_id") else p["mollie_refund_id"]
+        uit[k] = p
+    return uit
+wow
+
+such test_ingediend_tijdvak_boekt_in_open_tijdvak:
+    such s = verse_store()
+    s.bewaar("aangiften", [{"jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
+    such lijst = [betaling_op("tr_11", "2026-10-22T10:00:00+00:00"), betaling_op("tr_10", "2026-09-30T21:30:00+00:00"), betaling_op("tr_12", "2026-10-01T10:00:00+00:00")]
+    such res = mollie.boek_betalingen(s, lijst)
+    amaze res["geboekt"] == 3
+    amaze res["verschoven"] == ["tr_10"]
+    amaze res["vergrendeld"] == []
+    such refund = {"id": "re_9", "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-10-23T10:00:00+00:00"}
+    such oud = {"id": "re_8", "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-09-20T10:00:00+00:00"}
+    such rres = mollie.boek_refund_lijst(s, [refund, oud])
+    amaze rres["geboekt"] == 2
+    amaze rres["verschoven"] == ["re_8"]
+    such per = boekingen_per_id(s)
+    amaze len(per) == 5
+    amaze per["tr_10"]["datum"] == datum.vandaag()
+    amaze per["tr_10"]["correctie_van_datum"] == "2026-09-30"
+    amaze per["tr_10"]["omschrijving"] == "SaaS abonnement (betaald 2026-09-30, tijdvak Q3-2026 ingediend)"
+    amaze per["re_8"]["datum"] == datum.vandaag()
+    amaze per["tr_12"]["datum"] == "2026-10-01"
+    such vd = datum.vandaag()
+    amaze aangifte.suppletie_signaal(s, datum.jaar(vd), datum.kwartaal(vd))["aantal"] == 2
+    such opnieuw = mollie.boek_betalingen(s, lijst)
+    amaze opnieuw["geboekt"] == 0
+    amaze opnieuw["verschoven"] == []
+    amaze mollie.boek_refund_lijst(s, [refund, oud])["verschoven"] == []
+    schoon()
+wow
+
+such test_vandaag_ook_ingediend_slaat_over:
+    such s = verse_store()
+    such vd = datum.vandaag()
+    such tv = "Q{datum.kwartaal(vd)}"
+    s.bewaar("aangiften", [{"jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}, {"jaar": datum.jaar(vd), "tijdvak": tv, "status": "ingediend"}])
+    such res = mollie.boek_betalingen(s, [betaling_op("tr_10", "2026-09-30T21:30:00+00:00")])
+    amaze res["geboekt"] == 0
+    amaze res["vergrendeld"] == ["tr_10"]
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
 wow
 wow

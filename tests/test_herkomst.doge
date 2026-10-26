@@ -1,0 +1,66 @@
+so "../web/herkomst.doge"
+
+so HOSTS = ["boek.lan", "10.0.0.5:8085"]
+
+such maak_req much method, headers:
+    return {"method": method, "path": "/journaal/bank", "headers": headers}
+wow
+
+such test_cross_site_post_geweigerd:
+    such req = maak_req("POST", {"host": ["boek.lan"], "origin": ["https://evil.example"], "sec-fetch-site": ["cross-site"]})
+    amaze herkomst.weiger_reden(req, HOSTS) != none
+wow
+
+such test_same_site_post_geweigerd:
+    such req = maak_req("POST", {"host": ["boek.lan"], "sec-fetch-site": ["same-site"]})
+    amaze herkomst.weiger_reden(req, HOSTS) != none
+wow
+
+such test_vreemde_origin_zonder_fetch_metadata_geweigerd:
+    such req = maak_req("POST", {"host": ["boek.lan"], "origin": ["http://evil.example"]})
+    amaze herkomst.weiger_reden(req, HOSTS) != none
+    such leeg = maak_req("POST", {"host": ["boek.lan"], "origin": ["null"]})
+    amaze herkomst.weiger_reden(leeg, HOSTS) != none
+wow
+
+such test_same_origin_post_toegestaan:
+    such req = maak_req("POST", {"host": ["Boek.lan:8085"], "origin": ["http://boek.lan:8085"], "sec-fetch-site": ["same-origin"]})
+    amaze herkomst.weiger_reden(req, HOSTS) == none
+wow
+
+such test_getypte_navigatie_toegestaan:
+    such req = maak_req("POST", {"host": ["boek.lan"], "sec-fetch-site": ["none"]})
+    amaze herkomst.weiger_reden(req, HOSTS) == none
+wow
+
+such test_post_zonder_browser_headers_toegestaan:
+    such req = maak_req("POST", {"host": ["127.0.0.1:8085"], "x-intern-token": ["geheim"]})
+    amaze herkomst.weiger_reden(req, []) == none
+wow
+
+such test_get_met_vreemde_host_geweigerd:
+    such req = maak_req("GET", {"host": ["attacker.example"]})
+    amaze herkomst.weiger_reden(req, HOSTS) == "host niet toegestaan"
+wow
+
+such test_get_zonder_host_geweigerd:
+    amaze herkomst.weiger_reden(maak_req("GET", {}), HOSTS) != none
+wow
+
+such test_toegestane_host:
+    amaze herkomst.host_toegestaan("boek.lan", HOSTS)
+    amaze herkomst.host_toegestaan("BOEK.LAN:8085", HOSTS)
+    amaze herkomst.host_toegestaan("10.0.0.5:8085", HOSTS)
+    amaze not herkomst.host_toegestaan("10.0.0.5:9000", HOSTS)
+    amaze not herkomst.host_toegestaan("10.0.0.5", HOSTS)
+    amaze not herkomst.host_toegestaan("boek.lan.evil.example", HOSTS)
+wow
+
+such test_loopback_default:
+    amaze herkomst.host_toegestaan("127.0.0.1:8085", [])
+    amaze herkomst.host_toegestaan("localhost", [])
+    amaze herkomst.host_toegestaan("[::1]:8085", [""])
+    amaze not herkomst.host_toegestaan("boek.lan", [])
+    amaze not herkomst.host_toegestaan("boek.lan", [""])
+wow
+wow

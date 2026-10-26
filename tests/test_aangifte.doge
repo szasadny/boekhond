@@ -43,6 +43,20 @@ such test_overzicht_open:
     schoon()
 wow
 
+such test_overzicht_onbekende_btw_code:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    such lijst = s.laad("journaal", [])
+    lijst.append({"id": "j-99", "datum": "2026-07-20", "omschrijving": "oud", "relatie": "", "bron": "memoriaal", "bijlage_ids": [], "regels": [{"rekening": "1300", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "100", "btw_code": "bogus"}]})
+    s.bewaar("journaal", lijst)
+    such ov = aangifte.overzicht(s, 2026, 3)
+    amaze ov["rubrieken"]["1a"]["bedrag"] == 1000
+    amaze ov["saldo"] == 210
+    amaze ov["onbekend"] == ["j-99"]
+    amaze "j-99" in aangifte_h.banners(ov)
+    schoon()
+wow
+
 such test_dien_in_snapshot:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2020-06-15"))

@@ -1,4 +1,5 @@
 so howl
+so pack
 so strings
 so "../web/http.doge"
 
@@ -98,5 +99,26 @@ wow
 such test_oversize_body_geweigerd:
     such req = rond("POST /p HTTP/1.1{CRLF}Content-Length: 99999999{CRLF}{CRLF}")
     amaze req.has("oversize")
+wow
+
+such test_serveer_trage_client_blokkeert_niet:
+    such server = howl.listen("127.0.0.1", 0)
+    such poort = howl.port(server)
+    such verzoeken = pack.bowl()
+    pack.zoom(http.serveer, [server, verzoeken])
+    such idle = howl.connect("127.0.0.1", poort)
+    such traag = howl.connect("127.0.0.1", poort)
+    howl.send(traag, "POST /p HTTP/1.1{CRLF}Content-Length: 10{CRLF}{CRLF}abc")
+    such client = howl.connect("127.0.0.1", poort)
+    howl.send(client, "GET /health HTTP/1.1{CRLF}{CRLF}")
+    such item = pack.sniff(verzoeken)
+    amaze item[0]["path"] == "/health"
+    amaze item[0]["peer_host"] == "127.0.0.1"
+    pack.drop(item[1], http.bouw_response(http.tekst_response(200, "ok")))
+    such antwoord = howl.recv_line(client)
+    amaze strings.contains(antwoord, "200 OK")
+    howl.close(client)
+    howl.close(traag)
+    howl.close(idle)
 wow
 wow

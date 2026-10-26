@@ -22,6 +22,7 @@ First install:
 git clone https://github.com/szasadny/boekhond.git && cd boekhond
 cp .env.example .env
 # Zet PUBLISH_HOST in .env op het LAN/VPN-adres van de VM/LXC voor directe netwerktoegang.
+# Zet TOEGESTANE_HOSTS op de host[:port]-waarden waarmee je de app opent; leeg = alleen loopback.
 docker compose up -d --build
 ```
 

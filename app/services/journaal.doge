@@ -39,6 +39,10 @@ such bewaar much store, post:
         bonk "een journaalpost heeft minstens twee regels"
     if not balans_klopt(post["regels"]):
         bonk "post balanceert niet: som(debet) != som(credit)"
+    for r in post["regels"]:
+        if r.has("btw_code") and r["btw_code"] and not btw.bestaat(r["btw_code"]):
+            such code = r["btw_code"]
+            bonk "onbekende btw-code: {code}"
     if not tijdvak_open(store.laad("aangiften", []), d):
         such tv = datum.kwartaal(d)
         such j = datum.jaar(d)

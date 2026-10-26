@@ -1,6 +1,8 @@
 so howl
 so strings
 so forms
+so pack
+so nap
 
 # HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers met
 # recv_line en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
@@ -159,5 +161,35 @@ such peer_host much conn:
         return info["host"]
     oh no err!
         return none
+wow
+
+# Accept-loop voor een eigen pup: elke verbinding krijgt een pup, zodat een idle of trage
+# client alleen zichzelf blokkeert (howl heeft geen read-timeout).
+such serveer much listener, verzoeken, caps = {}:
+    while true:
+        pls
+            such conn = howl.accept(listener)
+            pack.zoom(verbinding, [conn, verzoeken, caps])
+        oh no err!
+            bark "accept-fout: " + err.message
+            nap.rest(1)
+wow
+
+# Alleen socket-I/O: verwerking gebeurt single-threaded door wie verzoeken leest.
+such verbinding much conn, verzoeken, caps:
+    pls
+        such req = parse_request(conn, caps)
+        if req != none:
+            req["peer_host"] = peer_host(conn)
+            such antwoord = pack.bowl()
+            pack.drop(verzoeken, [req, antwoord])
+            howl.send_bytes(conn, pack.sniff(antwoord))
+    oh no err!
+        bark "verbindingsfout: " + err.message
+        pls
+            howl.send_bytes(conn, bouw_response(tekst_response(500, "interne fout")))
+        oh no err2!
+            bark "kon 500 niet sturen: " + err2.message
+    howl.close(conn)
 wow
 wow
