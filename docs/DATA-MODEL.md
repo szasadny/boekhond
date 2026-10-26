@@ -14,13 +14,14 @@ Split out of [ARCHITECTURE.md](./ARCHITECTURE.md) §4 so the model only loads wh
 
 ## 1. Entities
 
-All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …), issued by the store. All dates `"YYYY-MM-DD"`, timestamps ISO-8601 UTC (`nap.stamp`). All amounts Decimal-as-string (ARCHITECTURE.md §4).
+All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …), issued by the store. All dates `"YYYY-MM-DD"` in Europe/Amsterdam (`datum.vandaag`, `datum.lokale_datum`), timestamps ISO-8601 UTC (`nap.stamp`). All amounts Decimal-as-string (ARCHITECTURE.md §4).
 
 ```text
 ─── instellingen.dson (singleton Dict) ───────────────────────
   bedrijfsnaam, adres, kvk_nummer, btw_id, iban
   standaard_btw_code   default btw_code voor nieuwe journaalregels
-  mollie_laatste_sync  "YYYY-MM-DD" — hoogwatermerk voor de Mollie-import (§4.2)
+  mollie_laatste_sync  "YYYY-MM-DD" — datum van de laatste geslaagde Mollie-sync; alleen weergave,
+                       geen filter (de sync haalt altijd alles op, idempotent per id)
                        (de Mollie API-key is een secret → .env, nooit hier)
 
 ─── rekeningen.dson (List) — rekeningschema (chart of accounts) ───
@@ -54,8 +55,9 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
                              audit-metadata; de regels staan altijd in EUR
     bijlage_ids              [bijlage-id, …]
     storno_van               journaalpost-id — dit ís een tegenboeking (correctie, §3.4)
-    correctie_van_datum      oorspronkelijke datum van een Mollie-post die in het open tijdvak
-                             is geboekt omdat zijn eigen tijdvak al ingediend was (§3.4)
+    correctie_van_datum      datum in een ingediend tijdvak waarop deze post corrigeert:
+                             een Mollie-post die daarom in het open tijdvak is geboekt, of
+                             een herboeking via `journaal.markeer_correctie` (§3.4)
     created_at
   INVARIANT: som(debet) == som(credit) — een post die niet balanceert
   wordt nooit opgeslagen (§4.0). Posten ontstaan automatisch (Mollie-import =
@@ -159,7 +161,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 1. Een kwartaaltijdvak (`Q1`..`Q4`) is **open** zolang er geen Aangifte met status `ingediend` voor bestaat; rubrieken worden live berekend uit de journaalposten met `datum` in het tijdvak. Een tijdvak is alleen geldig met kwartaal 1 t/m 4 en een jaar vanaf het jaar van de vroegste journaalpost (uiterlijk vorig jaar, ook zonder posten, voor een nihil-aangifte) t/m volgend jaar; `aangifte.controleer_tijdvak` bewaakt dit voor `dien_in` en voor elke pagina die `j`/`kw` uit query of formulier leest (400 via `weergave.tijdvak_fout`).
 2. De ondernemer neemt de berekende rubrieken over in **Mijn Belastingdienst Zakelijk** (handmatig — geen publieke API; Digipoort is out of scope) en markeert het tijdvak **ingediend** → Aangifte-record met rubrieken-snapshot + `ingediend_op`.
 3. Vanaf dat moment is het tijdvak **vergrendeld** (Hard Rule 3): journaalposten met een datum in een ingediend tijdvak zijn immutable; nieuwe posten kunnen er niet in gedateerd worden.
-4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`) en geboekt via `journaal.storneer`, dat een tweede storno van dezelfde post en een storno van een storno weigert. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het btw-effect per storno leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het effect via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5). Een Mollie-payment of -refund waarvan het eigen tijdvak al ingediend is, boekt `mollie.doge` op vandaag in het open tijdvak met `correctie_van_datum`; die post telt mee in het suppletie-signaal.
+4. **Correctie** op een vergrendeld tijdvak = storno-journaalpost (`storno_van`, debet/credit gespiegeld) + eventueel een nieuwe juiste post, beide gedateerd in het open tijdvak. De storno wordt gebouwd door `journaal.storno_post` (mirror + `storno_van`) en geboekt via `journaal.storneer`, dat een tweede storno van dezelfde post en een storno van een storno weigert. De UI toont bij het volgende tijdvak een **suppletie-signaal** als het gecorrigeerde btw-effect > €1.000 is (dan is een suppletieformulier verplicht; daaronder mag verrekenen in de eerstvolgende aangifte). De drempel en het signaal leven in `app/services/aangifte.doge` (`suppletie_signaal`), dat het btw-effect per post via `btw.post_effect` afleidt — nooit btw-rekenwerk buiten `btw.doge` (Hard Rule 5). Het signaal nettoot de signed effecten per oorspronkelijk ingediend tijdvak en telt de absolute netto bedragen per tijdvak op; tijdvakken netten niet tegen elkaar. Een Mollie-payment of -refund waarvan het eigen tijdvak al ingediend is, boekt `mollie.doge` op vandaag in het open tijdvak met `correctie_van_datum`. Een herboeking na een storno krijgt `correctie_van_datum` via het veld "Correctie van post" op de memoriaalpost: `journaal.markeer_correctie` neemt de datum van die post over en weigert een post buiten een ingediend tijdvak. Storno € 1.500 btw + herboeking € 1.400 telt zo als € 100.
 5. De default voor **te doen** is het meest recente afgelopen, nog niet ingediende kwartaal. Lege kwartalen ná de start van de administratie worden niet overgeslagen; op een clean install is dat het direct voorafgaande kwartaal.
 
 ---

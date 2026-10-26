@@ -7,6 +7,7 @@ so "../app/services/aangifte.doge"
 so "../app/handlers/journaal_h.doge"
 so "../lib/datum.doge"
 so "../app/services/mollie.doge"
+so "../app/services/bijlagen.doge"
 
 so TMPMAP = "tmp_test_journaal"
 
@@ -102,6 +103,40 @@ such test_prive_post_balanceert:
     amaze journaal.balans_klopt(storting["regels"])
     such onttrekking = journaal.prive_post("2026-07-15", "opname", "1100", "500", "onttrekking")
     amaze journaal.balans_klopt(onttrekking["regels"])
+wow
+
+# 250,50 x 21% = 52,605 -> 52,61 (half-up); 1.000,00 x 21% = 210,00.
+such test_privegebruik_nl_bedragen:
+    such p = journaal.privegebruik_post("2026-12-31", "250,50")
+    amaze dec(p["regels"][0]["debet"]) == dec("303.11")
+    amaze dec(p["regels"][1]["credit"]) == dec("250.50")
+    amaze dec(p["regels"][2]["credit"]) == dec("52.61")
+    amaze journaal.balans_klopt(p["regels"])
+    such q = journaal.privegebruik_post("2026-12-31", "1.000,00")
+    amaze dec(q["regels"][0]["debet"]) == dec("1210")
+    amaze dec(q["regels"][1]["credit"]) == dec("1000")
+    amaze dec(q["regels"][2]["credit"]) == dec("210")
+wow
+
+such privegebruik_fout much grondslag:
+    pls
+        journaal.privegebruik_post("2026-12-31", grondslag)
+    oh no err!
+        return err.message
+    return none
+wow
+
+such test_privegebruik_weigert_leeg_nul_negatief:
+    amaze privegebruik_fout("") == "vul de grondslag privégebruik in"
+    amaze privegebruik_fout("  ") == "vul de grondslag privégebruik in"
+    amaze privegebruik_fout("0") == "grondslag privégebruik moet groter zijn dan 0"
+    amaze privegebruik_fout("0,00") == "grondslag privégebruik moet groter zijn dan 0"
+    amaze privegebruik_fout("-500") == "grondslag privégebruik moet groter zijn dan 0"
+    amaze privegebruik_fout("abc") == "ongeldig bedrag: abc"
+wow
+
+such test_privegebruik_omschrijving_jaar_van_boekdatum:
+    amaze journaal.privegebruik_post("2025-12-31", "100")["omschrijving"] == "Privégebruik 2025"
 wow
 
 such test_rubrieken_uit_geboekte_inkoop:
@@ -267,6 +302,36 @@ such test_mollie_cent_betaling_met_nul_btw_regel:
     such p = mollie.betaling_naar_post(b)
     amaze dec(p["regels"][2]["credit"]) == dec("0")
     amaze weigering(s, p) == ""
+    schoon()
+wow
+
+such detail_req much s, id:
+    return {"ctx": {"store": s}, "params": {"id": id}, "method": "GET", "path": "/journaal/{id}"}
+wow
+
+such test_detail_onbekende_post_is_404:
+    such s = verse_store()
+    such resp = journaal_h.detail(detail_req(s, "j-99"))
+    amaze resp["status"] == 404
+    schoon()
+wow
+
+such test_detail_toont_regels_bijlagen_en_storno:
+    such s = verse_store()
+    such post = journaal.memoriaal_post("2026-07-15", "<b>kantoor</b>", "", [{"rekening": "4200", "debet": "121", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "121", "btw_code": none}])
+    such orig = journaal.bewaar(s, post)
+    such b = bijlagen.bewaar(s, {"filename": "bon.pdf", "data": bytes("%PDF")}, "upload")
+    bijlagen.koppel(s, b["id"], orig["id"])
+    journaal.storneer(s, orig["id"], "2026-07-20")
+    such h = journaal_h.detail(detail_req(s, orig["id"]))["body"]
+    amaze "&lt;b&gt;kantoor&lt;/b&gt;" in h
+    amaze "4200 Kantoorkosten" in h
+    amaze "<b>kantoor</b>" not in h
+    amaze "<td class=\"num\">121,00</td>" in h
+    amaze "href=\"/bijlagen/b-1\">bon.pdf</a>" in h
+    amaze "Gestorneerd door <a href=\"/journaal/j-2\">j-2</a>" in h
+    such hs = journaal_h.detail(detail_req(s, "j-2"))["body"]
+    amaze "Storno van <a href=\"/journaal/j-1\">j-1</a>" in hs
     schoon()
 wow
 wow

@@ -46,12 +46,12 @@ such is_ingediend much aangiften, j, kw:
     return a != none and a["status"] == "ingediend"
 wow
 
-# Som van het absolute btw-effect van correcties (storno's en verschoven Mollie-posten) in dit
-# open tijdvak die een AL INGEDIEND eerder tijdvak raken. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
+# Correcties in dit open tijdvak op een AL INGEDIEND tijdvak, per oorspronkelijk tijdvak genetteerd:
+# een storno plus herboeking telt alleen het verschil. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
 such suppletie_signaal much store, j, kw:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
-    such som = dec("0")
+    such netto = {}
     such aantal = 0
     for p in posten:
         if not datum.in_kwartaal(p["datum"], j, kw):
@@ -67,11 +67,15 @@ such suppletie_signaal much store, j, kw:
             continue
         if not is_ingediend(aangiften, datum.jaar(od), datum.kwartaal(od)):
             continue
-        such e = btw.post_effect(p)
-        if e < 0:
-            very e = 0 - e
-        very som = som + e
+        such tv = "{datum.jaar(od)}-Q{datum.kwartaal(od)}"
+        if not netto.has(tv):
+            netto[tv] = dec("0")
+        netto[tv] = netto[tv] + btw.post_effect(p)
         very aantal = aantal + 1
+    such som = dec("0")
+    for tv in netto.keys():
+        such e = netto[tv]
+        very som = som + (0 - e if e < 0 else e)
     such verplicht = som > SUPPLETIE_DREMPEL
     return {"bedrag": som, "aantal": aantal, "verplicht": verplicht}
 wow

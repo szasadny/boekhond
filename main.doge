@@ -115,6 +115,7 @@ such maak_router:
     r.voeg_toe("GET", "/journaal/storno", journaal_h.storno_form)
     r.voeg_toe("POST", "/journaal/storno", journaal_h.storno)
     r.voeg_toe("GET", "/journaal/export.csv", journaal_h.export_csv)
+    r.voeg_toe("GET", "/journaal/\{id\}", journaal_h.detail)
     r.voeg_toe("GET", "/aangifte", aangifte_h.overzicht)
     r.voeg_toe("GET", "/aangifte/doen", aangifte_h.doen)
     r.voeg_toe("POST", "/aangifte/privegebruik", aangifte_h.boek_privegebruik)

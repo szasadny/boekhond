@@ -1,6 +1,7 @@
 so btw
 so rekeningen
 so nap
+so strings
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
@@ -163,17 +164,22 @@ wow
 # staat als self-nettend memo-paar op REK_PRIVE zodat btw.rubrieken 1d + 5a kan afleiden zonder de
 # omzet te vervuilen (btw-rekenwerk via btw.doge, Hard Rule 5). Boekdatum in Q4 (laatste aangifte
 # van het jaar); bewaar() bewaakt balans + tijdvak-lock.
-such privegebruik_post much datum_s, grondslag_ex, omschrijving:
+such privegebruik_post much datum_s, grondslag_ex:
     if datum.kwartaal(datum_s) != 4:
         bonk "privégebruik-correctie hoort in Q4 (laatste aangifte van het jaar)"
-    such ex = geld.rond2(dec(grondslag_ex))
+    if strings.trim(grondslag_ex) == "":
+        bonk "vul de grondslag privégebruik in"
+    such ex = geld.rond2(geld.parse(grondslag_ex))
+    if ex <= 0:
+        bonk "grondslag privégebruik moet groter zijn dan 0"
     such bb = btw.btw_bedrag(ex, "prive_gebruik")
     such totaal = geld.rond2(ex + bb)
     such regels = []
     regels.append({"rekening": rekeningen.REK_PRIVE, "debet": str(totaal), "credit": "", "btw_code": none})
     regels.append({"rekening": rekeningen.REK_PRIVE, "debet": "", "credit": str(ex), "btw_code": "prive_gebruik"})
     regels.append({"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(bb), "btw_code": none})
-    return {"datum": datum_s, "omschrijving": omschrijving, "relatie": "", "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
+    such j = datum.jaar(datum_s)
+    return {"datum": datum_s, "omschrijving": "Privégebruik {j}", "relatie": "", "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
 wow
 
 # Vrije memoriaalpost: rauwe regels erin; bewaar() dwingt de balans-invariant af.
@@ -196,6 +202,17 @@ such zoek_post much lijst, id:
         if p["id"] == id:
             return p
     return none
+wow
+
+# Een herboeking na een storno nettoot in het suppletie-signaal tegen het ingediende tijdvak van de oorspronkelijke post.
+such markeer_correctie much store, post, van_id:
+    such orig = zoek_post(store.laad("journaal", []), van_id)
+    if orig == none:
+        bonk "onbekende journaalpost: {van_id}"
+    if tijdvak_open(store.laad("aangiften", []), orig["datum"]):
+        bonk "post {van_id} valt niet in een ingediend tijdvak"
+    post["correctie_van_datum"] = orig["datum"]
+    return post
 wow
 
 # Tegenboeking (storno) van een bestaande post: elke regel gespiegeld (debet<->credit),

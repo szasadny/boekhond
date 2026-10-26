@@ -396,7 +396,7 @@ such boek_privegebruik much req:
     such grondslag = forms.enkel(v, "grondslag", "")
     such datum_s = forms.enkel(v, "datum", "")
     pls
-        such post = journaal.privegebruik_post(datum_s, grondslag, "Privégebruik {j}")
+        such post = journaal.privegebruik_post(datum_s, grondslag)
         journaal.bewaar(store, post)
         such loc = "/aangifte/doen?j={j}&kw={kw}"
         return http.redirect(loc)

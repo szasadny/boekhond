@@ -27,6 +27,11 @@ such verkoop21 much d:
     return journaal.memoriaal_post(d, "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}])
 wow
 
+# Verkooppost hoog_21 met grondslag ex op datum d.
+such verkoop21_bedrag much d, ex, btw_s, incl_s:
+    return journaal.memoriaal_post(d, "verkoop", "", [{"rekening": "1300", "debet": incl_s, "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": ex, "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": btw_s, "btw_code": none}])
+wow
+
 # Verkooppost laag_9 met grondslag ex op datum d (btw = rond2(ex*9/100)).
 such verkoop9 much d, ex, btw_s, incl_s:
     return journaal.memoriaal_post(d, "verkoop laag", "", [{"rekening": "1300", "debet": incl_s, "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": ex, "btw_code": "laag_9"}, {"rekening": "1510", "debet": "", "credit": btw_s, "btw_code": none}])
@@ -143,6 +148,63 @@ such test_suppletie_negeert_open_origineel:
     schoon()
 wow
 
+# Storno verkoop (btw -210) en storno inkoop (voorbelasting 21 terug, +21) op hetzelfde tijdvak: netto 189.
+such test_suppletie_nettoot_tegengestelde_correcties:
+    such s = verse_store()
+    such v = journaal.bewaar(s, verkoop21("2026-01-15"))
+    such i = journaal.bewaar(s, journaal.inkoop_post("2026-02-10", "KPN", "internet", "100", "voorbelasting_hoog", "4200"))
+    aangifte.dien_in(s, 2026, 1)
+    journaal.storneer(s, v["id"], "2026-04-01")
+    journaal.storneer(s, i["id"], "2026-04-02")
+    such sig = aangifte.suppletie_signaal(s, 2026, 2)
+    amaze sig["bedrag"] == dec("189")
+    amaze sig["aantal"] == 2
+    schoon()
+wow
+
+# Storno btw 1500,00 (ex 7142,86) + herboeking btw 1400,00 (ex 6666,67): netto 100,00, onder de drempel.
+such test_suppletie_storno_plus_herboeking:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, verkoop21_bedrag("2026-01-15", "7142.86", "1500.00", "8642.86"))
+    aangifte.dien_in(s, 2026, 1)
+    journaal.storneer(s, orig["id"], "2026-04-01")
+    such herboeking = verkoop21_bedrag("2026-04-01", "6666.67", "1400.00", "8066.67")
+    journaal.bewaar(s, journaal.markeer_correctie(s, herboeking, orig["id"]))
+    amaze herboeking["correctie_van_datum"] == "2026-01-15"
+    such sig = aangifte.suppletie_signaal(s, 2026, 2)
+    amaze sig["bedrag"] == dec("100.00")
+    amaze sig["aantal"] == 2
+    amaze sig["verplicht"] == false
+    schoon()
+wow
+
+# Q1 (btw -210) en Q2 (+21) zijn aparte tijdvakken en netten niet: 210 + 21 = 231.
+such test_suppletie_nettoot_niet_over_tijdvakken:
+    such s = verse_store()
+    such v = journaal.bewaar(s, verkoop21("2026-01-15"))
+    such i = journaal.bewaar(s, journaal.inkoop_post("2026-05-10", "KPN", "internet", "100", "voorbelasting_hoog", "4200"))
+    aangifte.dien_in(s, 2026, 1)
+    aangifte.dien_in(s, 2026, 2)
+    journaal.storneer(s, v["id"], "2026-07-01")
+    journaal.storneer(s, i["id"], "2026-07-02")
+    such sig = aangifte.suppletie_signaal(s, 2026, 3)
+    amaze sig["bedrag"] == dec("231")
+    amaze sig["aantal"] == 2
+    schoon()
+wow
+
+such test_markeer_correctie_weigert_open_tijdvak:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, verkoop21("2026-01-15"))
+    such fout = ""
+    pls
+        journaal.markeer_correctie(s, verkoop21("2026-04-01"), orig["id"])
+    oh no err!
+        very fout = err.message
+    amaze "niet in een ingediend tijdvak" in fout
+    schoon()
+wow
+
 # Uiterste indiendatums, handmatig geijkt tegen de Belastingdienst-bron.
 such test_deadline_per_kwartaal:
     amaze aangifte.deadline(2026, 1) == "2026-04-30"
@@ -229,7 +291,7 @@ wow
 # Privégebruik-correctie: gebalanceerde post via journaal.privegebruik_post -> rubriek 1d + 5a stijgen.
 such test_privegebruik_post_overzicht:
     such s = verse_store()
-    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "500", "Privégebruik 2026"))
+    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "500"))
     such ov = aangifte.overzicht(s, 2026, 4)
     amaze ov["rubrieken"]["1d"]["bedrag"] == 500
     amaze ov["rubrieken"]["1d"]["btw"] == 105
@@ -267,7 +329,7 @@ wow
 such test_privegebruik_buiten_q4_geweigerd:
     such gevangen = false
     pls
-        journaal.privegebruik_post("2026-03-31", "500", "x")
+        journaal.privegebruik_post("2026-03-31", "500")
     oh no err!
         very gevangen = true
     amaze gevangen

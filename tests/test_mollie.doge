@@ -39,6 +39,14 @@ such test_betaling_naar_post_balanceert:
     amaze p["regels"][1]["btw_code"] == "hoog_21"
 wow
 
+such test_oudejaarsnacht_boekt_op_nieuwjaar:
+    such b = betaling("tr_nj", "12.10")
+    b["paidAt"] = "2026-12-31T23:30:00+00:00"
+    such p = mollie.betaling_naar_post(b)
+    amaze p["datum"] == "2027-01-01"
+    amaze datum.kwartaal(p["datum"]) == 1
+wow
+
 such test_boeking_rubriek_1a:
     such s = verse_store()
     mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
@@ -105,23 +113,14 @@ such test_refund_idempotent:
     amaze twee["overgeslagen"] == 1
     schoon()
 wow
-# Mollie laat amountRefunded weg bij betalingen zonder (mogelijke) refund; geen KeyError en geen API-call.
+
+# Mollie laat amountRefunded weg bij betalingen zonder (mogelijke) refund.
 such test_zonder_amount_refunded:
     such s = verse_store()
     such b = betaling("tr_1", "12.10")
     b.remove("amountRefunded")
-    amaze mollie.terugbetaald(b) == dec("0")
-    mollie.boek_betalingen(s, [b])
-    such res = mollie.boek_refunds(s, "geen-key", [b])
-    amaze res["geboekt"] == 0
-    amaze len(s.laad("journaal", [])) == 1
+    amaze mollie.boek_betalingen(s, [b])["geboekt"] == 1
     schoon()
-wow
-
-such test_terugbetaald_bedrag:
-    such b = betaling("tr_1", "12.10")
-    b["amountRefunded"] = {"value": "2.50", "currency": "EUR"}
-    amaze mollie.terugbetaald(b) == dec("2.50")
 wow
 
 such betaling_op much id, paid_at:
@@ -252,5 +251,36 @@ such test_gemengde_batch_boekt_eur:
     amaze mollie.boek_betalingen(s, lijst)["geboekt"] == 0
     amaze len(s.laad("journaal", [])) == 3
     schoon()
+wow
+
+so NEP_PAGINAS = {"p1": {"_embedded": {"payments": [{"id": "tr_3"}, {"id": "tr_2"}]}, "_links": {"next": {"href": "p2"}}}, "p2": {"_embedded": {"payments": [{"id": "tr_1"}]}, "_links": {"next": none}}, "lus": {"_embedded": {"payments": []}, "_links": {"next": {"href": "lus"}}}}
+
+such nep_mollie much key, url:
+    amaze key == "k"
+    return NEP_PAGINAS[url]
+wow
+
+such test_haal_alle_volgt_next:
+    such lijst = mollie.haal_alle(nep_mollie, "k", "p1", "payments")
+    such ids = []
+    for b in lijst:
+        ids.append(b["id"])
+    amaze ids == ["tr_3", "tr_2", "tr_1"]
+wow
+
+such test_volgende_url:
+    such enkel = {"_embedded": {"refunds": [{"id": "re_1"}]}}
+    amaze mollie.volgende_url(enkel) == none
+    amaze mollie.volgende_url(NEP_PAGINAS["p2"]) == none
+    amaze mollie.volgende_url(NEP_PAGINAS["p1"]) == "p2"
+wow
+
+such test_haal_alle_paginacap_bonkt:
+    such gebonkt = false
+    pls
+        mollie.haal_alle(nep_mollie, "k", "lus", "payments")
+    oh no err!
+        very gebonkt = "200 pagina" in err.message
+    amaze gebonkt
 wow
 wow

@@ -14,8 +14,10 @@ so "../../lib/datum.doge"
 so BASIS = "https://api.mollie.com/v2"
 so TEGENREKENING = "1100"
 so VALUTA = "EUR"
+so LIMIET = 250
+so MAX_PAGINAS = 200
 
-# --- Netwerk (impure; niet unit-getest) ---
+# --- Netwerk ---
 such haal_json much key, url:
     such opts = {"headers": {"Authorization": "Bearer {key}"}}
     such resp = howl.request("GET", url, opts)
@@ -25,21 +27,42 @@ such haal_json much key, url:
     return json.parse(resp["body"])
 wow
 
-such haal_betalingen much key:
-    such data = haal_json(key, "{BASIS}/payments?limit=250")
-    such emb = data["_embedded"]
-    return emb["payments"]
+# Geen early stop op mollie_laatste_sync: een oudere payment kan na de vorige sync nog betaald worden.
+such haal_alle much haal, key, url, soort:
+    such uit = []
+    such volgende = url
+    such paginas = 0
+    while volgende != none:
+        if paginas >= MAX_PAGINAS:
+            bonk "Mollie {soort}: meer dan {MAX_PAGINAS} pagina's, sync afgebroken"
+        such data = haal(key, volgende)
+        for x in data["_embedded"][soort]:
+            uit.append(x)
+        very paginas = paginas + 1
+        very volgende = volgende_url(data)
+    return uit
 wow
 
-such haal_refunds much key, payment_id:
-    such data = haal_json(key, "{BASIS}/payments/{payment_id}/refunds")
-    such emb = data["_embedded"]
-    return emb["refunds"]
+such volgende_url much data:
+    if not data.has("_links"):
+        return none
+    such links = data["_links"]
+    if not links.has("next") or links["next"] == none:
+        return none
+    return links["next"]["href"]
+wow
+
+such haal_betalingen much key:
+    return haal_alle(haal_json, key, "{BASIS}/payments?limit={LIMIET}", "payments")
+wow
+
+such haal_refunds much key:
+    return haal_alle(haal_json, key, "{BASIS}/refunds?limit={LIMIET}", "refunds")
 wow
 
 # --- Pure mapping ---
 such datum_van much iso:
-    return iso[0:10]
+    return datum.lokale_datum(iso)
 wow
 
 # Geen koersconversie: een niet-EUR bedrag als euro boeken vervalst rubriek 1a.
@@ -177,25 +200,7 @@ such boek_refund_lijst much store, refunds:
     return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd}
 wow
 
-# Mollie stuurt amountRefunded alleen mee bij betalingen die (deels) terugbetaald kunnen worden
-# of zijn; ontbreekt het veld, dan is er niets terugbetaald.
-such terugbetaald much betaling:
-    if not betaling.has("amountRefunded") or betaling["amountRefunded"] == none:
-        return dec("0")
-    return geld.bedrag(betaling["amountRefunded"]["value"])
-wow
-
-such boek_refunds much store, key, betalingen:
-    such refunds = []
-    for b in betalingen:
-        if terugbetaald(b) <= dec("0"):
-            continue
-        for r in haal_refunds(key, b["id"]):
-            refunds.append(r)
-    return boek_refund_lijst(store, refunds)
-wow
-
-# --- Cursor (instellingen.dson, geen secret) ---
+# --- Laatste sync (instellingen.dson; alleen weergave, geen filter) ---
 such onthoud_sync much store:
     such inst = store.laad("instellingen", {})
     inst["mollie_laatste_sync"] = datum.vandaag()
@@ -213,7 +218,7 @@ wow
 such sync much store, key:
     such betalingen = haal_betalingen(key)
     such pres = boek_betalingen(store, betalingen)
-    such rres = boek_refunds(store, key, betalingen)
+    such rres = boek_refund_lijst(store, haal_refunds(key))
     onthoud_sync(store)
     return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"]}
 wow

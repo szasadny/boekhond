@@ -75,13 +75,37 @@ such sleutel much d:
     return jaar(d) * 10000 + maand(d) * 100 + dag(d)
 wow
 
+# stopgap for doge#TBD: nap kent geen tijdzones, dus Europe/Amsterdam via de EU-zomertijdregel.
+# 1970-01-01 was een donderdag.
+such laatste_zondag_utc much j, m:
+    such t = int(nap.parse(laatste_dag_van_maand(j, m) + "T01:00:00"))
+    return t - ((t // 86400 + 4) % 7) * 86400
+wow
+
+such lokale_stempel much utc_secs:
+    such secs = int(utc_secs)
+    such j = int(nap.stamp(secs)[0:4])
+    such afwijking = 3600
+    if laatste_zondag_utc(j, 3) <= secs and secs < laatste_zondag_utc(j, 10):
+        very afwijking = 7200
+    return nap.stamp(secs + afwijking)[0:19]
+wow
+
+# Zonder suffix telt de tijd als UTC.
+such lokale_datum much iso:
+    such secs = int(nap.parse(iso[0:19]))
+    if len(iso) >= 25 and (iso[19] == "+" or iso[19] == "-"):
+        such afwijking = int(iso[20:22]) * 3600 + int(iso[23:25]) * 60
+        very secs = secs - afwijking if iso[19] == "+" else secs + afwijking
+    return lokale_stempel(secs)[0:10]
+wow
+
 such vandaag:
-    such stempel = nap.stamp(nap.now())
-    return stempel[0:10]
+    return lokale_stempel(nap.now())[0:10]
 wow
 
 # Seconden tot het volgende voorkomen van doeluur (0-23) vanaf een ISO-stempel
-# ("YYYY-MM-DDTHH:MM:SSZ"). Pure variant zodat de scheduler-timing testbaar is
+# ("YYYY-MM-DDTHH:MM:SS", lokale tijd). Pure variant zodat de scheduler-timing testbaar is
 # zonder de klok. Is het doeluur vandaag al geweest, dan telt hij door naar morgen.
 such seconden_tot_uur_vanaf much stempel, doeluur:
     such uur = int(stempel[11:13])
@@ -94,6 +118,6 @@ such seconden_tot_uur_vanaf much stempel, doeluur:
 wow
 
 such seconden_tot_uur much doeluur:
-    return seconden_tot_uur_vanaf(nap.stamp(nap.now()), doeluur)
+    return seconden_tot_uur_vanaf(lokale_stempel(nap.now()), doeluur)
 wow
 wow

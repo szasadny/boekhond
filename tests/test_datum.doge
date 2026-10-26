@@ -1,3 +1,4 @@
+so nap
 so "../lib/datum.doge"
 
 such test_geldigheid:
@@ -64,5 +65,18 @@ such test_laatste_dag_van_maand:
     amaze datum.laatste_dag_van_maand(2024, 2) == "2024-02-29"
     amaze datum.laatste_dag_van_maand(2026, 12) == "2026-12-31"
     amaze datum.laatste_dag_van_maand(2027, 1) == "2027-01-31"
+wow
+
+# Zomertijd 2026: 29 maart 01:00 UTC t/m 25 oktober 01:00 UTC; in 2027 valt 31 oktober zelf op zondag.
+such test_lokale_stempel_zomertijdgrenzen:
+    such gevallen = [["2026-03-29T00:59:59", "2026-03-29T01:59:59"], ["2026-03-29T01:00:00", "2026-03-29T03:00:00"], ["2026-10-25T00:59:59", "2026-10-25T02:59:59"], ["2026-10-25T01:00:00", "2026-10-25T02:00:00"], ["2027-10-31T00:59:59", "2027-10-31T02:59:59"], ["2027-10-31T01:00:00", "2027-10-31T02:00:00"]]
+    for g in gevallen:
+        amaze datum.lokale_stempel(nap.parse(g[0])) == g[1], g[0]
+wow
+
+such test_lokale_datum:
+    such gevallen = [["2026-12-31T23:30:00Z", "2027-01-01"], ["2026-12-31T22:59:59Z", "2026-12-31"], ["2026-07-15T22:30:00Z", "2026-07-16"], ["2026-07-15T21:59:59Z", "2026-07-15"], ["2026-03-28T22:30:00Z", "2026-03-28"], ["2026-03-29T22:30:00Z", "2026-03-30"], ["2026-10-24T22:30:00Z", "2026-10-25"], ["2026-10-25T22:30:00Z", "2026-10-25"], ["2026-12-31T23:30:00+00:00", "2027-01-01"], ["2027-01-01T00:30:00+01:00", "2027-01-01"], ["2026-12-31T20:30:00-03:00", "2027-01-01"], ["2026-06-30T22:00:00", "2026-07-01"]]
+    for g in gevallen:
+        amaze datum.lokale_datum(g[0]) == g[1], g[0]
 wow
 wow
