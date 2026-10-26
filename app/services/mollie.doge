@@ -3,7 +3,6 @@ so json
 so journaal
 so btw
 so rekeningen
-so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 
 # Mollie-import: betaalde payments (+ refunds) ophalen en als gebalanceerde omzet-posten
@@ -74,22 +73,8 @@ such vreemde_valuta much bedrag:
     return "{cur} {waarde}"
 wow
 
-such voeg_afronding_toe much regels:
-    such d = dec("0")
-    such c = dec("0")
-    for r in regels:
-        very d = d + geld.bedrag(r["debet"])
-        very c = c + geld.bedrag(r["credit"])
-    such verschil = geld.rond2(d) - geld.rond2(c)
-    if verschil > dec("0"):
-        regels.append({"rekening": rekeningen.REK_AFRONDING, "debet": "", "credit": str(verschil), "btw_code": none})
-    elif verschil < dec("0"):
-        regels.append({"rekening": rekeningen.REK_AFRONDING, "debet": str(dec("0") - verschil), "credit": "", "btw_code": none})
-    return regels
-wow
-
 # Betaalde payment -> omzet-post: incl op de bank-kant (debet), ex als omzet-grondslag
-# (credit, hoog_21), btw op af te dragen (credit); een cent-afrondingsverschil sluit de post.
+# (credit, hoog_21, met de factuur-btw als btw_bedrag), btw op af te dragen (credit).
 such betaling_naar_post much betaling:
     such vv = vreemde_valuta(betaling["amount"])
     if vv != none:
@@ -100,8 +85,7 @@ such betaling_naar_post much betaling:
     such vat = split[1]
     such d = datum_van(betaling["paidAt"])
     such pid = betaling["id"]
-    such regels = [{"rekening": rekeningen.REK_BANK, "debet": str(incl), "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": str(ex), "btw_code": "hoog_21"}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(vat), "btw_code": none}]
-    voeg_afronding_toe(regels)
+    such regels = [{"rekening": rekeningen.REK_BANK, "debet": str(incl), "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": str(ex), "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(vat), "btw_code": none}]
     return {"datum": d, "omschrijving": betaling["description"], "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_payment_id": pid, "bijlage_ids": []}
 wow
 
@@ -117,8 +101,7 @@ such refund_naar_post much refund:
     such vat = split[1]
     such d = datum_van(refund["createdAt"])
     such rid = refund["id"]
-    such regels = [{"rekening": rekeningen.REK_BANK, "debet": "", "credit": str(incl), "btw_code": none}, {"rekening": "8000", "debet": str(ex), "credit": "", "btw_code": "hoog_21"}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": str(vat), "credit": "", "btw_code": none}]
-    voeg_afronding_toe(regels)
+    such regels = [{"rekening": rekeningen.REK_BANK, "debet": "", "credit": str(incl), "btw_code": none}, {"rekening": "8000", "debet": str(ex), "credit": "", "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": str(vat), "credit": "", "btw_code": none}]
     return {"datum": d, "omschrijving": "Refund {rid}", "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_refund_id": rid, "bijlage_ids": []}
 wow
 

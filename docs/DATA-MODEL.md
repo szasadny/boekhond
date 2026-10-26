@@ -33,16 +33,20 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
                              (allow-list `rekeningen.TYPES`; andere types geweigerd)
     btw_code                 optionele default voor regels op deze rekening
     actief                   Bool — deactiveren (en weer activeren) i.p.v. verwijderen (historie)
-                             (systeemrekeningen `rekeningen.SYSTEEM` niet deactiveerbaar)
+                             (systeemrekeningen `rekeningen.SYSTEEM` en rekeningen van een
+                             actief kostensjabloon niet deactiveerbaar)
 
 ─── journaal.dson (List) — dubbel boekhouden (double-entry) ──
   Journaalpost — één transactie; de bron van elke rubriek én de balans
     id, datum
     omschrijving, relatie    (klant/leverancier, vrije tekst)
-    regels                   [{rekening, debet, credit, btw_code}]
+    regels                   [{rekening, debet, credit, btw_code, btw_bedrag?}]
                              per regel is debet óf credit gevuld (Decimal-as-string);
                              btw_code alleen op regels met fiscale betekenis
                              (omzet-/kostenregels = grondslag)
+                             btw_bedrag (optioneel, Decimal-as-string, >= 0): de btw van
+                             de factuur op deze grondslagregel (Mollie: incl − ex); max.
+                             1 cent van ex × pct; ontbreekt hij, dan geldt ex × pct
     bron                     "mollie" | "terugkerend" | "handmatig" | "bank" | "memoriaal"
     mollie_payment_id        gezet bij bron "mollie" (betaling) — idempotentie-sleutel (§4.2);
                              geld-been op Bank (1100), omzet 21% -> rubriek 1a
@@ -94,7 +98,9 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
   import_buiten_eu) loopt via `journaal.inkoop_post` — geen btw-logica hier.
   Een niet-EUR sjabloon wordt bij het boeken omgerekend met de live Wise-koers
   (`wisselkoers.omreken`, half-up op centen); zonder koers geen boeking (fout-melding,
-  de volgende run probeert opnieuw).
+  de volgende run probeert opnieuw). Weigert `journaal.bewaar` de post (bv. inactieve
+  rekening), dan wordt dat geaudit als `terugkerend-mislukt`, als fout-melding gemeld en
+  draait de rest door; het sjabloon blijft ongeboekt tot de oorzaak weg is.
 
 ─── aangiften.dson (List) ────────────────────────────────────
   Aangifte — één ingediend (of open berekend) tijdvak
@@ -117,7 +123,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 
 ## 2. btw-codes → aangifte-rubrieken
 
-**The fiscal heart.** Every journaalregel with fiscale betekenis (omzet- en kostenregels) carries exactly one `btw_code`; every code maps to exactly one rubriek-behaviour. The regel's bedrag is the grondslag (bedrag_ex); the corresponding btw-regel lands on the btw-rekening (af te dragen / voorbelasting). Implemented solely in `app/services/btw.doge` (Hard Rule 5); this table is its specification. `btw.rubrieken(posten, j, kw)` consumes the **journaalposten** of the tijdvak directly: it walks each post's `regels`, treats every regel with a `btw_code` as a grondslagregel (bedrag = debet/credit on its natural side), and **re-derives** the btw from `btw_code` + bedrag — never from a stored btw-veld (invariant 1). A storno's mirrored debet/credit nets automatically. (Verkoop-codes komen op de omzet-regels van de Mollie-import; inkoop-codes op kosten-/activa-regels van terugkerende + handmatige inkoop — Resend/Claude/OpenAI zijn diensten van buiten de EU → `import_buiten_eu`, rubriek 4a + 5b.)
+**The fiscal heart.** Every journaalregel with fiscale betekenis (omzet- en kostenregels) carries exactly one `btw_code`; every code maps to exactly one rubriek-behaviour. The regel's bedrag is the grondslag (bedrag_ex); the corresponding btw-regel lands on the btw-rekening (af te dragen / voorbelasting). Implemented solely in `app/services/btw.doge` (Hard Rule 5); this table is its specification. `btw.rubrieken(posten, j, kw)` consumes the **journaalposten** of the tijdvak directly: it walks each post's `regels`, treats every regel with a `btw_code` as a grondslagregel (bedrag = debet/credit on its natural side), and derives the btw via `btw.regel_btw`: the regel's `btw_bedrag` (invoice btw, art. 37 Wet OB) when present, else `btw_code` + bedrag (invariant 1). A storno's mirrored debet/credit nets automatically. (Verkoop-codes komen op de omzet-regels van de Mollie-import; inkoop-codes op kosten-/activa-regels van terugkerende + handmatige inkoop — Resend/Claude/OpenAI zijn diensten van buiten de EU → `import_buiten_eu`, rubriek 4a + 5b.)
 
 ### Verkoop (type = "verkoop")
 
@@ -150,11 +156,13 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 - **5a** = som van alle verschuldigde btw (1a + 1b + 1d + 2a + 4a + 4b).
 - **5b** = som voorbelasting.
 - **saldo** = 5a − 5b — positief: te betalen; negatief: terug te vragen.
-- **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal). Gevolg: verlegde btw (2a/4a/4b + 5b) die op de cent nettoot kan op de aangifte een saldo van een paar euro negatief geven. `btw.specificatie(posten, j, kw)` levert dezelfde afleiding per post zonder afronding; de aangiftepagina toont die naast de afgeronde cijfers, plus per post een controle of de geboekte btw (1510/1520) aansluit op de btw-codes (`aangifte.uitleg`).
+- **Afronding:** rubrieken in **hele euro's** op de aangifte. De wet staat afronden in eigen voordeel toe; wij ronden per rubriek: verschuldigde btw **naar beneden**, voorbelasting (5b) **naar boven**. De onderliggende administratie blijft op de cent (Decimal). Gevolg: verlegde btw (2a/4a/4b + 5b) die op de cent nettoot kan op de aangifte een saldo van een paar euro negatief geven. `btw.specificatie(posten, j, kw)` levert dezelfde afleiding per post zonder afronding; de aangiftepagina toont die naast de afgeronde cijfers, plus per post een controle of de geboekte btw (1510/1520) aansluit op de btw-codes (`aangifte.uitleg`). Daarnaast sluit `aangifte.aansluiting` het hele open tijdvak op de cent aan op het grootboek: verschuldigde btw tegen de netto credit-beweging op 1510, voorbelasting tegen de netto debet-beweging op 1520. Een btw-afrekening (post zonder btw-code die alleen activa/passiva/eigen vermogen raakt, zoals de btw-betaling) telt niet mee. Bij een verschil tonen het overzicht en de doen-pagina een waarschuwing; een ingediend tijdvak toont alleen de snapshot.
 - Btw per journaalregel: rekenkundig afronden op 2 decimalen (`dec`, half-up), per regel.
 - Inclusieve bedragen (Mollie levert incl) splitsen naar `[ex, btw]` via `btw.splits_incl`
-  (`btw = btw_bedrag(ex)`, gelijk aan de aangifte-afleiding); een afrondingsverschil boekt op
-  rekening 8900 (Afrondingsverschillen) — afronding blijft in `btw.doge` (Hard Rule 5).
+  zoals de factuur: `ex = afgerond(incl × 100 / (100 + pct))`, `btw = incl − ex` (€ 100,00 → 82,64 +
+  17,36). De factuur-btw is verschuldigd (art. 37 Wet OB), dus de omzetregel draagt hem als
+  `btw_bedrag` en de aangifte telt die; geen afrondingsregel. Oudere Mollie-posten met een
+  8900-regel (Afrondingsverschillen) houden hun ex × pct-afleiding. Afronding blijft in `btw.doge` (Hard Rule 5).
 - Alleen Mollie-bedragen met `amount.currency == "EUR"` worden geboekt; een payment of refund in een andere valuta wordt geweigerd (geen koersconversie), niet als geboekt gemarkeerd en bij elke sync opnieuw gemeld (`geweigerd` + audit-event `mollie-geweigerd`). Een betaalde payment van 0,00 (bv. een mandaat-eerste-betaling) heeft geen omzet en wordt overgeslagen. Weigert `journaal.bewaar` een post (bv. een inactieve rekening), dan wordt die payment of refund evenmin als geboekt gemarkeerd, gemeld als `mislukt` + audit-event `mollie-mislukt`, en boekt de rest van de batch gewoon door.
 
 ---
@@ -174,7 +182,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 Enforced in services, elk met een test (Hard Rule 10):
 
 0. **Elke journaalpost balanceert:** som(debet) == som(credit), op de cent (Decimal). Een niet-balancerende post wordt geweigerd, nooit "rechtgetrokken". `journaal.bewaar` weigert daarnaast elke regel zonder bestaande, actieve rekening (een storno mag een inmiddels inactieve rekening raken), met debet én credit of geen van beide, of met een negatief bedrag, en een post zonder bedrag groter dan nul. Sjabloonflows dragen alleen codes van hun soort: `handmatig`/`terugkerend` alleen inkoop-codes, `mollie` alleen verkoop-codes; memoriaal en storno zijn vrij.
-1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in.
+1. Btw-regels zijn altijd herafleidbaar uit de grondslagregels (`bedrag` + `btw_code`, of het `btw_bedrag` van de factuur dat de Mollie-import op de omzetregel zet; `journaal.bewaar` weigert een `btw_bedrag` dat meer dan 1 cent van ex × pct afwijkt) — de service berekent de btw-regel, de UI stuurt nooit een btw-bedrag in. Een storno neemt `btw_bedrag` ongewijzigd over; het teken volgt de grondslag, dus de storno nettoot.
 2. **Import is idempotent, elke bron precies één keer geboekt:** een Mollie-payment wordt hoogstens één journaalpost (uniek `mollie_payment_id`), een kostensjabloon hoogstens één post per maand (uniek `terugkerend_sleutel` = sjabloon-id + maand; alleen de lopende maand, geen backfill). Een `data/import/`-bestand wordt hoogstens één Bijlage (`bron = "import"`): `bijlagen.scan_import` verwijdert de bronfile na een geslaagde ingest, dus een tweede scan vindt 'm niet meer — idempotentie via bronfile-verwijdering (geen stored key; een Bijlage is geen boeking). Dubbel draaien van de sync/scheduler/scan boekt nooit dubbel; elke import is een audit-event (Hard Rule 2).
 3. Een journaalpost in een ingediend tijdvak muteert nooit (§3.3); een storno verwijst altijd naar een bestaande post en spiegelt alle regels exact (debet ↔ credit). Een Mollie-refund is zo'n tegenboeking (gespiegelde omzet-post, gedateerd op `createdAt`), idempotent per `mollie_refund_id` — dubbel syncen boekt 'm nooit dubbel.
 4. Bijlagen worden nooit verwijderd; een journaalpost met bijlagen kan niet verwijderd worden (alleen storneren). Koppelen is symmetrisch en gaat via `journaal.koppel_bijlage` (de enige schrijver van journaalposten): het zet `journaalpost_id` op de Bijlage én voegt het bijlage-id toe aan `bijlage_ids` van de post — en wordt geweigerd als de post in een ingediend tijdvak valt (§3.3, invariant 3).

@@ -81,10 +81,15 @@ such test_post_effect:
     amaze btw.post_effect(maak("2026-01-01", "import_buiten_eu", "100")) == dec("0")
 wow
 
+# [incl, ex, btw] met de hand: ex = afgerond(incl / 1,21), btw = incl - ex (factuur-btw).
+so SPLITS_21 = [["100.00", "82.64", "17.36"], ["12.10", "10.00", "2.10"], ["0.01", "0.01", "0.00"], ["59.99", "49.58", "10.41"], ["9.99", "8.26", "1.73"], ["1000.00", "826.45", "173.55"], ["0.05", "0.04", "0.01"]]
+
 such test_splits_incl:
-    such s = btw.splits_incl(dec("12.10"), "hoog_21")
-    amaze s[0] == dec("10.00")
-    amaze s[1] == dec("2.10")
+    for rij in SPLITS_21:
+        such s = btw.splits_incl(dec(rij[0]), "hoog_21")
+        amaze s[0] == dec(rij[1]), rij[0]
+        amaze s[1] == dec(rij[2]), rij[0]
+        amaze s[0] + s[1] == dec(rij[0])
     such g = btw.splits_incl(dec("100"), "geen_btw")
     amaze g[0] == dec("100")
     amaze g[1] == dec("0")
@@ -144,9 +149,23 @@ such test_afronding_negatief:
     amaze btw.euro_op(dec("210.10")) == 211
 wow
 
-such test_splits_incl_niet_rond:
-    such sp = btw.splits_incl(dec("9.99"), "hoog_21")
-    amaze sp[0] == dec("8.26")
-    amaze sp[1] == btw.btw_bedrag(sp[0], "hoog_21")
+# Factuur-btw op de regel gaat voor ex x 21% (17,35); op de debet-kant telt hij negatief.
+such test_regel_btw_factuur:
+    such omzet = {"rekening": "8000", "debet": "", "credit": "82.64", "btw_code": "hoog_21", "btw_bedrag": "17.36"}
+    amaze btw.post_effect({"datum": "2026-07-15", "regels": [omzet]}) == dec("17.36")
+    such terug = {"rekening": "8000", "debet": "82.64", "credit": "", "btw_code": "hoog_21", "btw_bedrag": "17.36"}
+    amaze btw.post_effect({"datum": "2026-07-15", "regels": [terug]}) == dec("-17.36")
+    such spec = btw.specificatie([{"id": "j-1", "datum": "2026-07-15", "omschrijving": "x", "regels": [omzet]}], 2026, 3)
+    amaze spec["btw_per_rubriek"]["1a"] == dec("17.36")
+    such zonder = {"rekening": "8000", "debet": "", "credit": "82.64", "btw_code": "hoog_21"}
+    amaze btw.post_effect({"datum": "2026-07-15", "regels": [zonder]}) == dec("17.35")
+wow
+
+such test_factuur_btw_geldig:
+    amaze btw.factuur_btw_geldig(dec("82.64"), "hoog_21", dec("17.36"))
+    amaze btw.factuur_btw_geldig(dec("82.64"), "hoog_21", dec("17.35"))
+    amaze not btw.factuur_btw_geldig(dec("82.64"), "hoog_21", dec("17.38"))
+    amaze not btw.factuur_btw_geldig(dec("82.64"), "hoog_21", dec("-17.36"))
+    amaze not btw.factuur_btw_geldig(dec("82.64"), "geen_btw", dec("0"))
 wow
 wow

@@ -64,7 +64,7 @@ such voeg_toe much store, sjabloon:
         bonk "onbekende btw-code: {code}"
     if btw.info(code)["soort"] != "inkoop":
         bonk "btw-code {code} hoort bij verkoop, terugkerende kosten vragen een inkoop-code"
-    if dec(sjabloon["bedrag_ex"]) <= dec("0"):
+    if geld.waarde(sjabloon["bedrag_ex"]) <= dec("0"):
         bonk "bedrag moet groter dan nul zijn"
     such dag = sjabloon["dag"]
     if dag < 1 or dag > 28:
@@ -116,6 +116,7 @@ wow
 # is alleen nodig voor niet-EUR sjablonen; de koers wordt pas opgehaald als er echt
 # geboekt wordt. Geen koersbron of een koersfout -> fout-melding, sjabloon blijft
 # ongeboekt (de volgende run probeert opnieuw; idempotentie blijft via de sleutel).
+# Een weigering van bewaar (bv. inactieve rekening) gaat ook naar fouten en blokkeert de rest niet.
 # Retourneert {geboekt, overgeslagen, fouten}.
 such genereer much store, vandaag, koersbron:
     such maand = vandaag[0:7]
@@ -155,7 +156,14 @@ such genereer much store, vandaag, koersbron:
         if meta != none:
             for veld in meta:
                 post[veld] = meta[veld]
-        journaal.bewaar(store, post)
+        pls
+            journaal.bewaar(store, post)
+        oh no err!
+            if err.type != "Bonk":
+                bonk err
+            store.audit("terugkerend-mislukt", "kostensjabloon", sid, {"reden": err.message})
+            fouten.append("sjabloon {oms}: boeken geweigerd ({err.message}), niet geboekt")
+            continue
         gezien.append(sleutel)
         very geboekt = geboekt + 1
     return {"geboekt": geboekt, "overgeslagen": overgeslagen, "fouten": fouten}

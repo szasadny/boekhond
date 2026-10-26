@@ -10,6 +10,7 @@ so "../../lib/geld.doge"
 # btw.doge (Hard Rule 5); de tijdvak-lock zit in journaal.doge (Hard Rule 3).
 
 so SUPPLETIE_DREMPEL = dec("1000")
+so BALANS_TYPES = ["activa", "passiva", "eigen_vermogen"]
 
 such vroegste_datum much posten:
     such vroegste = none
@@ -19,16 +20,23 @@ such vroegste_datum much posten:
     return vroegste
 wow
 
-# Ondergrens is de start van de administratie, met ruimte voor een nihil-aangifte over het jaar ervoor.
-such controleer_tijdvak much j, kw, vandaag, posten:
-    if kw < 1 or kw > 4:
-        bonk "ongeldig kwartaal {kw}, kies 1 t/m 4"
+# Toegestane jaren als [min, max]. Ondergrens is de start van de administratie, met ruimte voor
+# een nihil-aangifte over het jaar ervoor.
+such jaar_bereik much vandaag, posten:
     such huidig = datum.jaar(vandaag)
     such min_j = huidig - 1
     such vroegste = vroegste_datum(posten)
     if vroegste != none and datum.jaar(vroegste) < min_j:
         very min_j = datum.jaar(vroegste)
-    such max_j = huidig + 1
+    return [min_j, huidig + 1]
+wow
+
+such controleer_tijdvak much j, kw, vandaag, posten:
+    if kw < 1 or kw > 4:
+        bonk "ongeldig kwartaal {kw}, kies 1 t/m 4"
+    such bereik = jaar_bereik(vandaag, posten)
+    such min_j = bereik[0]
+    such max_j = bereik[1]
     if j < min_j or j > max_j:
         bonk "ongeldig jaar {j}, kies {min_j} t/m {max_j}"
 wow
@@ -100,7 +108,8 @@ such overzicht much store, j, kw:
     such icp = btw.grondslag_code_tijdvak(store.laad("journaal", []), j, kw, "levering_eu") > dec("0")
     such supp = suppletie_signaal(store, j, kw)
     such u = uitleg(store, j, kw)
-    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "onbekend": c["onbekend"], "uitleg": u}
+    such ans = none if c["status"] == "ingediend" else aansluiting(store, j, kw)
+    return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "onbekend": c["onbekend"], "uitleg": u, "aansluiting": ans}
 wow
 
 # Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
@@ -227,5 +236,35 @@ such uitleg much store, j, kw:
             afwijkend.append(sp)
     spec["afwijkend"] = afwijkend
     return spec
+wow
+
+# Betaling of teruggave van btw (1510/1520 tegen bank, of 1520 naar 1510) heeft geen btw-code en
+# raakt alleen balansrekeningen; die afrekening hoort niet in de aansluiting.
+such is_afrekening much post, types:
+    for r in post["regels"]:
+        if r.has("btw_code") and r["btw_code"] != none:
+            return false
+        if not types.has(r["rekening"]) or not BALANS_TYPES.contains(types[r["rekening"]]):
+            return false
+    return true
+wow
+
+# Op de cent, vóór afronding op hele euro's, zodat de toegestane euro-afronding nooit een verschil geeft.
+such aansluiting much store, j, kw:
+    such posten = store.laad("journaal", [])
+    such spec = btw.specificatie(posten, j, kw)
+    such types = {}
+    for r in rekeningen.alle(store):
+        types[r["nummer"]] = r["type"]
+    such geboekt_af = dec("0")
+    such geboekt_voor = dec("0")
+    for p in posten:
+        if not datum.in_kwartaal(p["datum"], j, kw) or is_afrekening(p, types):
+            continue
+        very geboekt_af = geboekt_af - beweging(p, rekeningen.REK_AF_TE_DRAGEN)
+        very geboekt_voor = geboekt_voor + beweging(p, rekeningen.REK_VOORBELASTING)
+    such verschil_af = spec["verschuldigd"] - geboekt_af
+    such verschil_voor = spec["voorbelasting"] - geboekt_voor
+    return {"verschuldigd": spec["verschuldigd"], "geboekt_af": geboekt_af, "verschil_af": verschil_af, "voorbelasting": spec["voorbelasting"], "geboekt_voor": geboekt_voor, "verschil_voor": verschil_voor, "klopt": verschil_af == 0 and verschil_voor == 0}
 wow
 wow

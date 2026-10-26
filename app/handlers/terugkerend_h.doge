@@ -98,7 +98,7 @@ such toevoegen much req:
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!
-        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message), v)), 400)
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.domeinfout(err), v)), 400)
 wow
 
 such bevestig_inhoud much s:
@@ -128,7 +128,7 @@ such deactiveer much req:
     pls
         terugkerend.deactiveer(store, id)
     oh no err!
-        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.domeinfout(err))), 400)
     return http.redirect("/terugkerend")
 wow
 
@@ -137,7 +137,7 @@ such activeer much req:
     pls
         terugkerend.activeer(store, req["params"]["id"])
     oh no err!
-        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.domeinfout(err))), 400)
     return http.redirect("/terugkerend")
 wow
 
@@ -150,9 +150,9 @@ such genereer much req:
             such meldingen = ""
             for f in res["fouten"]:
                 very meldingen = meldingen + weergave.fout(f)
-            return http.html_response(weergave.render("Kosten", inhoud_van(store, meldingen)))
+            return http.html_response(weergave.render("Kosten", inhoud_van(store, meldingen)), 400)
         return http.redirect("/terugkerend")
     oh no err!
-        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.domeinfout(err))), 400)
 wow
 wow

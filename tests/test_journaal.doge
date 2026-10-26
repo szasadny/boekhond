@@ -54,6 +54,19 @@ such test_bewaar_onbalans_weigert:
     schoon()
 wow
 
+such test_bewaar_weigert_afwijkend_btw_bedrag:
+    such s = verse_store()
+    such post = journaal.memoriaal_post("2026-07-15", "scheef", "", [{"rekening": "1100", "debet": "100.00", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "82.64", "btw_code": "hoog_21", "btw_bedrag": "17.38"}, {"rekening": "1510", "debet": "", "credit": "17.36", "btw_code": none}])
+    such melding = ""
+    pls
+        journaal.bewaar(s, post)
+    oh no err!
+        very melding = err.message
+    amaze melding == "ongeldig btw-bedrag op rekening 8000"
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
 such test_bewaar_onbekende_btw_code_weigert:
     such s = verse_store()
     such post = journaal.memoriaal_post("2026-07-15", "bogus", "", [{"rekening": "1300", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "100", "btw_code": "bogus"}])
@@ -189,7 +202,6 @@ such test_gekozen_tijdvak:
     amaze d[0] == te[0] and d[1] == te[1]
     such e = journaal_h.gekozen_tijdvak(s, {"tv": ["abcd-1"]})
     amaze e[0] == te[0] and e[1] == te[1]
-    amaze journaal_h.tijdvak_url("2026-10-18") == "/journaal?tv=2026-4"
     schoon()
 wow
 
@@ -388,4 +400,34 @@ such test_memoriaal_leeg_formulier_ongewijzigd:
     amaze aantal(h, " selected>") == aantal(h, "<option value=\"\" selected>")
     schoon()
 wow
+such test_bewaar_weigert_ongeldige_datum:
+    such regels = [regel("4200", "50", "", none), regel("1600", "", "50", none)]
+    such gevallen = [["", "datum ontbreekt"], ["2026-02-30", "ongeldige datum (JJJJ-MM-DD): 2026-02-30"], ["2026-13-01", "ongeldige datum (JJJJ-MM-DD): 2026-13-01"]]
+    for g in gevallen:
+        such s = verse_store()
+        amaze weigering(s, journaal.memoriaal_post(g[0], "x", "", regels)) == g[1], g[1]
+    schoon()
+wow
+
+such test_sjabloonflows_melden_ontbrekende_invoer:
+    such meldingen = []
+    pls
+        journaal.inkoop_post("2026-07-15", "Lev", "x", "", "voorbelasting_hoog", "4200")
+    oh no err!
+        meldingen.append(err.message)
+    pls
+        journaal.prive_post("2026-07-15", "x", "1100", "", "storting")
+    oh no err!
+        meldingen.append(err.message)
+    pls
+        journaal.privegebruik_post("", "100")
+    oh no err!
+        meldingen.append(err.message)
+    pls
+        journaal.privegebruik_post("2026-14-01", "100")
+    oh no err!
+        meldingen.append(err.message)
+    amaze meldingen == ["bedrag ontbreekt", "bedrag ontbreekt", "datum ontbreekt", "ongeldige datum (JJJJ-MM-DD): 2026-14-01"]
+wow
+
 wow

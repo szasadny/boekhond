@@ -62,4 +62,26 @@ such test_rond2_tekstvorm:
     for g in gevallen:
         amaze str(geld.rond2(dec(g[0]))) == g[1], g[0]
 wow
+such melding_van much f, invoer:
+    pls
+        f(invoer)
+    oh no err!
+        return err.message
+    return ""
+wow
+
+such test_parse_meldingen:
+    amaze melding_van(geld.parse, "") == "bedrag ontbreekt"
+    amaze melding_van(geld.parse, "  ") == "bedrag ontbreekt"
+    amaze melding_van(geld.parse, "abc") == "ongeldig bedrag: abc"
+wow
+
+such test_waarde:
+    amaze geld.waarde("1234.50") == dec("1234.50")
+    amaze geld.waarde("-20") == dec("-20")
+    amaze melding_van(geld.waarde, "") == "bedrag ontbreekt"
+    amaze melding_van(geld.waarde, "12,50") == "ongeldig bedrag: 12,50"
+    amaze melding_van(geld.waarde, "abc") == "ongeldig bedrag: abc"
+wow
+
 wow

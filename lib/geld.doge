@@ -34,6 +34,8 @@ wow
 # Accepteert NL-invoer zoals "1.234,56", "19,99", "1234.56" en "€ 12,50".
 such parse much tekst:
     such t = strings.trim(tekst)
+    if t == "":
+        bonk "bedrag ontbreekt"
     very t = strings.replace(t, "€", "")
     very t = strings.replace(t, " ", "")
     if strings.contains(t, ","):
@@ -44,6 +46,15 @@ such parse much tekst:
     if not hunt.test("^-?[0-9]+(\\.[0-9]+)?$", t):
         bonk "ongeldig bedrag: {tekst}"
     return dec(t)
+wow
+
+# Canonieke Decimal-string uit de services of de store ("1234.50"), geen NL-invoer.
+such waarde much s:
+    if s == none or strings.trim(s) == "":
+        bonk "bedrag ontbreekt"
+    if not hunt.test("^-?[0-9]+(\\.[0-9]+)?$", s):
+        bonk "ongeldig bedrag: {s}"
+    return dec(s)
 wow
 
 # Geeft altijd twee decimalen met duizendtallen terug, bv. "1.234,50".

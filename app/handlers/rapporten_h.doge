@@ -2,10 +2,12 @@ so "../../web/http.doge"
 so "../../web/html.doge"
 so "../../web/forms.doge"
 so "../services/rapporten.doge"
+so "../services/aangifte.doge"
 so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 so "../../lib/csv.doge"
 so weergave
+so strings
 
 # Rapporten uit het journaal: balans, winst & verlies (+ CSV). Leest via rapporten.doge;
 # alle bedragen via geld.formatteer, alle cellen via html.escape (Hard Rule 6).
@@ -13,6 +15,28 @@ so weergave
 such jaar_uit much req:
     such vandaag = datum.vandaag()
     return forms.geheel(req["query"], "j", datum.jaar(vandaag))
+wow
+
+so RAPPORTEN = [["/rapporten/balans", "Balans"], ["/rapporten/winst-verlies", "Winst en verlies"], ["/rapporten/jaaroverzicht", "Jaaroverzicht"]]
+
+such rapport_kop much store, pad, j:
+    such soorten = []
+    for r in RAPPORTEN:
+        if r[0] == pad:
+            soorten.append("<strong>{html.escape(r[1])}</strong>")
+        else:
+            soorten.append(html.link("{r[0]}?j={j}", r[1]))
+    such bereik = aangifte.jaar_bereik(datum.vandaag(), store.laad("journaal", []))
+    such jaren = []
+    for jr in range(bereik[0], bereik[1] + 1):
+        if jr == j:
+            jaren.append("<strong>{jr}</strong>")
+        else:
+            jaren.append(html.link("{pad}?j={jr}", str(jr)))
+    such csvlink = html.link("{pad}.csv?j={j}", "CSV")
+    such s = strings.join(soorten, " · ")
+    such js = strings.join(jaren, " · ")
+    return "<p>{s}</p><p>Jaar: {js} · {csvlink}</p>"
 wow
 
 such regels_tabel much data:
@@ -38,7 +62,7 @@ such balans much req:
     such tp = html.escape(geld.formatteer(b["totaal_passiva_ev"]))
     such klopt = "ja" if b["klopt"] else "NEE"
     such inhoud = "<h1>Balans {j}</h1><h2>Activa</h2><table>{act}</table><p>Totaal activa: {ta}</p><h2>Passiva</h2><table>{pas}</table><h2>Eigen vermogen</h2><table>{ev}</table><p>Resultaat voorgaande jaren: {vrg}</p><p>Resultaat boekjaar: {res}</p><p>Totaal passiva + eigen vermogen: {tp}</p><p>Balans klopt: {klopt}</p>"
-    return http.html_response(weergave.render("Balans", inhoud))
+    return http.html_response(weergave.render("Balans", rapport_kop(store, "/rapporten/balans", j) + inhoud))
 wow
 
 such balans_csv much req:
@@ -69,7 +93,7 @@ such winst_verlies much req:
     such tk = html.escape(geld.formatteer(wv["totaal_kosten"]))
     such res = html.escape(geld.formatteer(wv["resultaat"]))
     such inhoud = "<h1>Winst en verlies {j}</h1><h2>Omzet</h2><table>{omz}</table><p>Totaal omzet: {to}</p><h2>Kosten</h2><table>{kos}</table><p>Totaal kosten: {tk}</p><p><strong>Resultaat: {res}</strong></p>"
-    return http.html_response(weergave.render("Winst en verlies", inhoud))
+    return http.html_response(weergave.render("Winst en verlies", rapport_kop(store, "/rapporten/winst-verlies", j) + inhoud))
 wow
 
 such winst_verlies_csv much req:
@@ -103,7 +127,7 @@ such jaaroverzicht much req:
     such res = html.escape(geld.formatteer(jo["wv"]["resultaat"]))
     such vrij = html.escape(geld.formatteer(jo["vrijgestelde_omzet"]))
     such inhoud = "<h1>Jaaroverzicht {j}</h1>{tabel}<p>Jaarsaldo btw: {js}</p><p>Resultaat: {res}</p><p>Vrijgestelde omzet: {vrij}</p>"
-    return http.html_response(weergave.render("Jaaroverzicht", inhoud))
+    return http.html_response(weergave.render("Jaaroverzicht", rapport_kop(store, "/rapporten/jaaroverzicht", j) + inhoud))
 wow
 
 such jaaroverzicht_csv much req:

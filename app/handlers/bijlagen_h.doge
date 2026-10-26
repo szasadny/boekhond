@@ -3,6 +3,8 @@ so "../../web/html.doge"
 so "../../web/forms.doge"
 so "../../web/multipart.doge"
 so "../services/bijlagen.doge"
+so "../services/journaal.doge"
+so "../../lib/datum.doge"
 so weergave
 so strings
 
@@ -10,6 +12,9 @@ so strings
 # wordt gevalideerd + opgeslagen door de bijlagen-service, en vandaaruit aan een
 # journaalpost gekoppeld. Download loopt via een router-route (nooit als /static/,
 # want bijlagen liggen buiten de static-root). Alle dynamische waarden ge-escaped (Hard Rule 6).
+
+# Doge's sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int.
+so POST_FACTOR = 10000000
 
 such upload_formulier:
     such veld = html.bestand("bestand", "Inkoopbewijs (pdf/png/jpg)", ".pdf,.png,.jpg,.jpeg")
@@ -40,34 +45,44 @@ such upload much req:
     return http.redirect("/inbox")
 wow
 
-# Dropdown met de laatste journaalposten om een inbox-bijlage aan te koppelen.
+# Koppelbare posten als [id, label], nieuwste datum eerst; posten in een ingediend tijdvak
+# kunnen geen bijlage meer krijgen en vallen weg.
 such post_opties much store:
-    such o = [["", "(kies journaalpost)"]]
     such posten = store.laad("journaal", [])
-    such n = len(posten)
-    such i = n - 20
-    if i < 0:
-        very i = 0
-    while i < n:
-        such p = posten[i]
-        such pid = p["id"]
+    such aangiften = store.laad("aangiften", [])
+    such sleutels = []
+    such i = 0
+    while i < len(posten):
+        if journaal.tijdvak_open(aangiften, posten[i]["datum"]):
+            sleutels.append(datum.sleutel(posten[i]["datum"]) * POST_FACTOR + i)
+        very i = i + 1
+    sleutels.sort()
+    such o = []
+    for k in sleutels[::-1]:
+        such p = posten[k % POST_FACTOR]
         such pd = p["datum"]
         such po = p["omschrijving"]
-        such label = "{pid} — {pd} {po}"
-        o.append([pid, label])
-        very i = i + 1
+        o.append([p["id"], "{pd} {po}"])
     return o
 wow
 
-such inbox_rij much store, b:
+# Eén gedeelde datalist voor alle inbox-rijen: typen filtert op id, datum en omschrijving.
+such posten_datalist much opties:
+    such items = ""
+    for o in opties:
+        very items = items + "<option value=\"{html.escape(o[0])}\">{html.escape(o[1])}</option>"
+    return "<datalist id=\"koppelbare-posten\">{items}</datalist>"
+wow
+
+such inbox_rij much b:
     such bid = b["id"]
     such naam = html.escape(b["bestandsnaam_origineel"])
     such link = html.link("/bijlagen/{bid}", naam)
-    such sel = html.select("post_id", post_opties(store), "")
+    such keuze = "<input name=\"post_id\" list=\"koppelbare-posten\" required placeholder=\"Zoek op datum of omschrijving\" aria-label=\"Journaalpost\">"
     such hidbid = html.escape(bid)
     such hid = "<input type=\"hidden\" name=\"bijlage_id\" value=\"{hidbid}\">"
     such knop = html.knop("Koppelen")
-    such form = "<form action=\"/koppel\" method=\"post\" class=\"inline\">{hid}{sel}{knop}</form>"
+    such form = "<form action=\"/koppel\" method=\"post\" class=\"inline\">{hid}{keuze}{knop}</form>"
     return "<tr><td>{link}</td><td>{form}</td></tr>"
 wow
 
@@ -75,7 +90,7 @@ such inbox_inhoud much store, melding:
     such items = bijlagen.inbox(store)
     such body = ""
     for b in items:
-        very body = body + inbox_rij(store, b)
+        very body = body + inbox_rij(b)
     such leeg = ""
     if len(items) == 0:
         very leeg = "<p>De inbox is leeg.</p>"
@@ -83,7 +98,8 @@ such inbox_inhoud much store, melding:
     such up = html.link("/upload", "Bewijs uploaden")
     such scanknop = html.knop("Scan importmap")
     such scan_form = "<form action=\"/inbox/scan\" method=\"post\" class=\"inline\">{scanknop}</form>"
-    return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}"
+    such lijst = posten_datalist(post_opties(store)) if len(items) > 0 else ""
+    return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}{lijst}"
 wow
 
 # Bouwt een resultaat-melding voor de import-scan; overgeslagen namen/redenen ge-escaped.

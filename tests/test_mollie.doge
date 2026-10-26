@@ -93,13 +93,34 @@ such refund_sample much id:
     return {"id": id, "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-07-20T10:00:00+00:00"}
 wow
 
-such test_afdracht_matcht_aangifte:
+# 100,00 incl: factuur-btw 17,36 (ex x 21% zou 17,35 geven), zonder afrondingsregel.
+such test_afdracht_volgt_factuur:
     such p = mollie.betaling_naar_post(betaling("tr_x", "100.00"))
     amaze journaal.balans_klopt(p["regels"])
-    such ex = dec(p["regels"][1]["credit"])
-    such vat = dec(p["regels"][2]["credit"])
-    amaze vat == btw.btw_bedrag(ex, "hoog_21")
-    amaze len(p["regels"]) == 4
+    amaze len(p["regels"]) == 3
+    amaze dec(p["regels"][1]["credit"]) == dec("82.64")
+    amaze dec(p["regels"][2]["credit"]) == dec("17.36")
+    amaze btw.post_effect(p) == dec("17.36")
+wow
+
+such test_aangifte_telt_factuur_btw:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_x", "100.00")])
+    such posten = s.laad("journaal", [])
+    amaze btw.specificatie(posten, 2026, 3)["btw_per_rubriek"]["1a"] == dec("17.36")
+    such tegen = journaal.bewaar(s, journaal.storno_post(posten[0], "2026-07-20"))
+    amaze btw.post_effect(tegen) == dec("-17.36")
+    amaze btw.specificatie(s.laad("journaal", []), 2026, 3)["btw_per_rubriek"]["1a"] == dec("0")
+    schoon()
+wow
+
+such test_refund_spiegelt_factuur_btw:
+    such r = {"id": "re_x", "status": "refunded", "amount": {"value": "100.00", "currency": "EUR"}, "createdAt": "2026-07-20T10:00:00+00:00"}
+    such p = mollie.refund_naar_post(r)
+    amaze journaal.balans_klopt(p["regels"])
+    amaze len(p["regels"]) == 3
+    amaze dec(p["regels"][2]["debet"]) == dec("17.36")
+    amaze btw.post_effect(p) == dec("-17.36")
 wow
 
 such test_refund_idempotent:

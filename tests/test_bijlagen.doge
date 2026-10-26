@@ -4,6 +4,7 @@ so "../app/store/store.doge"
 so "../app/services/bijlagen.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
+so "../app/handlers/bijlagen_h.doge"
 
 so TMPMAP = "tmp_test_bijlagen"
 
@@ -260,5 +261,29 @@ such test_geldig_pad:
     amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-1.pdf/x")
     amaze not bijlagen.geldig_pad("../b-1", "uploads/2026/../b-1.pdf")
     amaze not bijlagen.geldig_pad("b-1", "uploads/2026/b-1.PDF")
+wow
+
+such test_post_opties_nieuwste_eerst_zonder_vergrendeld:
+    such s = verse()
+    such p1 = maak_post_op(s, "2026-07-10")
+    such p2 = maak_post_op(s, "2026-05-01")
+    such p3 = maak_post_op(s, "2026-07-10")
+    such p4 = maak_post_op(s, "2026-09-01")
+    such ids = []
+    for o in bijlagen_h.post_opties(s):
+        ids.append(o[0])
+    amaze ids == [p4["id"], p3["id"], p1["id"], p2["id"]]
+    s.bewaar("aangiften", [{"id": "a-1", "jaar": 2026, "tijdvak": "Q2", "status": "ingediend"}])
+    such open_ids = []
+    for o in bijlagen_h.post_opties(s):
+        open_ids.append(o[0])
+    amaze open_ids == [p4["id"], p3["id"], p1["id"]]
+    amaze bijlagen_h.post_opties(s)[0][1] == "2026-09-01 test"
+    schoon()
+wow
+
+such test_posten_datalist_escaped:
+    such h = bijlagen_h.posten_datalist([["j-1", "2026-07-10 <b>&"]])
+    amaze h == "<datalist id=\"koppelbare-posten\"><option value=\"j-1\">2026-07-10 &lt;b&gt;&amp;</option></datalist>"
 wow
 wow

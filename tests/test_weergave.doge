@@ -36,4 +36,44 @@ such test_tijdvak_fout:
     if fetch.exists(TMPMAP):
         fetch.remove_dir(TMPMAP)
 wow
+such test_domeinfout_alleen_bonk:
+    such html = ""
+    pls
+        bonk "rekening is inactief: 4000"
+    oh no err!
+        very html = weergave.domeinfout(err)
+    amaze html == "<p class=\"fout\">rekening is inactief: 4000</p>"
+    such doorgegeven = ""
+    pls
+        pls
+            int("")
+        oh no err!
+            weergave.domeinfout(err)
+    oh no err2!
+        very doorgegeven = err2.type
+    amaze doorgegeven == "ValueError"
+wow
+
+such test_tijdvak_href:
+    amaze weergave.tijdvak_href("/journaal", "2025-12-31") == "/journaal?j=2025&kw=4"
+    amaze weergave.tijdvak_href("/aangifte/doen", "2026-04-01") == "/aangifte/doen?j=2026&kw=2"
+wow
+
+such test_kwartaal_nav_over_jaargrens_en_bereik:
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+    such s = store.Store(TMPMAP)
+    such j = datum.jaar(datum.vandaag())
+    such midden = weergave.kwartaal_nav(s, "/journaal", j, 1)
+    amaze strings.contains(midden, "<a href=\"/journaal?j={j - 1}&amp;kw=4\">← Q4-{j - 1}</a>")
+    amaze strings.contains(midden, "<a href=\"/journaal?j={j}&amp;kw=2\">Q2-{j} →</a>")
+    such onder = weergave.kwartaal_nav(s, "/aangifte", j - 1, 1)
+    amaze not strings.contains(onder, "←")
+    amaze strings.contains(onder, "/aangifte?j={j - 1}&amp;kw=2")
+    such boven = weergave.kwartaal_nav(s, "/aangifte", j + 1, 4)
+    amaze not strings.contains(boven, "→")
+    amaze strings.contains(boven, "/aangifte?j={j + 1}&amp;kw=3")
+    if fetch.exists(TMPMAP):
+        fetch.remove_dir(TMPMAP)
+wow
 wow

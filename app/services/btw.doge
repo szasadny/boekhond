@@ -64,16 +64,33 @@ such btw_bedrag much bedrag_ex, code:
     return geld.rond2(bedrag_ex * c["pct"] / 100)
 wow
 
-# Splits een inclusief bedrag in [ex, btw]. ex volgt uit incl,
-# btw = btw_bedrag(ex) (zelfde afronding als de aangifte); ex + btw kan een cent van incl
-# afwijken, dat verschil sluit de Mollie-post op de afrondingsrekening. Afronding hier (Hard Rule 5).
+# Splits een inclusief bedrag in [ex, btw] zoals op de factuur: btw = incl - ex, dus de btw
+# kan een cent van btw_bedrag(ex) afwijken. De factuur-btw is verschuldigd (art. 37 Wet OB).
 such splits_incl much bedrag_incl, code:
     such c = info(code)
     if c["pct"] == 0:
         return [bedrag_incl, dec("0")]
     such ex = geld.rond2(bedrag_incl * 100 / (100 + c["pct"]))
-    such btw = btw_bedrag(ex, code)
-    return [ex, btw]
+    return [ex, bedrag_incl - ex]
+wow
+
+# incl - ex wijkt hoogstens een cent af van ex x pct.
+such factuur_btw_geldig much bedrag_ex, code, bb:
+    such c = info(code)
+    if c["pct"] == 0 or bb < dec("0"):
+        return false
+    such verschil = bb - btw_bedrag(bedrag_ex, code)
+    return verschil <= dec("0.01") and verschil >= dec("-0.01")
+wow
+
+# Factuur-btw (btw_bedrag, absoluut) krijgt het teken van de grondslag, zodat een storno of refund nettoot.
+such regel_btw much regel, ex, code:
+    if not regel.has("btw_bedrag") or regel["btw_bedrag"] == none:
+        return btw_bedrag(ex, code)
+    such bb = geld.bedrag(regel["btw_bedrag"])
+    if ex < dec("0"):
+        return dec("0") - bb
+    return bb
 wow
 
 # Aangifte in hele euro's; afronden in eigen voordeel is toegestaan:
@@ -104,8 +121,7 @@ such regel_grondslag much r, soort:
 wow
 
 # Alle rubrieken voor één tijdvak, uit de journaalposten van dat tijdvak.
-# Elke regel met een btw_code is een grondslagregel; de btw wordt hier afgeleid
-# (invariant 1 — nooit uit een opgeslagen veld gelezen).
+# Elke regel met een btw_code is een grondslagregel; de btw komt uit regel_btw (invariant 1).
 # Resultaat: {"rubrieken": {rubriek: {"bedrag", "btw"}}, "5a", "5b", "saldo"} — alles hele euro's (Int).
 # Onbekende codes (data van vóór validatie) tellen niet mee; hun post-id komt in "onbekend".
 such rubrieken much posten, j, kw:
@@ -129,7 +145,7 @@ such rubrieken much posten, j, kw:
                 continue
             such c = info(code)
             such ex = regel_grondslag(regel, c["soort"])
-            such bb = btw_bedrag(ex, code)
+            such bb = regel_btw(regel, ex, code)
             if c["grondslag"] != none:
                 grondslag[c["grondslag"]] += ex
             if c["btw"] != none:
@@ -160,7 +176,7 @@ such post_effect much post:
             continue
         such c = info(code)
         such ex = regel_grondslag(regel, c["soort"])
-        such bb = btw_bedrag(ex, code)
+        such bb = regel_btw(regel, ex, code)
         if c["btw"] != none:
             very verschuldigd = verschuldigd + bb
         if c["aftrek"]:
@@ -241,7 +257,7 @@ such specificatie much posten, j, kw:
                 continue
             such c = info(code)
             such ex = regel_grondslag(regel, c["soort"])
-            such bb = btw_bedrag(ex, code)
+            such bb = regel_btw(regel, ex, code)
             such v = dec("0")
             such a = dec("0")
             if c["btw"] != none:

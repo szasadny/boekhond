@@ -61,13 +61,6 @@ such gekozen_tijdvak much store, query:
     return [j, kw]
 wow
 
-# Journaal-URL voor het tijdvak waar een datum in valt (redirect na boeken, zodat je de post ziet).
-such tijdvak_url much d:
-    such j = datum.jaar(d)
-    such kw = datum.kwartaal(d)
-    return "/journaal?tv={j}-{kw}"
-wow
-
 such tijdvak_keuze much store, j, kw:
     such opties = []
     for t in aangifte.tijdvakken(store, datum.vandaag()):
@@ -125,7 +118,7 @@ such lijst much req:
     such csvhref = "/journaal/export.csv?j={j}&kw={kw}"
     such l_csv = html.link(csvhref, "CSV")
     such acties = "<p>{l_ink} · {l_bank} · {l_memo} · {l_csv}</p>"
-    such keuze = tijdvak_keuze(store, j, kw)
+    such keuze = tijdvak_keuze(store, j, kw) + weergave.kwartaal_nav(store, "/journaal", j, kw)
     such status = "open"
     if aangifte.is_ingediend(store.laad("aangiften", []), j, kw):
         very status = "ingediend en vergrendeld; correcties boek je als storno in een open tijdvak"
@@ -232,9 +225,9 @@ such inkoop much req:
         such ex = weergave.bedrag_str(forms.enkel(v, "bedrag_ex", ""))
         such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, forms.enkel(v, "btw_code", ""), forms.enkel(v, "kosten_rek", ""))
         journaal.bewaar(store, post)
-        return http.redirect(tijdvak_url(post["datum"]))
+        return http.redirect(weergave.tijdvak_href("/journaal", post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.fout(err.message), v)), 400)
+        return http.html_response(weergave.render("Inkoop", inkoop_inhoud(store, weergave.domeinfout(err), v)), 400)
 wow
 
 such bank_inhoud much store, melding, invoer = {}:
@@ -262,9 +255,9 @@ such bank much req:
         such bedrag = weergave.bedrag_str(forms.enkel(v, "bedrag", ""))
         such post = journaal.prive_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "rekening", ""), bedrag, forms.enkel(v, "kant", "storting"))
         journaal.bewaar(store, post)
-        return http.redirect(tijdvak_url(post["datum"]))
+        return http.redirect(weergave.tijdvak_href("/journaal", post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.fout(err.message), v)), 400)
+        return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.domeinfout(err), v)), 400)
 wow
 
 such memoriaal_rij much store, rek = "", deb = "", cred = "", code = "":
@@ -332,9 +325,9 @@ such memoriaal much req:
         if van != "":
             journaal.markeer_correctie(store, post, van)
         journaal.bewaar(store, post)
-        return http.redirect(tijdvak_url(post["datum"]))
+        return http.redirect(weergave.tijdvak_href("/journaal", post["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.fout(err.message), v)), 400)
+        return http.html_response(weergave.render("Memoriaal", memoriaal_inhoud(store, weergave.domeinfout(err), v)), 400)
 wow
 
 such storno_inhoud much store, post_id, melding:
@@ -369,11 +362,13 @@ such storno much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     such id = forms.enkel(v, "id", "")
+    if journaal.zoek_post(store.laad("journaal", []), id) == none:
+        return http.html_response(weergave.render("Storno", storno_inhoud(store, id, "")), 404)
     pls
         such sp = journaal.storneer(store, id, forms.enkel(v, "datum", datum.vandaag()))
-        return http.redirect(tijdvak_url(sp["datum"]))
+        return http.redirect(weergave.tijdvak_href("/journaal", sp["datum"]))
     oh no err!
-        return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Storno", storno_inhoud(store, id, weergave.domeinfout(err))), 400)
 wow
 
 such export_csv much req:

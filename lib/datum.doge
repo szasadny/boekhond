@@ -34,6 +34,13 @@ such is_geldig much d:
     return true
 wow
 
+such controleer much d:
+    if d == none or d == "":
+        bonk "datum ontbreekt"
+    if not is_geldig(d):
+        bonk "ongeldige datum (JJJJ-MM-DD): {d}"
+wow
+
 such jaar much d:
     such delen = strings.split(d, "-")
     return int(delen[0])
@@ -55,6 +62,18 @@ wow
 
 such in_kwartaal much d, j, kw:
     return jaar(d) == j and kwartaal(d) == kw
+wow
+
+such vorig_kwartaal much j, kw:
+    if kw == 1:
+        return [j - 1, 4]
+    return [j, kw - 1]
+wow
+
+such volgend_kwartaal much j, kw:
+    if kw == 4:
+        return [j + 1, 1]
+    return [j, kw + 1]
 wow
 
 such kwartaal_grenzen much j, kw:

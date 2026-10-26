@@ -88,6 +88,11 @@ such deactiveer much store, nummer:
         bonk "onbekende rekening: {nummer}"
     if SYSTEEM.contains(nummer):
         bonk "rekening {nummer} kan niet gedeactiveerd worden: de app boekt hier zelf op"
+    # Via de store, niet via terugkerend: dat importeert rekeningen al.
+    for s in store.laad("terugkerend", []):
+        if s["actief"] and s["kosten_rek"] == nummer:
+            such oms = s["omschrijving"]
+            bonk "rekening {nummer} wordt nog gebruikt door kostensjabloon {oms}, deactiveer dat sjabloon eerst"
     r["actief"] = false
     store.commit("rekeningen", lijst, "gedeactiveerd", "rekening", nummer, r)
 wow

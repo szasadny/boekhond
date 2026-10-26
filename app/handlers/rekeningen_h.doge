@@ -64,7 +64,7 @@ such toevoegen much req:
     pls
         rekeningen.voeg_toe(store, rek)
     oh no err!
-        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message), velden)), 400)
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.domeinfout(err), velden)), 400)
     return http.redirect("/rekeningen")
 wow
 
@@ -95,7 +95,7 @@ such deactiveer much req:
     pls
         rekeningen.deactiveer(store, nummer)
     oh no err!
-        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.domeinfout(err))), 400)
     return http.redirect("/rekeningen")
 wow
 
@@ -104,7 +104,7 @@ such activeer much req:
     pls
         rekeningen.activeer(store, req["params"]["nummer"])
     oh no err!
-        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.fout(err.message))))
+        return http.html_response(weergave.render("Rekeningen", inhoud_van(store, weergave.domeinfout(err))), 400)
     return http.redirect("/rekeningen")
 wow
 wow

@@ -1,3 +1,4 @@
+so strings
 so "../../web/html.doge"
 so "../../web/http.doge"
 so "../services/btw.doge"
@@ -36,12 +37,41 @@ such fout much bericht:
     return "<p class=\"fout\">{html.escape(bericht)}</p>"
 wow
 
+# Alleen een bonk is een melding voor de gebruiker; elke andere fout hoort in de 500 van de request-loop.
+such domeinfout much err:
+    if err.type != "Bonk":
+        bonk err
+    return fout(err.message)
+wow
+
 such tijdvak_fout much store, j, kw:
     pls
         aangifte.controleer_tijdvak(j, kw, datum.vandaag(), store.laad("journaal", []))
     oh no err!
         return http.tekst_response(400, err.message)
     return none
+wow
+
+# Redirect-doel na boeken, zodat je de post ziet.
+such tijdvak_href much pad, d:
+    such j = datum.jaar(d)
+    such kw = datum.kwartaal(d)
+    return "{pad}?j={j}&kw={kw}"
+wow
+
+such kwartaal_nav much store, pad, j, kw:
+    such bereik = aangifte.jaar_bereik(datum.vandaag(), store.laad("journaal", []))
+    such delen = []
+    such v = datum.vorig_kwartaal(j, kw)
+    if v[0] >= bereik[0]:
+        delen.append(html.link("{pad}?j={v[0]}&kw={v[1]}", "← Q{v[1]}-{v[0]}"))
+    such n = datum.volgend_kwartaal(j, kw)
+    if n[0] <= bereik[1]:
+        delen.append(html.link("{pad}?j={n[0]}&kw={n[1]}", "Q{n[1]}-{n[0]} →"))
+    if len(delen) == 0:
+        return ""
+    such links = strings.join(delen, " · ")
+    return "<p>{links}</p>"
 wow
 
 # Nav-loze schil voor printversies.

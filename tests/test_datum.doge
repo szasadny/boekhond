@@ -41,6 +41,13 @@ such test_in_kwartaal:
     amaze not datum.in_kwartaal("2025-07-15", 2026, 3)
 wow
 
+such test_vorig_en_volgend_kwartaal:
+    amaze datum.vorig_kwartaal(2026, 3) == [2026, 2]
+    amaze datum.vorig_kwartaal(2026, 1) == [2025, 4]
+    amaze datum.volgend_kwartaal(2026, 3) == [2026, 4]
+    amaze datum.volgend_kwartaal(2026, 4) == [2027, 1]
+wow
+
 such test_sleutel_chronologisch:
     amaze datum.sleutel("2026-07-15") > datum.sleutel("2026-07-14")
     amaze datum.sleutel("2026-01-01") > datum.sleutel("2025-12-31")
@@ -79,4 +86,21 @@ such test_lokale_datum:
     for g in gevallen:
         amaze datum.lokale_datum(g[0]) == g[1], g[0]
 wow
+such datum_melding much d:
+    pls
+        datum.controleer(d)
+    oh no err!
+        return err.message
+    return ""
+wow
+
+such test_controleer:
+    amaze datum_melding("2026-07-15") == ""
+    amaze datum_melding("2024-02-29") == ""
+    amaze datum_melding("") == "datum ontbreekt"
+    amaze datum_melding("abc") == "ongeldige datum (JJJJ-MM-DD): abc"
+    amaze datum_melding("2026-02-30") == "ongeldige datum (JJJJ-MM-DD): 2026-02-30"
+    amaze datum_melding("2026-13-01") == "ongeldige datum (JJJJ-MM-DD): 2026-13-01"
+wow
+
 wow

@@ -5,6 +5,7 @@ so "../app/services/aangifte.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
+so "../app/services/mollie.doge"
 so "../app/handlers/aangifte_h.doge"
 so "../lib/datum.doge"
 
@@ -541,6 +542,12 @@ such test_controleer_tijdvak_recente_post_houdt_vorig_jaar:
     amaze not tijdvak_ok(2024, 4, "2026-10-26", posten)
 wow
 
+such test_jaar_bereik:
+    amaze aangifte.jaar_bereik("2026-10-26", []) == [2025, 2027]
+    amaze aangifte.jaar_bereik("2026-10-26", [verkoop21("2017-05-02")]) == [2017, 2027]
+    amaze aangifte.jaar_bereik("2026-01-01", [verkoop21("2026-08-01")]) == [2025, 2027]
+wow
+
 such test_dien_in_ongeldig_tijdvak_schrijft_niets:
     such s = verse_store()
     for jk in [[2026, 0], [0, 1], [0, 0], [2026, 5]]:
@@ -601,6 +608,94 @@ such test_dien_in_form_toont_bevestiging_met_saldo:
     amaze strings.contains(resp["body"], "Saldo: 210")
     amaze strings.contains(resp["body"], "vergrendeld")
     amaze len(aangifte.alle(s)) == 0
+    schoon()
+wow
+such mollie_betaling much id, waarde, paid:
+    return {"id": id, "status": "paid", "amount": {"value": waarde, "currency": "EUR"}, "paidAt": paid, "description": "SaaS abonnement", "amountRefunded": {"value": "0.00", "currency": "EUR"}}
+wow
+
+# Alleen sjabloonflows plus een btw-betaling: verschuldigd 10,50 (4a) + 2,10 en 17,36 (Mollie)
+# - 2,10 (refund) + 21,00 (1d) = 48,86; voorbelasting 21,00 (inkoop) + 10,50 (4a) = 31,50.
+such test_aansluiting_normale_flows_klopt:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-02", "Kantoor", "Papier", "100", "voorbelasting_hoog", "4200"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-03", "US SaaS", "Hosting", "50", "import_buiten_eu", "4100"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-04", "Verzekeraar", "Polis", "30", "geen_btw", "4300"))
+    journaal.bewaar(s, mollie.betaling_naar_post(mollie_betaling("tr_1", "12.10", "2026-10-05T10:00:00+00:00")))
+    journaal.bewaar(s, mollie.betaling_naar_post(mollie_betaling("tr_2", "100.00", "2026-10-05T11:00:00+00:00")))
+    journaal.bewaar(s, mollie.refund_naar_post({"id": "re_1", "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-10-06T10:00:00+00:00"}))
+    journaal.bewaar(s, journaal.prive_post("2026-10-07", "storting", "1100", "500", "storting"))
+    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "100"))
+    journaal.bewaar(s, journaal.memoriaal_post("2026-10-20", "btw Q3 betaald", "", [{"rekening": "1510", "debet": "210", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "210", "btw_code": none}]))
+    such a = aangifte.aansluiting(s, 2026, 4)
+    amaze a["verschuldigd"] == dec("48.86")
+    amaze a["geboekt_af"] == dec("48.86")
+    amaze a["voorbelasting"] == dec("31.50")
+    amaze a["geboekt_voor"] == dec("31.50")
+    amaze a["klopt"]
+    amaze not strings.contains(aangifte_h.banners(aangifte.overzicht(s, 2026, 4)), "sluit niet aan")
+    schoon()
+wow
+
+such memoriaal_voorbelasting_zonder_1520 much d:
+    return journaal.memoriaal_post(d, "kosten", "", [{"rekening": "4500", "debet": "100", "credit": "", "btw_code": "voorbelasting_hoog"}, {"rekening": "1100", "debet": "", "credit": "100", "btw_code": none}])
+wow
+
+such test_aansluiting_voorbelasting_zonder_1520:
+    such s = verse_store()
+    journaal.bewaar(s, verkoop21("2026-07-15"))
+    journaal.bewaar(s, memoriaal_voorbelasting_zonder_1520("2026-07-16"))
+    such a = aangifte.aansluiting(s, 2026, 3)
+    amaze a["verschil_af"] == dec("0")
+    amaze a["voorbelasting"] == dec("21.00")
+    amaze a["geboekt_voor"] == dec("0")
+    amaze a["verschil_voor"] == dec("21.00")
+    amaze not a["klopt"]
+    such ban = aangifte_h.banners(aangifte.overzicht(s, 2026, 3))
+    amaze strings.contains(ban, "sluit niet aan op het grootboek")
+    amaze strings.contains(ban, "21,00")
+    schoon()
+wow
+
+such test_aansluiting_privegebruik_memoriaal_zonder_1510:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-07-15", "privé", "", [{"rekening": "0900", "debet": "100", "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": "100", "btw_code": "prive_gebruik"}]))
+    such a = aangifte.aansluiting(s, 2026, 3)
+    amaze a["verschuldigd"] == dec("21.00")
+    amaze a["geboekt_af"] == dec("0")
+    amaze a["verschil_af"] == dec("21.00")
+    amaze a["verschil_voor"] == dec("0")
+    schoon()
+wow
+
+# Een btw-boeking zonder btw-code tegen een kostenrekening is geen afrekening en telt dus mee.
+such test_aansluiting_btw_boeking_zonder_code:
+    such s = verse_store()
+    journaal.bewaar(s, journaal.memoriaal_post("2026-07-15", "btw los", "", [{"rekening": "4500", "debet": "50", "credit": "", "btw_code": none}, {"rekening": "1510", "debet": "", "credit": "50", "btw_code": none}]))
+    such a = aangifte.aansluiting(s, 2026, 3)
+    amaze a["geboekt_af"] == dec("50")
+    amaze a["verschil_af"] == dec("-50")
+    schoon()
+wow
+
+such test_aansluiting_storno_herstelt:
+    such s = verse_store()
+    such fout = journaal.bewaar(s, memoriaal_voorbelasting_zonder_1520("2026-07-16"))
+    journaal.bewaar(s, journaal.storno_post(fout, "2026-07-20"))
+    such a = aangifte.aansluiting(s, 2026, 3)
+    amaze a["voorbelasting"] == dec("0")
+    amaze a["klopt"]
+    schoon()
+wow
+
+# Een ingediend tijdvak toont de bevroren snapshot; daar hoort geen aansluiting bij.
+such test_aansluiting_niet_bij_ingediend_tijdvak:
+    such s = verse_store()
+    journaal.bewaar(s, memoriaal_voorbelasting_zonder_1520("2020-06-15"))
+    aangifte.dien_in(s, 2020, 2)
+    such ov = aangifte.overzicht(s, 2020, 2)
+    amaze ov["aansluiting"] == none
+    amaze not strings.contains(aangifte_h.banners(ov), "sluit niet aan")
     schoon()
 wow
 wow

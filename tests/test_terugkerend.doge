@@ -277,6 +277,54 @@ such test_activeer_weigert_bij_inactieve_kostenrekening:
     schoon()
 wow
 
+# Buiten rekeningen.deactiveer om: die weigert een rekening met een actief sjabloon.
+such forceer_inactief much s, nummer:
+    such lijst = s.laad("rekeningen", [])
+    rekeningen.zoek(lijst, nummer)["actief"] = false
+    s.commit("rekeningen", lijst, "gedeactiveerd", "rekening", nummer, {})
+wow
+
+such test_geweigerd_sjabloon_blokkeert_de_rest_niet:
+    such s = verse_store()
+    such kapot = sjabloon("20.00", 1, "2026-01")
+    kapot["kosten_rek"] = "4100"
+    kapot["omschrijving"] = "Kapot"
+    terugkerend.voeg_toe(s, kapot)
+    terugkerend.voeg_toe(s, sjabloon("10.00", 1, "2026-01"))
+    forceer_inactief(s, "4100")
+    such res = terugkerend.genereer(s, "2026-07-15", none)
+    amaze res["geboekt"] == 1
+    amaze len(res["fouten"]) == 1
+    amaze strings.contains(res["fouten"][0], "Kapot")
+    such posten = s.laad("journaal", [])
+    amaze len(posten) == 1
+    amaze posten[0]["regels"][0]["debet"] == "10.00"
+    amaze strings.contains(s.laad_audit(), "terugkerend-mislukt")
+    rekeningen.activeer(s, "4100")
+    such twee = terugkerend.genereer(s, "2026-07-16", none)
+    amaze twee["geboekt"] == 1
+    amaze len(twee["fouten"]) == 0
+    amaze terugkerend.genereer(s, "2026-07-17", none)["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 2
+    schoon()
+wow
+
+such test_rekening_deactiveren_geweigerd_bij_actief_sjabloon:
+    such s = verse_store()
+    such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    such melding = ""
+    pls
+        rekeningen.deactiveer(s, "4000")
+    oh no err!
+        very melding = err.message
+    amaze strings.contains(melding, "Maandabonnement")
+    amaze rekeningen.zoek(rekeningen.alle(s), "4000")["actief"] == true
+    terugkerend.deactiveer(s, sj["id"])
+    rekeningen.deactiveer(s, "4000")
+    amaze rekeningen.zoek(rekeningen.alle(s), "4000")["actief"] == false
+    schoon()
+wow
+
 such test_deactiveer_handler_vraagt_bevestiging:
     such s = verse_store()
     such sj = terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
@@ -290,4 +338,15 @@ such test_deactiveer_handler_vraagt_bevestiging:
     amaze terugkerend.zoek(terugkerend.alle(s), sj["id"])["actief"] == true
     schoon()
 wow
+such test_validatie_bedrag_ontbreekt:
+    such s = verse_store()
+    such melding = ""
+    pls
+        terugkerend.voeg_toe(s, sjabloon("", 1, "2026-01"))
+    oh no err!
+        very melding = err.message
+    amaze melding == "bedrag ontbreekt"
+    schoon()
+wow
+
 wow

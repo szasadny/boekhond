@@ -60,6 +60,10 @@ such controleer_regel much r, rek_lijst, soort, storno:
         such code_soort = btw.info(code)["soort"]
         if soort != none and code_soort != soort:
             bonk "btw-code {code} hoort bij {code_soort}, deze boeking vraagt een {soort}-code"
+    if r.has("btw_bedrag") and r["btw_bedrag"] != none:
+        such code = r["btw_code"] if r.has("btw_code") else none
+        if not code or not btw.factuur_btw_geldig(bedrag, code, geld.bedrag(r["btw_bedrag"])):
+            bonk "ongeldig btw-bedrag op rekening {nr}"
     return bedrag
 wow
 
@@ -67,8 +71,7 @@ wow
 # te weinig regels, onbalans, een ongeldige regel of een vergrendeld tijdvak. Audit vóór de state-write.
 such bewaar much store, post:
     such d = post["datum"]
-    if not datum.is_geldig(d):
-        bonk "ongeldige datum: {d}"
+    datum.controleer(d)
     if len(post["regels"]) < 2:
         bonk "een journaalpost heeft minstens twee regels"
     if not balans_klopt(post["regels"]):
@@ -126,7 +129,7 @@ wow
 # Inkoop: de btw_code zit op de ene grondslagregel (de kostenregel); de btw- en
 # crediteurenregels dragen geen code en bestaan alleen voor de balans.
 such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, kosten_rek:
-    such ex = geld.rond2(dec(bedrag_ex))
+    such ex = geld.rond2(geld.waarde(bedrag_ex))
     such c = btw.info(code)
     such bb = btw.btw_bedrag(ex, code)
     such regels = []
@@ -148,7 +151,7 @@ wow
 
 # Bank/privé: geld dat via privé de zaak in of uit gaat. kant = "storting" | "onttrekking".
 such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
-    such b = str(geld.rond2(dec(bedrag)))
+    such b = str(geld.rond2(geld.waarde(bedrag)))
     such regels = []
     if kant == "storting":
         regels.append({"rekening": rekening, "debet": b, "credit": "", "btw_code": none})
@@ -165,6 +168,7 @@ wow
 # omzet te vervuilen (btw-rekenwerk via btw.doge, Hard Rule 5). Boekdatum in Q4 (laatste aangifte
 # van het jaar); bewaar() bewaakt balans + tijdvak-lock.
 such privegebruik_post much datum_s, grondslag_ex:
+    datum.controleer(datum_s)
     if datum.kwartaal(datum_s) != 4:
         bonk "privégebruik-correctie hoort in Q4 (laatste aangifte van het jaar)"
     if strings.trim(grondslag_ex) == "":
@@ -216,7 +220,7 @@ such markeer_correctie much store, post, van_id:
 wow
 
 # Tegenboeking (storno) van een bestaande post: elke regel gespiegeld (debet<->credit),
-# btw_code behouden zodat de rubriek terugdraait. Gedateerd in het OPEN tijdvak; bewaar()
+# btw_code en btw_bedrag behouden zodat de rubriek terugdraait. Gedateerd in het OPEN tijdvak; bewaar()
 # dwingt balans + tijdvak-lock af. Zo corrigeer je een vergrendeld tijdvak (Hard Rule 3).
 such storno_post much oorspronkelijke_post, datum_s:
     such oid = oorspronkelijke_post["id"]
@@ -225,7 +229,10 @@ such storno_post much oorspronkelijke_post, datum_s:
         such code = none
         if r.has("btw_code"):
             very code = r["btw_code"]
-        regels.append({"rekening": r["rekening"], "debet": r["credit"], "credit": r["debet"], "btw_code": code})
+        such gespiegeld = {"rekening": r["rekening"], "debet": r["credit"], "credit": r["debet"], "btw_code": code}
+        if r.has("btw_bedrag"):
+            gespiegeld["btw_bedrag"] = r["btw_bedrag"]
+        regels.append(gespiegeld)
     such rel = ""
     if oorspronkelijke_post.has("relatie"):
         very rel = oorspronkelijke_post["relatie"]
