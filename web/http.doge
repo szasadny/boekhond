@@ -50,36 +50,21 @@ such afgewezen much status, tekst:
     return {"afgewezen": tekst_response(status, tekst)}
 wow
 
-# stopgap for doge#75: howl.recv_line kent geen max, dus byte voor byte tot "\n" of max+1 bytes.
-such lees_regel much conn, max:
-    such buf = []
-    while len(buf) <= max:
-        such b = howl.recv_bytes(conn, 1)
-        if b == none:
-            if len(buf) == 0:
-                return none
-            bork
-        if b[0] == 10:
-            if len(buf) > 0 and buf[-1] == 13:
-                buf.pop()
-            bork
-        buf.append(b[0])
-    return bytes(buf)
+# recv_line meldt zowel een overschreden max als ongeldige UTF-8 als IOError.
+such regel_te_lang much err:
+    return strings.contains(err.message, "line exceeded")
 wow
 
 # caps = {pad: max-bytes} voor routes die een grotere body mogen dan MAX_BODY.
 such parse_request much conn, caps = {}:
     such regel = none
     pls
-        such rauw = lees_regel(conn, MAX_KOPPEN)
-        if rauw == none:
-            return none
-        if len(rauw) > MAX_KOPPEN:
-            return afgewezen(431, "request-line te groot")
-        very regel = rauw.decode()
+        very regel = howl.recv_line(conn, MAX_KOPPEN)
     oh no err!
+        if regel_te_lang(err):
+            return afgewezen(431, "request-line te groot")
         return afgewezen(400, "ongeldige request-line")
-    if regel == "":
+    if regel == none or regel == "":
         return none
     such delen = strings.split(regel, " ")
     if len(delen) < 2:
@@ -95,21 +80,18 @@ such parse_request much conn, caps = {}:
     such headers = {}
     such kopbytes = 0
     while true:
-        such rauw = none
+        such h = none
         pls
-            very rauw = lees_regel(conn, MAX_KOPPEN - kopbytes + 1)
+            very h = howl.recv_line(conn, MAX_KOPPEN - kopbytes + 1)
         oh no err!
+            if regel_te_lang(err):
+                return afgewezen(431, "headers te groot")
             return afgewezen(400, "ongeldige header")
-        if rauw == none or len(rauw) == 0:
+        if h == none or h == "":
             bork
-        very kopbytes = kopbytes + len(rauw) + 2
+        very kopbytes = kopbytes + len(bytes(h)) + 2
         if kopbytes > MAX_KOPPEN:
             return afgewezen(431, "headers te groot")
-        such h = ""
-        pls
-            very h = rauw.decode()
-        oh no err!
-            return afgewezen(400, "ongeldige header")
         such dp = strings.split(h, ":")
         if len(dp) < 2:
             continue

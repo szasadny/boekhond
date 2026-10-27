@@ -141,6 +141,11 @@ such test_niet_utf8_header_geeft_400:
     amaze afgewezen_status(req) == 400
 wow
 
+such test_niet_utf8_request_line_geeft_400:
+    such req = rond_bytes(bytes("GET /") + "ff".from_hex() + bytes(" HTTP/1.1{CRLF}{CRLF}"))
+    amaze afgewezen_status(req) == 400
+wow
+
 such test_chunked_body_geweigerd:
     such req = rond("POST /p HTTP/1.1{CRLF}Transfer-Encoding: chunked{CRLF}{CRLF}3{CRLF}abc{CRLF}0{CRLF}{CRLF}")
     amaze afgewezen_status(req) == 411
@@ -164,6 +169,14 @@ such test_headers_precies_op_cap:
     such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {"a" * (http.MAX_KOPPEN - 10)}{CRLF}{CRLF}")
     amaze not req.has("afgewezen")
     such te_lang = rond("GET / HTTP/1.1{CRLF}X-Lang: {"a" * (http.MAX_KOPPEN - 9)}{CRLF}{CRLF}")
+    amaze afgewezen_status(te_lang) == 431
+wow
+
+# "€" is 3 bytes: 5458 keer is 16374 + 10 bytes, precies op de cap.
+such test_headers_cap_telt_bytes:
+    such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {"€" * 5458}{CRLF}{CRLF}")
+    amaze not req.has("afgewezen")
+    such te_lang = rond("GET / HTTP/1.1{CRLF}X-Lang: {"€" * 5459}{CRLF}{CRLF}")
     amaze afgewezen_status(te_lang) == 431
 wow
 
