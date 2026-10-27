@@ -2,7 +2,6 @@ so "../../web/http.doge"
 so "../../web/html.doge"
 so "../../web/forms.doge"
 so "../services/terugkerend.doge"
-so "../services/rekeningen.doge"
 so "../services/btw.doge"
 so "../services/wisselkoers.doge"
 so "../../lib/datum.doge"
@@ -11,16 +10,6 @@ so weergave
 
 # Kostensjablonen tonen + beheren + de "genereer nu"-knop. Alle dynamische waarden
 # ge-escaped (Hard Rule 6); de generator- en boekingslogica zit in de service.
-
-such kosten_opties much store:
-    such o = [["", "(kies kostenrekening)"]]
-    for r in rekeningen.alle(store):
-        if r["actief"] and r["type"] == "kosten":
-            such nr = r["nummer"]
-            such naam = r["naam"]
-            o.append([nr, "{nr} {naam}"])
-    return o
-wow
 
 such valuta_opties:
     such o = []
@@ -42,7 +31,7 @@ such toevoeg_formulier much store, invoer = {}:
     such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw (in gekozen valuta)", "text", forms.enkel(invoer, "bedrag_ex", ""))
     such sval = html.select("valuta", valuta_opties(), forms.enkel(invoer, "valuta", "EUR"))
     such vval = "<label>Valuta {sval}</label>"
-    such srek = html.select("kosten_rek", kosten_opties(store), forms.enkel(invoer, "kosten_rek", ""))
+    such srek = html.select("kosten_rek", weergave.kostenrekening_opties(store), forms.enkel(invoer, "kosten_rek", ""))
     such vrek = "<label>Kostenrekening {srek}</label>"
     such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), forms.enkel(invoer, "btw_code", "import_buiten_eu"))
     such vbtw = "<label>Btw-code {sbtw}</label>"

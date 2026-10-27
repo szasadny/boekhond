@@ -6,6 +6,7 @@ so "../app/services/rekeningen.doge"
 so "../app/services/btw.doge"
 so "../app/services/aangifte.doge"
 so "../app/handlers/journaal_h.doge"
+so "../app/handlers/aangifte_h.doge"
 so "../lib/datum.doge"
 so "../app/services/mollie.doge"
 so "../app/services/bijlagen.doge"
@@ -94,39 +95,39 @@ such test_tijdvak_vergrendeld:
 wow
 
 such test_inkoop_aftrek_balanceert:
-    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", "100", "voorbelasting_hoog", "4200")
+    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", dec("100"), "voorbelasting_hoog", "4200")
     amaze len(post["regels"]) == 3
     amaze journaal.balans_klopt(post["regels"])
     amaze post["bron"] == "handmatig"
 wow
 
 such test_inkoop_zelf_balanceert:
-    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", "100", "import_buiten_eu", "4000")
+    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", dec("100"), "import_buiten_eu", "4000")
     amaze len(post["regels"]) == 4
     amaze journaal.balans_klopt(post["regels"])
 wow
 
 such test_inkoop_geen_btw_balanceert:
-    such post = journaal.inkoop_post("2026-07-15", "Verzekeraar", "aansprakelijkheid", "250", "geen_btw", "4300")
+    such post = journaal.inkoop_post("2026-07-15", "Verzekeraar", "aansprakelijkheid", dec("250"), "geen_btw", "4300")
     amaze len(post["regels"]) == 2
     amaze journaal.balans_klopt(post["regels"])
 wow
 
 such test_prive_post_balanceert:
-    such storting = journaal.prive_post("2026-07-15", "eigen geld", "1100", "500", "storting")
+    such storting = journaal.prive_post("2026-07-15", "eigen geld", "1100", dec("500"), "storting")
     amaze journaal.balans_klopt(storting["regels"])
-    such onttrekking = journaal.prive_post("2026-07-15", "opname", "1100", "500", "onttrekking")
+    such onttrekking = journaal.prive_post("2026-07-15", "opname", "1100", dec("500"), "onttrekking")
     amaze journaal.balans_klopt(onttrekking["regels"])
 wow
 
 # 250,50 x 21% = 52,605 -> 52,61 (half-up); 1.000,00 x 21% = 210,00.
-such test_privegebruik_nl_bedragen:
-    such p = journaal.privegebruik_post("2026-12-31", "250,50")
+such test_privegebruik_bedragen:
+    such p = journaal.privegebruik_post("2026-12-31", dec("250.50"))
     amaze dec(p["regels"][0]["debet"]) == dec("303.11")
     amaze dec(p["regels"][1]["credit"]) == dec("250.50")
     amaze dec(p["regels"][2]["credit"]) == dec("52.61")
     amaze journaal.balans_klopt(p["regels"])
-    such q = journaal.privegebruik_post("2026-12-31", "1.000,00")
+    such q = journaal.privegebruik_post("2026-12-31", dec("1000.00"))
     amaze dec(q["regels"][0]["debet"]) == dec("1210")
     amaze dec(q["regels"][1]["credit"]) == dec("1000")
     amaze dec(q["regels"][2]["credit"]) == dec("210")
@@ -140,22 +141,19 @@ such privegebruik_fout much grondslag:
     return none
 wow
 
-such test_privegebruik_weigert_leeg_nul_negatief:
-    amaze privegebruik_fout("") == "vul de grondslag privégebruik in"
-    amaze privegebruik_fout("  ") == "vul de grondslag privégebruik in"
-    amaze privegebruik_fout("0") == "grondslag privégebruik moet groter zijn dan 0"
-    amaze privegebruik_fout("0,00") == "grondslag privégebruik moet groter zijn dan 0"
-    amaze privegebruik_fout("-500") == "grondslag privégebruik moet groter zijn dan 0"
-    amaze privegebruik_fout("abc") == "ongeldig bedrag: abc"
+such test_privegebruik_weigert_nul_negatief:
+    amaze privegebruik_fout(dec("0")) == "grondslag privégebruik moet groter zijn dan 0"
+    amaze privegebruik_fout(dec("0.00")) == "grondslag privégebruik moet groter zijn dan 0"
+    amaze privegebruik_fout(dec("-500")) == "grondslag privégebruik moet groter zijn dan 0"
 wow
 
 such test_privegebruik_omschrijving_jaar_van_boekdatum:
-    amaze journaal.privegebruik_post("2025-12-31", "100")["omschrijving"] == "Privégebruik 2025"
+    amaze journaal.privegebruik_post("2025-12-31", dec("100"))["omschrijving"] == "Privégebruik 2025"
 wow
 
 such test_rubrieken_uit_geboekte_inkoop:
     such s = verse_store()
-    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", "100", "import_buiten_eu", "4000")
+    such post = journaal.inkoop_post("2026-07-15", "Anthropic", "claude", dec("100"), "import_buiten_eu", "4000")
     journaal.bewaar(s, post)
     such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
     amaze r["rubrieken"]["4a"]["bedrag"] == 100
@@ -166,7 +164,7 @@ such test_rubrieken_uit_geboekte_inkoop:
 wow
 
 such test_storno_spiegelt:
-    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", "100", "voorbelasting_hoog", "4200")
+    such post = journaal.inkoop_post("2026-07-15", "KPN", "internet", dec("100"), "voorbelasting_hoog", "4200")
     such p2 = post
     p2["id"] = "j-9"
     such sp = journaal.storno_post(p2, "2026-10-01")
@@ -279,9 +277,9 @@ such test_bewaar_weigert_ongeldige_regels:
         [memo([regel("4200", "", "", none), regel("1100", "50", "", none), regel("1600", "", "50", none)], "memoriaal"), "regel op rekening 4200 moet precies één bedrag hebben: debet of credit"],
         [memo([regel("4200", "-20", "", none), regel("1600", "", "-20", none)], "memoriaal"), "negatief bedrag op rekening 4200"],
         [memo([regel("4200", "0", "", none), regel("1600", "", "0", none)], "memoriaal"), "een journaalpost moet een bedrag groter dan nul hebben"],
-        [journaal.inkoop_post("2026-07-15", "Lev", "x", "-20.00", "voorbelasting_hoog", "4200"), "negatief bedrag op rekening 4200"],
-        [journaal.inkoop_post("2026-07-15", "Lev", "x", "0.00", "geen_btw", "4200"), "een journaalpost moet een bedrag groter dan nul hebben"],
-        [journaal.inkoop_post("2026-07-15", "Lev", "x", "50.00", "hoog_21", "4200"), "btw-code hoog_21 hoort bij verkoop, deze boeking vraagt een inkoop-code"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", dec("-20.00"), "voorbelasting_hoog", "4200"), "negatief bedrag op rekening 4200"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", dec("0.00"), "geen_btw", "4200"), "een journaalpost moet een bedrag groter dan nul hebben"],
+        [journaal.inkoop_post("2026-07-15", "Lev", "x", dec("50.00"), "hoog_21", "4200"), "btw-code hoog_21 hoort bij verkoop, deze boeking vraagt een inkoop-code"],
         [memo([regel("4200", "50", "", "hoog_21"), regel("1600", "", "50", none)], "terugkerend"), "btw-code hoog_21 hoort bij verkoop, deze boeking vraagt een inkoop-code"],
         [memo([regel("1100", "121", "", none), regel("8000", "", "100", "voorbelasting_hoog"), regel("1510", "", "21", none)], "mollie"), "btw-code voorbelasting_hoog hoort bij inkoop, deze boeking vraagt een verkoop-code"],
     ]
@@ -412,22 +410,14 @@ wow
 such test_sjabloonflows_melden_ontbrekende_invoer:
     such meldingen = []
     pls
-        journaal.inkoop_post("2026-07-15", "Lev", "x", "", "voorbelasting_hoog", "4200")
+        journaal.privegebruik_post("", dec("100"))
     oh no err!
         meldingen.append(err.message)
     pls
-        journaal.prive_post("2026-07-15", "x", "1100", "", "storting")
+        journaal.privegebruik_post("2026-14-01", dec("100"))
     oh no err!
         meldingen.append(err.message)
-    pls
-        journaal.privegebruik_post("", "100")
-    oh no err!
-        meldingen.append(err.message)
-    pls
-        journaal.privegebruik_post("2026-14-01", "100")
-    oh no err!
-        meldingen.append(err.message)
-    amaze meldingen == ["bedrag ontbreekt", "bedrag ontbreekt", "datum ontbreekt", "ongeldige datum (JJJJ-MM-DD): 2026-14-01"]
+    amaze meldingen == ["datum ontbreekt", "ongeldige datum (JJJJ-MM-DD): 2026-14-01"]
 wow
 
 such test_storno_form_onbekende_post_is_404:
@@ -440,9 +430,9 @@ such test_storno_form_onbekende_post_is_404:
     schoon()
 wow
 such test_sjabloonflows_slaan_twee_decimalen_op:
-    such p = journaal.inkoop_post("2026-07-15", "Lev", "x", "10", "voorbelasting_hoog", "4200")
+    such p = journaal.inkoop_post("2026-07-15", "Lev", "x", dec("10"), "voorbelasting_hoog", "4200")
     amaze [p["regels"][0]["debet"], p["regels"][1]["debet"], p["regels"][2]["credit"]] == ["10.00", "2.10", "12.10"]
-    such q = journaal.prive_post("2026-07-15", "x", "1100", "259.2600", "storting")
+    such q = journaal.prive_post("2026-07-15", "x", "1100", dec("259.2600"), "storting")
     amaze q["regels"][0]["debet"] == "259.26"
 wow
 
@@ -479,7 +469,7 @@ such test_bank_prive_weigert_priverekening_als_tegenrekening:
     for kant in ["storting", "onttrekking"]:
         such melding = ""
         pls
-            journaal.prive_post("2026-07-15", "x", rekeningen.REK_PRIVE, "50", kant)
+            journaal.prive_post("2026-07-15", "x", rekeningen.REK_PRIVE, dec("50"), kant)
         oh no err!
             very melding = err.message
         amaze melding == "kies een tegenrekening, niet de privérekening 0900 zelf", kant
@@ -489,6 +479,60 @@ such test_bank_prive_weigert_priverekening_als_tegenrekening:
     such resp = journaal_h.bank(post_req(s, "datum=2026-07-15&omschrijving=x&rekening=0900&bedrag=50&kant=storting"))
     amaze resp["status"] == 400
     amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_inkoop_alleen_op_kostenrekening:
+    such gevallen = [["4200", ""], ["1100", "rekening 1100 is geen kostenrekening"], ["0900", "rekening 0900 is geen kostenrekening"], ["1510", "rekening 1510 is geen kostenrekening"], ["8000", "rekening 8000 is geen kostenrekening"]]
+    for g in gevallen:
+        such s = verse_store()
+        amaze weigering(s, journaal.inkoop_post("2026-07-15", "Lev", "x", dec("50"), "voorbelasting_hoog", g[0])) == g[1], g[0]
+    such h = journaal_h.inkoop_inhoud(verse_store(), "")
+    amaze "value=\"4200\"" in h
+    for nr in ["1100", "0900", "1510", "8000"]:
+        amaze "value=\"{nr}\"" not in h, nr
+    schoon()
+wow
+
+such btw_code_of_fout much kosten_rek, code:
+    pls
+        return journaal.inkoop_btw_code(rekeningen.STANDAARD, kosten_rek, code)
+    oh no err!
+        return err.message
+wow
+
+such test_inkoop_btw_code_volgt_rekening:
+    such gevallen = [["4000", "", "import_buiten_eu"], ["4100", "", "import_buiten_eu"], ["4200", "", "voorbelasting_hoog"], ["4300", "", "geen_btw"], ["4000", "voorbelasting_laag", "voorbelasting_laag"], ["8900", "", "kies een btw-code: rekening 8900 heeft geen standaard-btw-code"], ["", "", "kies een kostenrekening"]]
+    for g in gevallen:
+        amaze btw_code_of_fout(g[0], g[1]) == g[2], g[0]
+wow
+
+# 1.000,00 op 4000 zonder btw-keuze: import_buiten_eu, dus 210,00 verlegd (4a) en 210,00 voorbelasting (5b).
+such test_inkoop_handler_standaard_btw_en_nl_bedrag:
+    such s = verse_store()
+    such h = journaal_h.inkoop_inhoud(s, "")
+    amaze "<option value=\"\" selected>standaard van de kostenrekening</option>" in h
+    amaze "4000 Software en abonnementen (standaard: " in h
+    such resp = journaal_h.inkoop(post_req(s, "datum=2026-07-15&leverancier=Lev&omschrijving=x&bedrag_ex=1.000%2C00&btw_code=&kosten_rek=4000"))
+    amaze resp["status"] == 303
+    amaze resp["headers"]["Location"] == "/journaal?j=2026&kw=3"
+    such p = s.laad("journaal", [])[0]
+    amaze p["regels"][0]["btw_code"] == "import_buiten_eu"
+    amaze p["regels"][0]["debet"] == "1000.00"
+    amaze p["regels"][1]["debet"] == "210.00"
+    such fout = journaal_h.bank(post_req(s, "datum=2026-07-15&omschrijving=x&rekening=1100&bedrag=&kant=storting"))
+    amaze fout["status"] == 400
+    amaze "bedrag ontbreekt" in fout["body"]
+    schoon()
+wow
+
+such test_privegebruik_redirect_naar_tijdvak_van_boekdatum:
+    such s = verse_store()
+    such req = {"ctx": {"store": s, "config": {}}, "method": "POST", "body": "j=2026&kw=4&grondslag=100%2C00&datum=2025-12-31"}
+    such resp = aangifte_h.boek_privegebruik(req)
+    amaze resp["status"] == 303
+    amaze resp["headers"]["Location"] == "/aangifte/doen?j=2025&kw=4"
+    amaze s.laad("journaal", [])[0]["datum"] == "2025-12-31"
     schoon()
 wow
 

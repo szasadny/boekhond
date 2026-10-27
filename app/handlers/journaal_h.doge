@@ -204,9 +204,12 @@ such inkoop_inhoud much store, melding, invoer = {}:
     such vlev = html.veld("leverancier", "Leverancier", "text", forms.enkel(invoer, "leverancier", ""))
     such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
     such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", forms.enkel(invoer, "bedrag_ex", ""))
-    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(), forms.enkel(invoer, "btw_code", "voorbelasting_hoog"))
+    such btw_opties = [["", "standaard van de kostenrekening"]]
+    for o in weergave.inkoop_btw_opties():
+        btw_opties.append(o)
+    such sbtw = html.select("btw_code", btw_opties, forms.enkel(invoer, "btw_code", ""))
     such vbtw = "<label>Btw-code {sbtw}</label>"
-    such srek = html.select("kosten_rek", rekening_opties(store), forms.enkel(invoer, "kosten_rek", ""))
+    such srek = html.select("kosten_rek", weergave.kostenrekening_opties(store, true), forms.enkel(invoer, "kosten_rek", ""))
     such vrek = "<label>Kostenrekening {srek}</label>"
     such form = html.formulier("/journaal/inkoop", "post", [vd, vlev, voms, vbedrag, vbtw, vrek, html.knop("Boeken")])
     such leg = weergave.btw_legenda("inkoop")
@@ -222,8 +225,10 @@ such inkoop much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such ex = weergave.bedrag_str(forms.enkel(v, "bedrag_ex", ""))
-        such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, forms.enkel(v, "btw_code", ""), forms.enkel(v, "kosten_rek", ""))
+        such ex = geld.parse(forms.enkel(v, "bedrag_ex", ""))
+        such rek = forms.enkel(v, "kosten_rek", "")
+        such code = journaal.inkoop_btw_code(rekeningen.alle(store), rek, forms.enkel(v, "btw_code", ""))
+        such post = journaal.inkoop_post(forms.enkel(v, "datum", ""), forms.enkel(v, "leverancier", ""), forms.enkel(v, "omschrijving", ""), ex, code, rek)
         journaal.bewaar(store, post)
         return http.redirect(weergave.tijdvak_href("/journaal", post["datum"]))
     oh no err!
@@ -256,7 +261,7 @@ such bank much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such bedrag = weergave.bedrag_str(forms.enkel(v, "bedrag", ""))
+        such bedrag = geld.parse(forms.enkel(v, "bedrag", ""))
         such post = journaal.prive_post(forms.enkel(v, "datum", ""), forms.enkel(v, "omschrijving", ""), forms.enkel(v, "rekening", ""), bedrag, forms.enkel(v, "kant", "storting"))
         journaal.bewaar(store, post)
         return http.redirect(weergave.tijdvak_href("/journaal", post["datum"]))

@@ -42,12 +42,37 @@ such alle much store:
     return store.laad("bijlagen", [])
 wow
 
+# bijlage-id -> post-id volgens de posten. Koppelen schrijft de post eerst, dus die kant is
+# leidend: een bijlage die een post al claimt is nooit meer koppelbaar, ook na een halve koppeling.
+such koppelingen much store:
+    such m = {}
+    for p in store.laad("journaal", []):
+        if p.has("bijlage_ids"):
+            for bid in p["bijlage_ids"]:
+                m[bid] = p["id"]
+    return m
+wow
+
 # De import-inbox: bijlagen die nog aan geen journaalpost hangen.
 such inbox much store:
+    such geclaimd = koppelingen(store)
     such uit = []
     for b in store.laad("bijlagen", []):
-        if b["journaalpost_id"] == none:
+        if b["journaalpost_id"] == none and not geclaimd.has(b["id"]):
             uit.append(b)
+    return uit
+wow
+
+# Gekoppelde bijlagen als [bijlage, post_id], nieuwste upload eerst.
+such gekoppeld much store:
+    such geclaimd = koppelingen(store)
+    such uit = []
+    for b in store.laad("bijlagen", [])[::-1]:
+        such pid = b["journaalpost_id"]
+        if geclaimd.has(b["id"]):
+            very pid = geclaimd[b["id"]]
+        if pid != none:
+            uit.append([b, pid])
     return uit
 wow
 
@@ -105,19 +130,25 @@ such bewaar_alle much store, parts, bron:
     return uit
 wow
 
-# Koppel een inbox-bijlage aan een journaalpost. journaal.doge schrijft de post
-# (single writer + tijdvak-lock); pas daarna zetten we journaalpost_id op de bijlage,
-# zodat een vergrendeld tijdvak niets aan beide kanten muteert.
+# Eerst de post (tijdvak-lock via journaal.koppel_bijlage), dan de bijlage: een vergrendeld
+# tijdvak muteert zo geen van beide kanten, en een halve koppeling wordt hier afgemaakt.
 such koppel much store, bijlage_id, post_id:
     such lijst = store.laad("bijlagen", [])
     such b = zoek(lijst, bijlage_id)
     if b == none:
         bonk "onbekende bijlage: {bijlage_id}"
+    such huidig = b["journaalpost_id"]
+    if huidig == none:
+        such geclaimd = koppelingen(store)
+        if geclaimd.has(bijlage_id):
+            very huidig = geclaimd[bijlage_id]
+            b["journaalpost_id"] = huidig
+            store.commit("bijlagen", lijst, "gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": huidig})
     # Alleen vanuit de inbox: omhangen haalt bewijs weg bij een mogelijk vergrendelde post (Hard Rule 3).
-    if b["journaalpost_id"] == post_id:
+    if huidig == post_id:
         return b
-    if b["journaalpost_id"] != none:
-        bonk "bijlage {bijlage_id} is al gekoppeld aan {b["journaalpost_id"]}"
+    if huidig != none:
+        bonk "bijlage {bijlage_id} is al gekoppeld aan {huidig}"
     journaal.koppel_bijlage(store, post_id, bijlage_id)
     b["journaalpost_id"] = post_id
     store.commit("bijlagen", lijst, "gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": post_id})

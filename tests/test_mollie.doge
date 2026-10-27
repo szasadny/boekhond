@@ -298,7 +298,8 @@ such test_geweigerde_post_blokkeert_batch_niet:
     nul["amount"] = {"value": "0.00", "currency": "EUR"}
     such rres = mollie.boek_refund_lijst(s, [nul, refund_sample("re_1")])
     amaze rres["geboekt"] == 1
-    amaze rres["mislukt"] == ["re_0 (een journaalpost moet een bedrag groter dan nul hebben)"]
+    amaze rres["overgeslagen"] == 1
+    amaze rres["mislukt"] == []
     such r = btw.rubrieken(s.laad("journaal", []), 2026, 3)
     amaze r["rubrieken"]["1a"]["bedrag"] == 20
     amaze r["rubrieken"]["1a"]["btw"] == 4
@@ -460,6 +461,70 @@ such test_mollie_post_zonder_refund_storneerbaar:
     such bp = post_met(s, "mollie_payment_id", "tr_2")
     amaze storno_fout(s, bp["id"]) == ""
     amaze post_met(s, "storno_van", bp["id"]) != none
+    schoon()
+wow
+
+such refund_voor much id, payment_id, waarde:
+    such r = refund_sample(id)
+    r["paymentId"] = payment_id
+    r["amount"] = {"value": waarde, "currency": "EUR"}
+    return r
+wow
+
+such test_refund_voor_betaal_post_wordt_later_gekoppeld:
+    such s = verse_store()
+    mollie.boek_refund_lijst(s, [refund_voor("re_1", "tr_1", "12.10")])
+    such rp = post_met(s, "mollie_refund_id", "re_1")
+    amaze rp["refund_payment_id"] == "tr_1"
+    amaze not rp.has("refund_van")
+    amaze mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])["geboekt"] == 1
+    such bp = post_met(s, "mollie_payment_id", "tr_1")
+    amaze bp["terugbetaald_via"] == [rp["id"]]
+    amaze "terugbetaald via refund-post {rp["id"]}" in storno_fout(s, bp["id"])
+    such opnieuw = mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    amaze opnieuw["geboekt"] == 0
+    amaze mollie.boek_refund_lijst(s, [refund_voor("re_1", "tr_1", "12.10")])["geboekt"] == 0
+    amaze len(s.laad("journaal", [])) == 2
+    such h = mollie_h.overzicht_inhoud(s, {"mollie_key": none}, "")
+    amaze strings.contains(h, "<td>Refund re_1</td><td class=\"num\">-12,10</td><td>tr_1</td>")
+    schoon()
+wow
+
+# De refund-post staat in een ingediend tijdvak en blijft onaangeroerd; de link komt op de nieuwe betaal-post.
+such test_late_koppeling_muteert_vergrendelde_refund_niet:
+    such s = verse_store()
+    mollie.boek_refund_lijst(s, [refund_voor("re_1", "tr_1", "6.05"), refund_voor("re_2", "tr_1", "6.05")])
+    such voor = s.laad("journaal", [])
+    s.bewaar("aangiften", [{"jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
+    such res = mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    amaze res["verschoven"] == ["tr_1"]
+    such na = s.laad("journaal", [])
+    amaze na[0] == voor[0]
+    amaze na[1] == voor[1]
+    such bp = post_met(s, "mollie_payment_id", "tr_1")
+    amaze bp["terugbetaald_via"] == [voor[0]["id"], voor[1]["id"]]
+    amaze "terugbetaald" in storno_fout(s, bp["id"])
+    schoon()
+wow
+
+such test_refund_post_niet_storneerbaar:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    mollie.boek_refund_lijst(s, [refund_voor("re_1", "tr_1", "12.10")])
+    such rp = post_met(s, "mollie_refund_id", "re_1")
+    amaze storno_fout(s, rp["id"]) == "post {rp["id"]} is een Mollie-refund en kan niet gestorneerd worden"
+    amaze len(s.laad("journaal", [])) == 2
+    schoon()
+wow
+
+such test_refund_van_nul_overgeslagen:
+    such s = verse_store()
+    such res = mollie.boek_refund_lijst(s, [refund_voor("re_0", "tr_1", "0.00")])
+    amaze res["geboekt"] == 0
+    amaze res["overgeslagen"] == 1
+    amaze res["mislukt"] == []
+    amaze len(audit_regels("mollie-mislukt")) == 0
+    amaze len(s.laad("journaal", [])) == 0
     schoon()
 wow
 

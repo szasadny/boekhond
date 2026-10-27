@@ -101,13 +101,16 @@ such laatste_zondag_utc much j, m:
     return t - ((t // 86400 + 4) % 7) * 86400
 wow
 
+such afwijking_utc much secs:
+    such j = int(nap.stamp(secs)[0:4])
+    if laatste_zondag_utc(j, 3) <= secs and secs < laatste_zondag_utc(j, 10):
+        return 7200
+    return 3600
+wow
+
 such lokale_stempel much utc_secs:
     such secs = int(utc_secs)
-    such j = int(nap.stamp(secs)[0:4])
-    such afwijking = 3600
-    if laatste_zondag_utc(j, 3) <= secs and secs < laatste_zondag_utc(j, 10):
-        very afwijking = 7200
-    return nap.stamp(secs + afwijking)[0:19]
+    return nap.stamp(secs + afwijking_utc(secs))[0:19]
 wow
 
 # Zonder suffix telt de tijd als UTC.
@@ -123,20 +126,20 @@ such vandaag:
     return lokale_stempel(nap.now())[0:10]
 wow
 
-# Seconden tot het volgende voorkomen van doeluur (0-23) vanaf een ISO-stempel
-# ("YYYY-MM-DDTHH:MM:SS", lokale tijd). Pure variant zodat de scheduler-timing testbaar is
-# zonder de klok. Is het doeluur vandaag al geweest, dan telt hij door naar morgen.
-such seconden_tot_uur_vanaf much stempel, doeluur:
-    such uur = int(stempel[11:13])
-    such minuut = int(stempel[14:16])
-    such sec = int(stempel[17:19])
-    such delta = doeluur * 3600 - (uur * 3600 + minuut * 60 + sec)
-    if delta <= 0:
-        very delta = delta + 86400
-    return delta
+# Seconden vanaf utc_secs tot het volgende doeluur (0-23) Amsterdamse tijd; op de
+# zomertijdnachten is dat 23 of 25 uur na de vorige run, niet 24.
+such seconden_tot_uur_vanaf much utc_secs, doeluur:
+    such secs = int(utc_secs)
+    such dag = lokale_stempel(secs)[0:10]
+    such lokaal = int(nap.parse("{dag}T{pad2(doeluur)}:00:00"))
+    such doel = lokaal - afwijking_utc(lokaal - 3600)
+    if doel <= secs:
+        very lokaal = lokaal + 86400
+        very doel = lokaal - afwijking_utc(lokaal - 3600)
+    return doel - secs
 wow
 
 such seconden_tot_uur much doeluur:
-    return seconden_tot_uur_vanaf(lokale_stempel(nap.now()), doeluur)
+    return seconden_tot_uur_vanaf(nap.now(), doeluur)
 wow
 wow

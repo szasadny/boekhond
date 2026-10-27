@@ -1,3 +1,4 @@
+so json
 so "../app/services/wisselkoers.doge"
 
 so WISE_BODY = "[\{\"rate\":0.86215,\"source\":\"USD\",\"target\":\"EUR\",\"time\":\"2026-10-24T06:00:12+0000\"\}]"
@@ -55,6 +56,40 @@ such test_lees_koers_onverwachte_vorm_bonkt:
         oh no err!
             very mislukt = true
         amaze mislukt, body
+wow
+
+such fout_van much stuk:
+    pls
+        stuk()
+    oh no err!
+        return err
+    return none
+wow
+
+such ongeldige_json:
+    json.parse("geen json")
+wow
+
+such ontbrekende_sleutel:
+    such d = {}
+    return d["rate"]
+wow
+
+such deel_door_nul:
+    such n = 0
+    return 1 // n
+wow
+
+such domein_bonk:
+    bonk "x"
+wow
+
+# Alleen fouten uit een afwijkend antwoord worden "geen koers"; een bug houdt zijn eigen type (500).
+such test_is_antwoordfout:
+    amaze wisselkoers.is_antwoordfout(fout_van(ongeldige_json))
+    amaze wisselkoers.is_antwoordfout(fout_van(ontbrekende_sleutel))
+    amaze not wisselkoers.is_antwoordfout(fout_van(deel_door_nul))
+    amaze not wisselkoers.is_antwoordfout(fout_van(domein_bonk))
 wow
 
 # Handmatig nagerekend: bedrag x koers, half-up op centen.

@@ -85,6 +85,28 @@ such inbox_rij much b:
     return "<tr><td>{link}</td><td>{form}</td></tr>"
 wow
 
+such gekoppeld_rij much b, post:
+    such bid = b["id"]
+    such bestand = html.link("/bijlagen/{bid}", b["bestandsnaam_origineel"])
+    such pid = post["id"]
+    such pd = post["datum"]
+    such po = post["omschrijving"]
+    such naar = html.link("/journaal/{pid}", "{pid} {pd} {po}")
+    return "<tr><td>{bestand}</td><td>{naar}</td></tr>"
+wow
+
+such gekoppeld_inhoud much store:
+    such posten = store.laad("journaal", [])
+    such body = ""
+    for paar in bijlagen.gekoppeld(store):
+        such post = journaal.zoek_post(posten, paar[1])
+        if post != none:
+            very body = body + gekoppeld_rij(paar[0], post)
+    if body == "":
+        return ""
+    return "<h2>Gekoppelde bijlagen</h2><table><thead><tr><th>Bestand</th><th>Journaalpost</th></tr></thead><tbody>{body}</tbody></table>"
+wow
+
 such inbox_inhoud much store, melding:
     such items = bijlagen.inbox(store)
     such body = ""
@@ -98,7 +120,8 @@ such inbox_inhoud much store, melding:
     such scanknop = html.knop("Scan importmap")
     such scan_form = "<form action=\"/inbox/scan\" method=\"post\" class=\"inline\">{scanknop}</form>"
     such lijst = posten_datalist(post_opties(store)) if len(items) > 0 else ""
-    return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}{lijst}"
+    such gekoppeld = gekoppeld_inhoud(store)
+    return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}{lijst}{gekoppeld}"
 wow
 
 # Bouwt een resultaat-melding voor de import-scan; overgeslagen namen/redenen ge-escaped.

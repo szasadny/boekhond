@@ -4,8 +4,8 @@ so forms
 so pack
 so nap
 
-# HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers met
-# recv_line en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
+# HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers per
+# regel en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
 
 so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "411": "411 Length Required", "413": "413 Payload Too Large", "431": "431 Request Header Fields Too Large", "500": "500 Internal Server Error"}
 so MAX_BODY = 12582912
@@ -52,15 +52,37 @@ such afgewezen much status, tekst:
     return {"afgewezen": tekst_response(status, tekst)}
 wow
 
+# stopgap for doge#75: howl.recv_line kent geen max, dus byte voor byte tot "\n" of max+1 bytes.
+such lees_regel much conn, max:
+    such buf = []
+    while len(buf) <= max:
+        such b = howl.recv_bytes(conn, 1)
+        if b == none:
+            if len(buf) == 0:
+                return none
+            bork
+        if b[0] == 10:
+            if len(buf) > 0 and buf[-1] == 13:
+                buf.pop()
+            bork
+        buf.append(b[0])
+    return bytes(buf)
+wow
+
 # Parse één request van conn. none als de verbinding sluit vóór een request-line.
 # caps = {pad: max-bytes} voor routes die een grotere body mogen dan MAX_BODY.
 such parse_request much conn, caps = {}:
     such regel = none
     pls
-        very regel = howl.recv_line(conn)
+        such rauw = lees_regel(conn, MAX_KOPPEN)
+        if rauw == none:
+            return none
+        if len(rauw) > MAX_KOPPEN:
+            return afgewezen(431, "request-line te groot")
+        very regel = rauw.decode()
     oh no err!
         return afgewezen(400, "ongeldige request-line")
-    if regel == none or regel == "":
+    if regel == "":
         return none
     such delen = strings.split(regel, " ")
     if len(delen) < 2:
@@ -76,16 +98,21 @@ such parse_request much conn, caps = {}:
     such headers = {}
     such kopbytes = 0
     while true:
-        such h = none
+        such rauw = none
         pls
-            very h = howl.recv_line(conn)
+            very rauw = lees_regel(conn, MAX_KOPPEN - kopbytes + 1)
         oh no err!
             return afgewezen(400, "ongeldige header")
-        if h == none or h == "":
+        if rauw == none or len(rauw) == 0:
             bork
-        very kopbytes = kopbytes + len(bytes(h)) + 2
+        very kopbytes = kopbytes + len(rauw) + 2
         if kopbytes > MAX_KOPPEN:
             return afgewezen(431, "headers te groot")
+        such h = ""
+        pls
+            very h = rauw.decode()
+        oh no err!
+            return afgewezen(400, "ongeldige header")
         such dp = strings.split(h, ":")
         if len(dp) < 2:
             continue

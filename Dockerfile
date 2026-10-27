@@ -18,11 +18,20 @@ COPY static/ static/
 RUN npm run build
 
 FROM debian:stable-slim
+# Vaste UID/GID zodat data/ op de host van een gewone gebruiker is (zie README).
+ARG UID=1000
+ARG GID=1000
+RUN groupadd --gid "$GID" boekhond && useradd --uid "$UID" --gid "$GID" --no-create-home --shell /usr/sbin/nologin boekhond
 WORKDIR /app
 COPY --from=build /app/boekhond /usr/local/bin/boekhond
 COPY static/ static/
 # Overlay de gecompileerde JS uit de assets-stage (static/js/ is gitignored, wordt hier gebouwd).
 COPY --from=assets /app/static/js static/js
+RUN mkdir -p /app/data && chown "$UID:$GID" /app/data
+USER boekhond
 VOLUME /app/data
 EXPOSE 8085
+# Het slim-image heeft geen curl; bash /dev/tcp volstaat. Host 127.0.0.1 is altijd toegestaan.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/${POORT:-8085} && printf 'GET /health HTTP/1.1\\r\\nHost: 127.0.0.1\\r\\n\\r\\n' >&3 && read -r regel <&3 && [[ $regel == *' 200 '* ]]"]
 CMD ["boekhond"]

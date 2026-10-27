@@ -201,6 +201,7 @@ wow
 
 such boek_betalingen much store, betalingen:
     such gezien = journaal.geboekte_sleutels(store, "mollie_payment_id")
+    such ongekoppeld = ongekoppelde_refunds(store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
     such geboekt = 0
     such overgeslagen = 0
@@ -233,6 +234,8 @@ such boek_betalingen much store, betalingen:
                 continue
             verschuif(post, "betaald")
             very verschuift = true
+        if ongekoppeld.has(pid):
+            post["terugbetaald_via"] = ongekoppeld[pid]
         if not probeer_bewaar(store, post, "mollie-payment", pid, mislukt):
             continue
         if verschuift:
@@ -252,9 +255,25 @@ wow
 
 # De link zit op de refund-post, zodat de betaal-post in een ingediend tijdvak onaangeroerd blijft (Hard Rule 3).
 such koppel_betaling much post, refund, betaal_posten:
-    if refund.has("paymentId") and betaal_posten.has(refund["paymentId"]):
+    if veld(refund, ["paymentId"]) == none:
+        return post
+    post["refund_payment_id"] = refund["paymentId"]
+    if betaal_posten.has(refund["paymentId"]):
         post["refund_van"] = betaal_posten[refund["paymentId"]]
     return post
+wow
+
+# Refund-posten die geboekt zijn voordat hun payment een post had. De betaal-post krijgt de link
+# bij het aanmaken, zodat een refund-post in een ingediend tijdvak nooit muteert (Hard Rule 3).
+such ongekoppelde_refunds much posten:
+    such idx = {}
+    for p in posten:
+        if p.has("refund_payment_id") and not p.has("refund_van"):
+            such pid = p["refund_payment_id"]
+            if not idx.has(pid):
+                idx[pid] = []
+            idx[pid].append(p["id"])
+    return idx
 wow
 
 such boek_refund_lijst much store, refunds:
@@ -279,6 +298,9 @@ such boek_refund_lijst much store, refunds:
         such vv = vreemde_valuta(r["amount"])
         if vv != none:
             weiger(store, "mollie-refund", rid, vv, geweigerd)
+            continue
+        if dec(r["amount"]["value"]) == dec("0"):
+            very overgeslagen = overgeslagen + 1
             continue
         such post = refund_naar_post(r)
         koppel_betaling(post, r, betaal_posten)

@@ -24,7 +24,7 @@ wow
 
 such test_balans_balanceert:
     such s = verse_store()
-    journaal.bewaar(s, journaal.prive_post("2026-02-01", "inbreng", "1100", "500", "storting"))
+    journaal.bewaar(s, journaal.prive_post("2026-02-01", "inbreng", "1100", dec("500"), "storting"))
     journaal.bewaar(s, journaal.memoriaal_post("2026-03-01", "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))
     such b = rapporten.balans(s, 2026)
     amaze b["klopt"] == true
@@ -99,13 +99,17 @@ such test_omzet_per_maand:
     schoon()
 wow
 
-such test_jaaroverzicht_jaar_buiten_bereik:
+such test_rapporten_jaar_buiten_bereik:
     such s = verse_store()
     such huidig = datum.jaar(datum.vandaag())
     for g in [[huidig - 2, 400], [huidig + 2, 400], [huidig, 200]]:
         such req = {"ctx": {"store": s}, "query": {"j": [str(g[0])]}}
         amaze rapporten_h.jaaroverzicht(req)["status"] == g[1]
         amaze rapporten_h.jaaroverzicht_csv(req)["status"] == g[1]
+        amaze rapporten_h.balans(req)["status"] == g[1]
+        amaze rapporten_h.balans_csv(req)["status"] == g[1]
+        amaze rapporten_h.winst_verlies(req)["status"] == g[1]
+        amaze rapporten_h.winst_verlies_csv(req)["status"] == g[1]
     schoon()
 wow
 wow

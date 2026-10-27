@@ -32,6 +32,8 @@ such overzicht_inhoud much store, cfg, melding:
         such pid = ""
         if p.has("mollie_payment_id"):
             very pid = p["mollie_payment_id"]
+        elif p.has("refund_payment_id"):
+            very pid = p["refund_payment_id"]
         elif p.has("refund_van") and payment_van.has(p["refund_van"]):
             very pid = payment_van[p["refund_van"]]
         # Een refund staat credit op de bank en verschijnt dus negatief.

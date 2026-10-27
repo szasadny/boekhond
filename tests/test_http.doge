@@ -160,6 +160,31 @@ such test_headers_onder_cap_toegestaan:
     amaze len(req["headers"]["x-lang"][0]) == http.MAX_KOPPEN - 20
 wow
 
+# "X-Lang: " + n bytes + CRLF telt n + 10 bytes.
+such test_headers_precies_op_cap:
+    such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {"a" * (http.MAX_KOPPEN - 10)}{CRLF}{CRLF}")
+    amaze not req.has("afgewezen")
+    such te_lang = rond("GET / HTTP/1.1{CRLF}X-Lang: {"a" * (http.MAX_KOPPEN - 9)}{CRLF}{CRLF}")
+    amaze afgewezen_status(te_lang) == 431
+wow
+
+# Zonder regeleinde en met de client nog open zou een onbegrensde regel-read blijven wachten.
+such test_header_zonder_regeleinde_stopt_bij_cap:
+    such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {"a" * (2 * http.MAX_KOPPEN)}")
+    amaze afgewezen_status(req) == 431
+wow
+
+such test_request_line_boven_cap_geeft_431:
+    such req = rond("GET /{"a" * (2 * http.MAX_KOPPEN)}")
+    amaze afgewezen_status(req) == 431
+wow
+
+such test_regel_met_alleen_lf:
+    such req = rond("GET /x HTTP/1.1\nHost: local\n\n")
+    amaze req["path"] == "/x"
+    amaze req["headers"]["host"][0] == "local"
+wow
+
 such test_head_response_zonder_body:
     such txt = http.bouw_response(http.html_response("€"), true).decode()
     amaze strings.contains(txt, "Content-Length: 3{CRLF}")

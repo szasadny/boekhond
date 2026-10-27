@@ -49,16 +49,7 @@ wow
 
 # Dag max 28 houdt de boekdatum geldig in korte maanden.
 such voeg_toe much store, sjabloon:
-    such rek = rekeningen.zoek(rekeningen.alle(store), sjabloon["kosten_rek"])
-    if rek == none:
-        such nr = sjabloon["kosten_rek"]
-        bonk "onbekende kostenrekening: {nr}"
-    if not rek["actief"]:
-        such nr2 = sjabloon["kosten_rek"]
-        bonk "kostenrekening is inactief: {nr2}"
-    if rek["type"] != "kosten":
-        such nr3 = sjabloon["kosten_rek"]
-        bonk "rekening {nr3} is geen kostenrekening"
+    rekeningen.kostenrekening(rekeningen.alle(store), sjabloon["kosten_rek"])
     such code = sjabloon["btw_code"]
     if not btw.bestaat(code):
         bonk "onbekende btw-code: {code}"
@@ -133,7 +124,7 @@ such genereer much store, vandaag, koersbron:
             continue
         such val = valuta_van(s)
         such oms = s["omschrijving"]
-        such bedrag_eur = s["bedrag_ex"]
+        such bedrag_eur = geld.waarde(s["bedrag_ex"])
         such meta = none
         if val != "EUR":
             if koersbron == none:
@@ -146,7 +137,7 @@ such genereer much store, vandaag, koersbron:
                 fouten.append("{val}-sjabloon {oms}: koers ophalen mislukt ({err.message}), niet geboekt")
                 continue
             such vreemd = geld.rond2(dec(s["bedrag_ex"]))
-            very bedrag_eur = str(wisselkoers.omreken(vreemd, k["koers"]))
+            very bedrag_eur = wisselkoers.omreken(vreemd, k["koers"])
             very meta = {"valuta": val, "bedrag_valuta": str(vreemd), "koers": str(k["koers"]), "koers_tijd": k["tijd"], "koers_bron": k["bron"]}
         such dg = datum.pad2(s["dag"])
         such datum_post = "{maand}-{dg}"

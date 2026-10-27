@@ -153,7 +153,7 @@ wow
 such test_suppletie_nettoot_tegengestelde_correcties:
     such s = verse_store()
     such v = journaal.bewaar(s, verkoop21("2026-01-15"))
-    such i = journaal.bewaar(s, journaal.inkoop_post("2026-02-10", "KPN", "internet", "100", "voorbelasting_hoog", "4200"))
+    such i = journaal.bewaar(s, journaal.inkoop_post("2026-02-10", "KPN", "internet", dec("100"), "voorbelasting_hoog", "4200"))
     aangifte.dien_in(s, 2026, 1)
     journaal.storneer(s, v["id"], "2026-04-01")
     journaal.storneer(s, i["id"], "2026-04-02")
@@ -183,7 +183,7 @@ wow
 such test_suppletie_nettoot_niet_over_tijdvakken:
     such s = verse_store()
     such v = journaal.bewaar(s, verkoop21("2026-01-15"))
-    such i = journaal.bewaar(s, journaal.inkoop_post("2026-05-10", "KPN", "internet", "100", "voorbelasting_hoog", "4200"))
+    such i = journaal.bewaar(s, journaal.inkoop_post("2026-05-10", "KPN", "internet", dec("100"), "voorbelasting_hoog", "4200"))
     aangifte.dien_in(s, 2026, 1)
     aangifte.dien_in(s, 2026, 2)
     journaal.storneer(s, v["id"], "2026-07-01")
@@ -384,7 +384,7 @@ wow
 # Privégebruik-correctie: gebalanceerde post via journaal.privegebruik_post -> rubriek 1d + 5a stijgen.
 such test_privegebruik_post_overzicht:
     such s = verse_store()
-    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "500"))
+    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", dec("500")))
     such ov = aangifte.overzicht(s, 2026, 4)
     amaze ov["rubrieken"]["1d"]["bedrag"] == 500
     amaze ov["rubrieken"]["1d"]["btw"] == 105
@@ -422,7 +422,7 @@ wow
 such test_privegebruik_buiten_q4_geweigerd:
     such gevangen = false
     pls
-        journaal.privegebruik_post("2026-03-31", "500")
+        journaal.privegebruik_post("2026-03-31", dec("500"))
     oh no err!
         very gevangen = true
     amaze gevangen
@@ -466,9 +466,9 @@ wow
 # 5b 4,00 -> 4) geeft -1. Een post plus zijn storno nettoot naar nul.
 such test_uitleg_afronding_verlegd:
     such s = verse_store()
-    journaal.bewaar(s, journaal.inkoop_post("2026-10-01", "Google", "Hosting", "1.20", "import_buiten_eu", "4100"))
-    journaal.bewaar(s, journaal.inkoop_post("2026-10-17", "Mailer", "Mailing", "17.88", "verwerving_eu", "4000"))
-    such codex = journaal.bewaar(s, journaal.inkoop_post("2026-10-18", "OpenAI", "Codex", "19.01", "import_buiten_eu", "4000"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-01", "Google", "Hosting", dec("1.20"), "import_buiten_eu", "4100"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-17", "Mailer", "Mailing", dec("17.88"), "verwerving_eu", "4000"))
+    such codex = journaal.bewaar(s, journaal.inkoop_post("2026-10-18", "OpenAI", "Codex", dec("19.01"), "import_buiten_eu", "4000"))
     journaal.bewaar(s, journaal.storno_post(codex, "2026-10-18"))
     such ov = aangifte.overzicht(s, 2026, 4)
     amaze ov["5a"] == 3
@@ -498,7 +498,7 @@ such test_uitleg_controle_afwijking:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-07-15"))
     journaal.bewaar(s, journaal.memoriaal_post("2026-07-16", "fout", "", [{"rekening": "1300", "debet": "1200", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "200", "btw_code": none}]))
-    journaal.bewaar(s, journaal.prive_post("2026-07-17", "storting", "1100", "50", "storting"))
+    journaal.bewaar(s, journaal.prive_post("2026-07-17", "storting", "1100", dec("50"), "storting"))
     such u = aangifte.uitleg(s, 2026, 3)
     amaze len(u["posten"]) == 2
     amaze u["zonder_btw"] == 1
@@ -643,14 +643,14 @@ wow
 # - 2,10 (refund) + 21,00 (1d) = 48,86; voorbelasting 21,00 (inkoop) + 10,50 (4a) = 31,50.
 such test_aansluiting_normale_flows_klopt:
     such s = verse_store()
-    journaal.bewaar(s, journaal.inkoop_post("2026-10-02", "Kantoor", "Papier", "100", "voorbelasting_hoog", "4200"))
-    journaal.bewaar(s, journaal.inkoop_post("2026-10-03", "US SaaS", "Hosting", "50", "import_buiten_eu", "4100"))
-    journaal.bewaar(s, journaal.inkoop_post("2026-10-04", "Verzekeraar", "Polis", "30", "geen_btw", "4300"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-02", "Kantoor", "Papier", dec("100"), "voorbelasting_hoog", "4200"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-03", "US SaaS", "Hosting", dec("50"), "import_buiten_eu", "4100"))
+    journaal.bewaar(s, journaal.inkoop_post("2026-10-04", "Verzekeraar", "Polis", dec("30"), "geen_btw", "4300"))
     journaal.bewaar(s, mollie.betaling_naar_post(mollie_betaling("tr_1", "12.10", "2026-10-05T10:00:00+00:00")))
     journaal.bewaar(s, mollie.betaling_naar_post(mollie_betaling("tr_2", "100.00", "2026-10-05T11:00:00+00:00")))
     journaal.bewaar(s, mollie.refund_naar_post({"id": "re_1", "status": "refunded", "amount": {"value": "12.10", "currency": "EUR"}, "createdAt": "2026-10-06T10:00:00+00:00"}))
-    journaal.bewaar(s, journaal.prive_post("2026-10-07", "storting", "1100", "500", "storting"))
-    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", "100"))
+    journaal.bewaar(s, journaal.prive_post("2026-10-07", "storting", "1100", dec("500"), "storting"))
+    journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", dec("100")))
     journaal.bewaar(s, journaal.memoriaal_post("2026-10-20", "btw Q3 betaald", "", [{"rekening": "1510", "debet": "210", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "210", "btw_code": none}]))
     such a = aangifte.aansluiting(s, 2026, 4)
     amaze a["verschuldigd"] == dec("48.86")

@@ -5,7 +5,7 @@ services:
     build: .
     # Host for local network
     ports:
-      - "${PUBLISH_HOST:-127.0.0.1}:8085:8085"
+      - "${PUBLISH_HOST:-127.0.0.1}:${POORT:-8085}:${POORT:-8085}"
     volumes:
       - ./data:/app/data
     env_file: .env
@@ -14,4 +14,6 @@ services:
     # LAN/VPN + reverse-proxy; /internal/* is daarbovenop token-guarded.
     environment:
       - BIND_HOST=0.0.0.0
+    # Een init als PID 1 stuurt SIGTERM door, zodat docker stop direct stopt in plaats van na 10 s SIGKILL.
+    init: true
     restart: unless-stopped

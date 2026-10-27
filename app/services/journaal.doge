@@ -1,7 +1,6 @@
 so btw
 so rekeningen
 so nap
-so strings
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
@@ -96,6 +95,10 @@ such bewaar much store, post:
         very totaal = totaal + controleer_regel(r, rek_lijst, soort, storno)
     if totaal <= dec("0"):
         bonk "een journaalpost moet een bedrag groter dan nul hebben"
+    if soort == "inkoop":
+        for r in post["regels"]:
+            if r.has("btw_code") and r["btw_code"]:
+                rekeningen.kostenrekening(rek_lijst, r["rekening"])
     if not tijdvak_open(store.laad("aangiften", []), d):
         such tv = datum.kwartaal(d)
         such j = datum.jaar(d)
@@ -139,7 +142,7 @@ wow
 # Inkoop: de btw_code zit op de ene grondslagregel (de kostenregel); de btw- en
 # crediteurenregels dragen geen code en bestaan alleen voor de balans.
 such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, kosten_rek:
-    such ex = geld.rond2(geld.waarde(bedrag_ex))
+    such ex = geld.rond2(bedrag_ex)
     such c = btw.info(code)
     such bb = btw.btw_bedrag(ex, code)
     such regels = []
@@ -159,11 +162,22 @@ such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, koste
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": leverancier, "regels": regels, "bron": "handmatig", "bijlage_ids": []}
 wow
 
+such inkoop_btw_code much rek_lijst, kosten_rek, code:
+    if code != "":
+        return code
+    such rek = rekeningen.zoek(rek_lijst, kosten_rek)
+    if rek == none:
+        bonk "kies een kostenrekening"
+    if not rek.has("btw_code") or not rek["btw_code"]:
+        bonk "kies een btw-code: rekening {kosten_rek} heeft geen standaard-btw-code"
+    return rek["btw_code"]
+wow
+
 # Bank/privé: geld dat via privé de zaak in of uit gaat. kant = "storting" | "onttrekking".
 such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
     if rekening == rekeningen.REK_PRIVE:
         bonk "kies een tegenrekening, niet de privérekening {rekeningen.REK_PRIVE} zelf"
-    such b = str(geld.rond2(geld.waarde(bedrag)))
+    such b = str(geld.rond2(bedrag))
     such regels = []
     if kant == "storting":
         regels.append({"rekening": rekening, "debet": b, "credit": "", "btw_code": none})
@@ -183,9 +197,7 @@ such privegebruik_post much datum_s, grondslag_ex:
     datum.controleer(datum_s)
     if datum.kwartaal(datum_s) != 4:
         bonk "privégebruik-correctie hoort in Q4 (laatste aangifte van het jaar)"
-    if strings.trim(grondslag_ex) == "":
-        bonk "vul de grondslag privégebruik in"
-    such ex = geld.rond2(geld.parse(grondslag_ex))
+    such ex = geld.rond2(grondslag_ex)
     if ex <= 0:
         bonk "grondslag privégebruik moet groter zijn dan 0"
     such bb = btw.btw_bedrag(ex, "prive_gebruik")
@@ -265,6 +277,8 @@ such refund_index much lijst:
     for p in lijst:
         if p.has("refund_van") and p["refund_van"] != none:
             idx[p["refund_van"]] = p["id"]
+        if p.has("terugbetaald_via") and len(p["terugbetaald_via"]) > 0:
+            idx[p["id"]] = p["terugbetaald_via"][0]
     return idx
 wow
 
@@ -274,6 +288,8 @@ such storno_weigering much lijst, post:
     if post.has("storno_van") and post["storno_van"] != none:
         such van = post["storno_van"]
         return "post {pid} is zelf een storno van {van} en kan niet gestorneerd worden"
+    if post.has("mollie_refund_id") and post["mollie_refund_id"] != none:
+        return "post {pid} is een Mollie-refund en kan niet gestorneerd worden"
     such idx = storno_index(lijst)
     if idx.has(pid):
         such sid = idx[pid]

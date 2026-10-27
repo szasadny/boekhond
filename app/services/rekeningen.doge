@@ -63,6 +63,18 @@ such zoek much lijst, nummer:
     return none
 wow
 
+# Inkoop en terugkerende kosten boeken hun grondslag alleen op een actieve kostenrekening.
+such kostenrekening much lijst, nummer:
+    such rek = zoek(lijst, nummer)
+    if rek == none:
+        bonk "onbekende kostenrekening: {nummer}"
+    if not rek["actief"]:
+        bonk "kostenrekening is inactief: {nummer}"
+    if rek["type"] != "kosten":
+        bonk "rekening {nummer} is geen kostenrekening"
+    return rek
+wow
+
 such voeg_toe much store, invoer:
     such rekening = {"nummer": strings.trim(invoer["nummer"]), "naam": strings.trim(invoer["naam"]), "type": invoer["type"], "btw_code": invoer["btw_code"], "actief": true}
     if rekening["nummer"] == "":

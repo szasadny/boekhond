@@ -2,6 +2,7 @@ so strings
 so "../../web/html.doge"
 so "../../web/http.doge"
 so "../services/btw.doge"
+so "../services/rekeningen.doge"
 so "../../lib/geld.doge"
 so "../services/aangifte.doge"
 so "../../lib/datum.doge"
@@ -96,6 +97,19 @@ such btw_legenda much soort:
         rijen.append([e["label"], e["uitleg"]])
     such t = html.tabel(["Btw-code", "Betekenis"], rijen)
     return "<details class=\"legenda\"><summary>Wat betekenen de btw-codes?</summary>{t}</details>"
+wow
+
+such kostenrekening_opties much store, met_btw = false:
+    such o = [["", "(kies kostenrekening)"]]
+    for r in rekeningen.alle(store):
+        if r["actief"] and r["type"] == "kosten":
+            such nr = r["nummer"]
+            such naam = r["naam"]
+            such label = "{nr} {naam}"
+            if met_btw and r.has("btw_code") and r["btw_code"]:
+                very label = label + " (standaard: " + btw.label(r["btw_code"]) + ")"
+            o.append([nr, label])
+    return o
 wow
 
 # Select-opties [code, label] voor de inkoop-btw-codes.

@@ -52,6 +52,9 @@ wow
 such balans much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such b = rapporten.balans(store, j)
     such act = regels_tabel(b["activa"])
     such pas = regels_tabel(b["passiva"])
@@ -68,6 +71,9 @@ wow
 such balans_csv much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such b = rapporten.balans(store, j)
     such rijen = []
     for row in b["activa"]:
@@ -86,6 +92,9 @@ wow
 such winst_verlies much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such wv = rapporten.winst_verlies(store, j)
     such omz = regels_tabel(wv["omzet"])
     such kos = regels_tabel(wv["kosten"])
@@ -99,6 +108,9 @@ wow
 such winst_verlies_csv much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such wv = rapporten.winst_verlies(store, j)
     such rijen = []
     for row in wv["omzet"]:

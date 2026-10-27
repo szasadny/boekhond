@@ -400,7 +400,7 @@ such doen_inhoud much store, cfg, ov, melding:
         such f_knop = html.knop("Privégebruik boeken")
         such f = "<form action=\"/aangifte/privegebruik\" method=\"post\" class=\"inline\">{f_j}{f_kw}{f_g}{f_d}{f_knop}</form>"
         very prive = "<div class=\"banner\"><p>Q4: denk aan de btw-correctie privégebruik (rubriek 1d) als je zakelijke goederen of diensten privé gebruikt.</p>{f}</div>"
-    such ptabel = html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3])
+    such ptabel = html.tabel_regio("Velden voor Mijn Belastingdienst Zakelijk", html.tabel(["Rubriek", "Omschrijving", "Bedrag", "Btw"], portaal_rijen(ov), [2, 3]))
     such saldo = ov["saldo"]
     such dl = aangifte.deadline(j, kw)
     such verstreken = weergave.termijn_status(ov["status"], j, kw, datum.vandaag())
@@ -447,7 +447,7 @@ such boek_privegebruik much req:
     such grondslag = forms.enkel(v, "grondslag", "")
     such datum_s = forms.enkel(v, "datum", "")
     pls
-        such post = journaal.privegebruik_post(datum_s, grondslag)
+        such post = journaal.privegebruik_post(datum_s, geld.parse(grondslag))
         journaal.bewaar(store, post)
         return http.redirect(weergave.tijdvak_href("/aangifte/doen", post["datum"]))
     oh no err!

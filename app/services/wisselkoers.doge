@@ -9,6 +9,14 @@ so "../../lib/geld.doge"
 so VALUTA = ["EUR", "USD"]
 so WISE_BASIS = "https://api.wise.com/v1/rates"
 
+# Een ongeldig of anders gevormd Wise-antwoord geeft bij parsen en indexeren alleen deze types;
+# elke andere fout is een bug en moet een 500 worden, geen "geen koers".
+so ANTWOORDFOUTEN = ["ValueError", "TypeError", "KeyError", "IndexOutOfBounds"]
+
+such is_antwoordfout much err:
+    return ANTWOORDFOUTEN.contains(err.type)
+wow
+
 # Parse de ruwe Wise-response, bv. [{"rate":0.86215,"source":"USD","target":"EUR","time":"..."}].
 # json.parse in Decimal-modus: een koers met breuk of exponent wordt direct een exacte Decimal en
 # raakt nooit een Float (Hard Rule 1); een hele koers (bv. 1) komt als Int en wordt via dec()
@@ -24,6 +32,8 @@ such lees_koers much body:
         if eerste.has("time") and eerste["time"] != none:
             very tijd = str(eerste["time"])
     oh no err!
+        if not is_antwoordfout(err):
+            bonk err
         bonk "geen koers gevonden in het Wise-antwoord"
     if koers <= dec("0"):
         bonk "ongeldige koers in het Wise-antwoord: {koers}"

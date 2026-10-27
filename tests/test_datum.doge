@@ -57,12 +57,11 @@ such test_vandaag_vorm:
     amaze datum.is_geldig(datum.vandaag())
 wow
 
+# Zomertijd 2026: 29 maart en 25 oktober, 01:00 UTC. 06:00 lokaal is 05:00 UTC in de winter, 04:00 UTC in de zomer.
 such test_seconden_tot_uur:
-    amaze datum.seconden_tot_uur_vanaf("2026-07-18T05:00:00Z", 6) == 3600
-    amaze datum.seconden_tot_uur_vanaf("2026-07-18T06:00:00Z", 6) == 86400
-    amaze datum.seconden_tot_uur_vanaf("2026-07-18T07:30:00Z", 6) == 81000
-    amaze datum.seconden_tot_uur_vanaf("2026-07-18T00:00:00Z", 6) == 21600
-    amaze datum.seconden_tot_uur_vanaf("2026-07-18T23:59:59Z", 6) == 21601
+    such gevallen = [["2026-07-18T03:00:00", 3600], ["2026-07-18T04:00:00", 86400], ["2026-07-18T05:30:00", 81000], ["2026-07-17T22:00:00", 21600], ["2026-01-10T04:30:00", 1800], ["2026-01-10T05:00:00", 86400], ["2026-03-28T06:00:00", 79200], ["2026-03-29T00:30:00", 12600], ["2026-03-29T04:00:00", 86400], ["2026-10-24T05:00:00", 86400], ["2026-10-25T00:30:00", 16200], ["2026-10-25T05:00:00", 86400]]
+    for g in gevallen:
+        amaze datum.seconden_tot_uur_vanaf(nap.parse(g[0]), 6) == g[1], g[0]
 wow
 
 such test_laatste_dag_van_maand:

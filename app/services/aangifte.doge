@@ -107,8 +107,10 @@ such overzicht much store, j, kw:
     such rub = c["rubrieken"]
     such icp = btw.grondslag_code_tijdvak(store.laad("journaal", []), j, kw, "levering_eu") > dec("0")
     such supp = suppletie_signaal(store, j, kw)
-    such u = uitleg(store, j, kw)
-    such ans = none if c["status"] == "ingediend" else aansluiting(store, j, kw)
+    such posten = store.laad("journaal", [])
+    such spec = btw.specificatie(posten, j, kw)
+    such u = uitleg_uit(posten, spec)
+    such ans = none if c["status"] == "ingediend" else aansluiting_uit(store, posten, j, kw, spec)
     return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "onbekend": c["onbekend"], "uitleg": u, "aansluiting": ans}
 wow
 
@@ -224,7 +226,10 @@ wow
 # (in de praktijk een handmatige memoriaalpost met een verkeerd btw-bedrag).
 such uitleg much store, j, kw:
     such posten = store.laad("journaal", [])
-    such spec = btw.specificatie(posten, j, kw)
+    return uitleg_uit(posten, btw.specificatie(posten, j, kw))
+wow
+
+such uitleg_uit much posten, spec:
     such afwijkend = []
     for sp in spec["posten"]:
         such p = journaal.zoek_post(posten, sp["id"])
@@ -252,7 +257,10 @@ wow
 # Op de cent, vóór afronding op hele euro's, zodat de toegestane euro-afronding nooit een verschil geeft.
 such aansluiting much store, j, kw:
     such posten = store.laad("journaal", [])
-    such spec = btw.specificatie(posten, j, kw)
+    return aansluiting_uit(store, posten, j, kw, btw.specificatie(posten, j, kw))
+wow
+
+such aansluiting_uit much store, posten, j, kw, spec:
     such types = {}
     for r in rekeningen.alle(store):
         types[r["nummer"]] = r["type"]

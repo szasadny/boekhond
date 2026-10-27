@@ -205,6 +205,85 @@ such test_koppel_zelfde_post_opnieuw_is_noop:
     schoon()
 wow
 
+# Halve koppeling: de post-kant is geschreven, de bijlage-commit niet.
+such half_gekoppeld much s:
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
+    such post = maak_post(s)
+    journaal.koppel_bijlage(s, post["id"], m["id"])
+    return [m, post]
+wow
+
+such test_halve_koppeling_niet_in_inbox:
+    such s = verse()
+    half_gekoppeld(s)
+    amaze len(bijlagen.inbox(s)) == 0
+    schoon()
+wow
+
+such test_halve_koppeling_elders_geweigerd_en_hersteld:
+    such s = verse()
+    such m, post = half_gekoppeld(s)
+    such ander = maak_post(s)
+    such gevangen = false
+    pls
+        bijlagen.koppel(s, m["id"], ander["id"])
+    oh no err!
+        very gevangen = true
+        amaze strings.contains(err.message, "al gekoppeld aan {post["id"]}")
+    amaze gevangen
+    amaze bijlagen.zoek(bijlagen.alle(s), m["id"])["journaalpost_id"] == post["id"]
+    amaze journaal.zoek_post(s.laad("journaal", []), ander["id"])["bijlage_ids"] == []
+    schoon()
+wow
+
+such test_halve_koppeling_opnieuw_afgemaakt:
+    such s = verse()
+    such m, post = half_gekoppeld(s)
+    such b = bijlagen.koppel(s, m["id"], post["id"])
+    amaze b["journaalpost_id"] == post["id"]
+    amaze bijlagen.zoek(bijlagen.alle(s), m["id"])["journaalpost_id"] == post["id"]
+    amaze journaal.zoek_post(s.laad("journaal", []), post["id"])["bijlage_ids"] == [m["id"]]
+    amaze strings.contains(fetch.read(fetch.join(TMPMAP, "audit.dsonl")), "gekoppeld")
+    schoon()
+wow
+
+such test_gekoppeld_toont_post_nieuwste_eerst:
+    such s = verse()
+    such eerste = bijlagen.bewaar(s, deel("a.pdf", pdf_data()), "upload")
+    bijlagen.bewaar(s, deel("b.pdf", pdf_data()), "upload")
+    such derde = bijlagen.bewaar(s, deel("c.pdf", pdf_data()), "upload")
+    such post = maak_post(s)
+    bijlagen.koppel(s, eerste["id"], post["id"])
+    journaal.koppel_bijlage(s, post["id"], derde["id"])
+    such g = bijlagen.gekoppeld(s)
+    amaze len(g) == 2
+    amaze g[0][0]["id"] == derde["id"] and g[0][1] == post["id"]
+    amaze g[1][0]["id"] == eerste["id"] and g[1][1] == post["id"]
+    schoon()
+wow
+
+such test_inbox_toont_gekoppelde_met_postlink_escaped:
+    such s = verse()
+    such m = bijlagen.bewaar(s, deel("A&B.pdf", pdf_data()), "upload")
+    such regels = [{"rekening": "1100", "debet": "10.00", "credit": "", "btw_code": none}, {"rekening": "0800", "debet": "", "credit": "10.00", "btw_code": none}]
+    such post = journaal.bewaar(s, journaal.memoriaal_post("2026-07-10", "<b>huur</b>", "", regels))
+    bijlagen.koppel(s, m["id"], post["id"])
+    such h = bijlagen_h.inbox_inhoud(s, "")
+    amaze strings.contains(h, "Gekoppelde bijlagen")
+    amaze strings.contains(h, "<a href=\"/bijlagen/{m["id"]}\">A&amp;B.pdf</a>")
+    amaze strings.contains(h, "<a href=\"/journaal/{post["id"]}\">")
+    amaze strings.contains(h, "&lt;b&gt;huur&lt;/b&gt;")
+    amaze not strings.contains(h, "<b>huur")
+    schoon()
+wow
+
+such test_inbox_zonder_gekoppelde_toont_geen_sectie:
+    such s = verse()
+    bijlagen.bewaar(s, deel("a.pdf", pdf_data()), "upload")
+    amaze not strings.contains(bijlagen_h.inbox_inhoud(s, ""), "Gekoppelde bijlagen")
+    schoon()
+wow
+
 such test_inbox_filtert_gekoppelde:
     such s = verse()
     bijlagen.bewaar(s, deel("a.pdf", pdf_data()), "upload")

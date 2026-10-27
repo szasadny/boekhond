@@ -88,15 +88,16 @@ header nav a.actief {
     border-bottom-color: var(--accent);
 }
 
+/* Flex-item met margin auto krimpt naar fit-content; de 100%-cap houdt brede inhoud binnen de viewport. */
 main {
-    max-width: var(--breedte);
+    max-width: min(var(--breedte), 100%);
     margin: 0 auto;
     padding: calc(var(--ruimte) * 1.5) var(--ruimte) calc(var(--ruimte) * 3);
 }
 
 /* Bredere content-kolom voor data-dichte pagina's (Overzicht, Aangifte). */
 main.breed {
-    max-width: 78rem;
+    max-width: min(78rem, 100%);
 }
 
 /* Twee kolommen op desktop (bv. rubriekentabel naast de samenvatting); stapelt op smal. */
