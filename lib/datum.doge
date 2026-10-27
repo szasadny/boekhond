@@ -2,6 +2,7 @@ so strings
 so hunt
 so nap
 
+so TIJDZONE = "Europe/Amsterdam"
 so MAAND_DAGEN = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
 
 such pad2 much n:
@@ -92,23 +93,8 @@ such sleutel much d:
     return jaar(d) * 10000 + maand(d) * 100 + dag(d)
 wow
 
-# stopgap for doge#77: nap kent geen tijdzones, dus Europe/Amsterdam via de EU-zomertijdregel.
-# 1970-01-01 was een donderdag.
-such laatste_zondag_utc much j, m:
-    such t = int(nap.parse(laatste_dag_van_maand(j, m) + "T01:00:00"))
-    return t - ((t // 86400 + 4) % 7) * 86400
-wow
-
-such afwijking_utc much secs:
-    such j = int(nap.stamp(secs)[0:4])
-    if laatste_zondag_utc(j, 3) <= secs and secs < laatste_zondag_utc(j, 10):
-        return 7200
-    return 3600
-wow
-
 such lokale_stempel much utc_secs:
-    such secs = int(utc_secs)
-    return nap.stamp(secs + afwijking_utc(secs))[0:19]
+    return nap.stamp(int(utc_secs), TIJDZONE)[0:19]
 wow
 
 # Zonder suffix telt de tijd als UTC.
@@ -124,16 +110,20 @@ such vandaag:
     return lokale_stempel(nap.now())[0:10]
 wow
 
+# Offset op de geschatte UTC-tijd, niet op lokaal zelf: rond een wissel verschillen die twee.
+such lokaal_naar_utc much lokaal:
+    return lokaal - nap.offset(lokaal - nap.offset(lokaal, TIJDZONE), TIJDZONE)
+wow
+
 # Seconden vanaf utc_secs tot het volgende doeluur (0-23) Amsterdamse tijd; op de
 # zomertijdnachten is dat 23 of 25 uur na de vorige run, niet 24.
 such seconden_tot_uur_vanaf much utc_secs, doeluur:
     such secs = int(utc_secs)
     such dag = lokale_stempel(secs)[0:10]
     such lokaal = int(nap.parse("{dag}T{pad2(doeluur)}:00:00"))
-    such doel = lokaal - afwijking_utc(lokaal - 3600)
+    such doel = lokaal_naar_utc(lokaal)
     if doel <= secs:
-        very lokaal = lokaal + 86400
-        very doel = lokaal - afwijking_utc(lokaal - 3600)
+        very doel = lokaal_naar_utc(lokaal + 86400)
     return doel - secs
 wow
 
