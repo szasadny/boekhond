@@ -4,7 +4,6 @@ so "../../web/forms.doge"
 so "../../web/multipart.doge"
 so "../services/bijlagen.doge"
 so "../services/journaal.doge"
-so "../../lib/datum.doge"
 so weergave
 so strings
 
@@ -12,9 +11,6 @@ so strings
 # wordt gevalideerd + opgeslagen door de bijlagen-service, en vandaaruit aan een
 # journaalpost gekoppeld. Download loopt via een router-route (nooit als /static/,
 # want bijlagen liggen buiten de static-root). Alle dynamische waarden ge-escaped (Hard Rule 6).
-
-# Doge's sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int.
-so POST_FACTOR = 10000000
 
 # RFC 5987 attr-char: alles daarbuiten gaat percent-encoded in filename*.
 so ATTR_CHARS = "!#$&+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -50,16 +46,10 @@ wow
 such post_opties much store:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
-    such sleutels = []
-    such i = 0
-    while i < len(posten):
-        if journaal.tijdvak_open(aangiften, posten[i]["datum"]):
-            sleutels.append(datum.sleutel(posten[i]["datum"]) * POST_FACTOR + i)
-        very i = i + 1
-    sleutels.sort()
     such o = []
-    for k in sleutels[::-1]:
-        such p = posten[k % POST_FACTOR]
+    for p in weergave.nieuwste_eerst(posten):
+        if not journaal.tijdvak_open(aangiften, p["datum"]):
+            continue
         such pd = p["datum"]
         such po = p["omschrijving"]
         o.append([p["id"], "{pd} {po}"])

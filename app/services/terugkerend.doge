@@ -49,8 +49,11 @@ wow
 
 # Dag max 28 houdt de boekdatum geldig in korte maanden.
 such voeg_toe much store, sjabloon:
-    rekeningen.kostenrekening(rekeningen.alle(store), sjabloon["kosten_rek"])
-    such code = sjabloon["btw_code"]
+    such rek_lijst = rekeningen.alle(store)
+    rekeningen.kostenrekening(rek_lijst, sjabloon["kosten_rek"])
+    # De opgeloste code gaat mee op het sjabloon: een latere wijziging van de rekening raakt het niet.
+    such code = journaal.inkoop_btw_code(rek_lijst, sjabloon["kosten_rek"], sjabloon["btw_code"])
+    sjabloon["btw_code"] = code
     if not btw.bestaat(code):
         bonk "onbekende btw-code: {code}"
     if btw.info(code)["soort"] != "inkoop":

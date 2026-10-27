@@ -21,6 +21,7 @@ First install:
 ```sh
 git clone https://github.com/szasadny/boekhond.git && cd boekhond
 cp .env.example .env
+# Zet INTERN_TOKEN in .env op een random waarde (openssl rand -hex 32); leeg = geen dagelijkse scheduler.
 # Zet PUBLISH_HOST in .env op het LAN/VPN-adres van de VM/LXC voor directe netwerktoegang.
 # Zet TOEGESTANE_HOSTS op de host[:port]-waarden waarmee je de app opent; leeg = alleen loopback.
 mkdir -p data && sudo chown 1000:1000 data

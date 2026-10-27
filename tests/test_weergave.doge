@@ -94,4 +94,25 @@ such test_openstaand_banner_termijn:
     amaze strings.contains(optijd, "<p class=\"banner\">")
     amaze not strings.contains(optijd, "Termijn verstreken.")
 wow
+
+# Op datum, nieuwste eerst; gelijke datum: laatst ingevoegd eerst.
+such test_nieuwste_eerst:
+    such posten = [{"id": "a", "datum": "2026-03-01"}, {"id": "b", "datum": "2026-05-02"}, {"id": "c", "datum": "2025-12-31"}, {"id": "e", "datum": "2026-05-02"}]
+    such ids = []
+    for p in weergave.nieuwste_eerst(posten):
+        ids.append(p["id"])
+    amaze ids == ["e", "b", "a", "c"]
+    amaze len(weergave.nieuwste_eerst([])) == 0
+wow
+
+# Na vandaag valt weg; daarna de eerste n van nieuwste_eerst.
+such test_recente_posten:
+    such posten = [{"id": "a", "datum": "2026-03-01"}, {"id": "b", "datum": "2026-05-02"}, {"id": "c", "datum": "2026-12-31"}, {"id": "d", "datum": "2026-01-15"}, {"id": "e", "datum": "2026-05-02"}, {"id": "f", "datum": "2026-04-30"}]
+    such ids = []
+    for p in dashboard_h.recente_posten(posten, "2026-05-02", 4):
+        ids.append(p["id"])
+    amaze ids == ["e", "b", "f", "a"]
+    amaze len(dashboard_h.recente_posten(posten, "2026-01-01", 5)) == 0
+    amaze len(dashboard_h.recente_posten([], "2026-01-01", 5)) == 0
+wow
 wow

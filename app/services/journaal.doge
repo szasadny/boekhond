@@ -239,6 +239,7 @@ such markeer_correctie much store, post, van_id:
         bonk "onbekende journaalpost: {van_id}"
     if tijdvak_open(store.laad("aangiften", []), orig["datum"]):
         bonk "post {van_id} valt niet in een ingediend tijdvak"
+    post["correctie_van"] = van_id
     post["correctie_van_datum"] = orig["datum"]
     return post
 wow

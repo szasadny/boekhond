@@ -65,6 +65,17 @@ such test_intern_ontbrekend_token:
     schoon()
 wow
 
+such test_intern_leeg_token_geweigerd:
+    such s = verse()
+    drop("factuur.pdf", bytes("%PDF-1.4 test"))
+    such cfg = {"mollie_key": none, "intern_token": "", "wise_token": none}
+    such req = {"ctx": {"store": s, "config": cfg}, "headers": {}, "peer_host": "127.0.0.1"}
+    such resp = intern_h.run_recurring(req)
+    amaze resp["status"] == 403
+    amaze len(bijlagen.inbox(s)) == 0
+    schoon()
+wow
+
 such test_intern_niet_loopback_peer:
     such s = verse()
     drop("factuur.pdf", bytes("%PDF-1.4 test"))

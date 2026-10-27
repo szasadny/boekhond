@@ -369,10 +369,12 @@ such doen_inhoud much store, cfg, ov, melding:
     if cfg["mollie_key"] == none:
         very items = items + "<li>Inkomsten: geen Mollie-key ingesteld, sync wordt overgeslagen.</li>"
     else:
-        such wanneer = laatste if laatste != none else "nog niet gesynct"
         such syncknop = "<form action=\"/mollie/sync\" method=\"post\" class=\"inline\">" + html.knop("Sync nu") + "</form>"
-        such wt = html.escape(str(wanneer))
-        very items = items + "<li>Inkomsten gesynct t/m {wt}. {syncknop}</li>"
+        such wt = "Nog niet gesynct."
+        if laatste != none:
+            such le = html.escape(str(laatste))
+            very wt = "Laatste Mollie-sync: {le}."
+        very items = items + "<li>{wt} {syncknop}</li>"
     such inboxn = len(bijlagen.inbox(store))
     if inboxn == 0:
         very items = items + "<li>Inbox leeg: alle bewijzen gekoppeld.</li>"

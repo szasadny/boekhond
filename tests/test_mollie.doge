@@ -592,4 +592,13 @@ such test_inkomsten_toont_refund_negatief_met_payment:
     amaze strings.contains(h, "<td>Refund re_1</td><td class=\"num\">-12,10</td><td>tr_1</td>")
     schoon()
 wow
+
+such test_overzicht_laatste_sync:
+    such s = verse_store()
+    amaze "<p>Nog niet gesynct.</p>" in mollie_h.overzicht_inhoud(s, {"mollie_key": none}, "")
+    mollie.onthoud_sync(s)
+    such d = datum.vandaag()
+    amaze "<p>Laatste Mollie-sync: {d}.</p>" in mollie_h.overzicht_inhoud(s, {"mollie_key": none}, "")
+    schoon()
+wow
 wow

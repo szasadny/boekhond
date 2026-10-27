@@ -22,7 +22,7 @@ such run_recurring much req:
     such gekregen = ""
     if kop.has("x-intern-token"):
         very gekregen = kop["x-intern-token"][0]
-    if verwacht == none or not crypto.same(verwacht, gekregen):
+    if verwacht == none or verwacht == "" or not crypto.same(verwacht, gekregen):
         return http.tekst_response(403, "verboden")
     such regels = []
     if cfg["mollie_key"] != none:

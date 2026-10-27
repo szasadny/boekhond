@@ -380,4 +380,63 @@ such test_genereer_handler_meldt_aantal:
     amaze strings.contains(fout["body"], "<p>0 posten geboekt, 1 geweigerd.</p>")
     schoon()
 wow
+
+such opgeloste_code_of_fout much kosten_rek, code:
+    such s = verse_store()
+    such sj = sjabloon("20.00", 1, "2026-01")
+    sj["kosten_rek"] = kosten_rek
+    sj["btw_code"] = code
+    pls
+        return terugkerend.voeg_toe(s, sj)["btw_code"]
+    oh no err!
+        return err.message
+wow
+
+such test_lege_btw_code_volgt_kostenrekening:
+    such gevallen = [
+        ["4000", "", "import_buiten_eu"],
+        ["4200", "", "voorbelasting_hoog"],
+        ["4300", "", "geen_btw"],
+        ["4200", "geen_btw", "geen_btw"],
+        ["8900", "", "kies een btw-code: rekening 8900 heeft geen standaard-btw-code"],
+        ["8900", "voorbelasting_laag", "voorbelasting_laag"],
+    ]
+    for g in gevallen:
+        amaze opgeloste_code_of_fout(g[0], g[1]) == g[2], g[0] + g[1]
+    schoon()
+wow
+
+# 100,00 op 4200 zonder keuze -> voorbelasting_hoog; een latere rekeningwijziging verandert het sjabloon niet.
+such test_opgeloste_btw_code_blijft_op_sjabloon:
+    such s = verse_store()
+    such sj = sjabloon("100.00", 1, "2026-01")
+    sj["kosten_rek"] = "4200"
+    sj["btw_code"] = ""
+    terugkerend.voeg_toe(s, sj)
+    such lijst = s.laad("rekeningen", [])
+    rekeningen.zoek(lijst, "4200")["btw_code"] = "geen_btw"
+    s.commit("rekeningen", lijst, "gewijzigd", "rekening", "4200", {})
+    amaze terugkerend.alle(s)[0]["btw_code"] == "voorbelasting_hoog"
+    amaze terugkerend.genereer(s, "2026-07-15", none)["geboekt"] == 1
+    such regels = s.laad("journaal", [])[0]["regels"]
+    amaze regels[0]["btw_code"] == "voorbelasting_hoog"
+    amaze regels[1]["debet"] == "21.00"
+    schoon()
+wow
+
+such test_formulier_standaard_btw_van_kostenrekening:
+    such s = verse_store()
+    such h = terugkerend_h.toevoeg_formulier(s)
+    amaze strings.contains(h, "<option value=\"\" selected>standaard van de kostenrekening</option>")
+    amaze strings.contains(h, "4000 Software en abonnementen (standaard: ")
+    amaze not strings.contains(h, "value=\"import_buiten_eu\" selected")
+    such req = {"ctx": {"store": s}, "body": "leverancier=Lev&omschrijving=Abo&bedrag_ex=20,00&valuta=EUR&kosten_rek=4300&btw_code=&dag=1&vanaf=2026-01"}
+    amaze terugkerend_h.toevoegen(req)["status"] == 303
+    amaze terugkerend.alle(s)[0]["btw_code"] == "geen_btw"
+    such fout = terugkerend_h.toevoegen({"ctx": {"store": s}, "body": "leverancier=Lev&omschrijving=Abo&bedrag_ex=20,00&valuta=EUR&kosten_rek=8900&btw_code=&dag=1&vanaf=2026-01"})
+    amaze fout["status"] == 400
+    amaze strings.contains(fout["body"], "rekening 8900 heeft geen standaard-btw-code")
+    amaze len(terugkerend.alle(s)) == 1
+    schoon()
+wow
 wow

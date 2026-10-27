@@ -536,4 +536,66 @@ such test_privegebruik_redirect_naar_tijdvak_van_boekdatum:
     schoon()
 wow
 
+# Factuur 100,00 incl. 21%: ex 82,64, factuur-btw 17,36, terwijl ex x 21% = 17,35.
+such mollie_100 much d:
+    return journaal.memoriaal_post(d, "Mollie tr_1", "", [{"rekening": "1300", "debet": "100.00", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "82.64", "btw_code": "hoog_21", "btw_bedrag": "17.36"}, {"rekening": "1510", "debet": "", "credit": "17.36", "btw_code": none}])
+wow
+
+such herboeking_body much van, factuur_btw:
+    such rijen = "regel_rekening=1300&regel_debet=100%2C00&regel_credit=&regel_btw=&regel_btw_bedrag="
+    very rijen = rijen + "&regel_rekening=8000&regel_debet=&regel_credit=82%2C64&regel_btw=hoog_21&regel_btw_bedrag={factuur_btw}"
+    very rijen = rijen + "&regel_rekening=1510&regel_debet=&regel_credit=17%2C36&regel_btw=&regel_btw_bedrag="
+    return "datum=2026-04-01&omschrijving=herboeking&relatie=&correctie_van={van}&" + rijen
+wow
+
+such test_memoriaal_herboeking_met_factuur_btw:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, mollie_100("2026-01-15"))
+    aangifte.dien_in(s, 2026, 1)
+    journaal.storneer(s, orig["id"], "2026-04-01")
+    such resp = journaal_h.memoriaal(post_req(s, herboeking_body(orig["id"], "17%2C36")))
+    amaze resp["status"] == 303
+    such p = s.laad("journaal", [])[2]
+    amaze p["regels"][1]["btw_bedrag"] == "17.36"
+    amaze not p["regels"][0].has("btw_bedrag")
+    amaze btw.regel_btw(p["regels"][1], dec("82.64"), "hoog_21") == dec("17.36")
+    amaze p["correctie_van"] == orig["id"]
+    amaze p["correctie_van_datum"] == "2026-01-15"
+    such h = journaal_h.detail(detail_req(s, p["id"]))["body"]
+    amaze "<dt>Correctie van</dt><dd><a href=\"/journaal/{orig["id"]}\">{orig["id"]}</a> (2026-01-15)</dd>" in h
+    amaze aangifte.suppletie_signaal(s, 2026, 2)["bedrag"] == dec("0")
+    schoon()
+wow
+
+such test_memoriaal_weigert_onaannemelijke_factuur_btw:
+    such s = verse_store()
+    such resp = journaal_h.memoriaal(post_req(s, herboeking_body("", "17%2C38")))
+    amaze resp["status"] == 400
+    amaze "ongeldig btw-bedrag op rekening 8000" in resp["body"]
+    amaze "name=\"regel_btw_bedrag\" type=\"text\" inputmode=\"decimal\" value=\"17,38\"" in resp["body"]
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_detail_correctie_zonder_id_toont_datum:
+    such s = verse_store()
+    such post = mollie_100("2026-04-01")
+    post["correctie_van_datum"] = "2026-01-15"
+    such p = journaal.bewaar(s, post)
+    such h = journaal_h.detail(detail_req(s, p["id"]))["body"]
+    amaze "<dt>Correctie van</dt><dd>2026-01-15</dd>" in h
+    schoon()
+wow
+
+such test_lijst_toont_gelinkte_stornostatus:
+    such s = verse_store()
+    such orig = journaal.bewaar(s, verkoop_1000())
+    such sp = journaal.storneer(s, orig["id"], "2026-05-10")
+    such req = {"ctx": {"store": s}, "method": "GET", "path": "/journaal", "query": {"j": ["2026"], "kw": ["2"]}}
+    such h = journaal_h.lijst(req)["body"]
+    amaze "Gestorneerd door <a href=\"/journaal/{sp["id"]}\">{sp["id"]}</a>" in h
+    amaze "Storno van <a href=\"/journaal/{orig["id"]}\">{orig["id"]}</a>" in h
+    schoon()
+wow
+
 wow

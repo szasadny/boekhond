@@ -9,7 +9,7 @@ so strings
 
 # Overzichtspagina: het te-doen tijdvak (oudste afgelopen, nog niet ingediende kwartaal)
 # met live-berekende rubrieken + saldo + indien-deadline, een reeks CSS-staafgrafiekjes en de
-# laatst geboekte posten.
+# recentste posten t/m vandaag.
 
 so MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
 
@@ -37,6 +37,16 @@ such staaf_rijen much paren:
             very pct = int((a * 100) // maxv)
         rijen.append([p[0], pct, geld.formatteer(v), kl])
     return rijen
+wow
+
+such recente_posten much posten, vandaag, n:
+    such uit = []
+    for p in weergave.nieuwste_eerst(posten):
+        if len(uit) == n:
+            bork
+        if p["datum"] <= vandaag:
+            uit.append(p)
+    return uit
 wow
 
 such openstaand_banner much lijst:
@@ -96,16 +106,11 @@ such home much req:
     such g3 = html.staafgrafiek(titel_kosten, staaf_rijen(kostenparen))
     such grafieken = "<div class=\"grafieken\">{g1}{g2}{g3}</div>"
     such recent = ""
-    such n = len(posten)
-    such i = n - 5
-    if i < 0:
-        very i = 0
-    while i < n:
-        such p = posten[i]
+    for p in recente_posten(posten, vandaag, 5):
         such d = html.escape(p["datum"])
-        such oms = html.escape(p["omschrijving"])
-        very recent = recent + "<li>{d} — {oms}</li>"
-        very i = i + 1
+        such pid = p["id"]
+        such oms = html.link("/journaal/{pid}", p["omschrijving"])
+        very recent = recent + "<li>{d}: {oms}</li>"
     such laatste = "<h2>Laatste posten</h2><ul>{recent}</ul>"
     such inboxn = 0
     for b in store.laad("bijlagen", []):

@@ -112,9 +112,11 @@ such kostenrekening_opties much store, met_btw = false:
     return o
 wow
 
-# Select-opties [code, label] voor de inkoop-btw-codes.
-such inkoop_btw_opties:
+# Select-opties [code, label] voor de inkoop-btw-codes; de lege keuze laat de service de rekening-default nemen.
+such inkoop_btw_opties much met_standaard = false:
     such o = []
+    if met_standaard:
+        o.append(["", "standaard van de kostenrekening"])
     for c in btw.CODES:
         if btw.CODES[c]["soort"] == "inkoop":
             o.append([c, btw.label(c)])
@@ -141,5 +143,22 @@ such boek_samenvatting much geboekt, geweigerd:
     if geweigerd > 0:
         very uit = uit + ", {geweigerd} geweigerd"
     return uit + "."
+wow
+
+# Doge's sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int;
+# bij gelijke datum gaat de laatst ingevoegde post voor.
+so POST_FACTOR = 10000000
+
+such nieuwste_eerst much posten:
+    such sleutels = []
+    such i = 0
+    while i < len(posten):
+        sleutels.append(datum.sleutel(posten[i]["datum"]) * POST_FACTOR + i)
+        very i = i + 1
+    sleutels.sort()
+    such uit = []
+    for k in sleutels[::-1]:
+        uit.append(posten[k % POST_FACTOR])
+    return uit
 wow
 wow

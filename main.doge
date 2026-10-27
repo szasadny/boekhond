@@ -80,6 +80,9 @@ such config:
         very data_dir = "data"
     such mollie_key = haal("MOLLIE_API_KEY", envd)
     such intern_token = haal("INTERN_TOKEN", envd)
+    # Leeg moet als ontbrekend gelden: crypto.same("", "") zou een request zonder token toelaten.
+    if intern_token != none and strings.trim(intern_token) == "":
+        very intern_token = none
     such wise_token = haal("WISE_API_TOKEN", envd)
     such bind_host = haal("BIND_HOST", envd)
     if bind_host == none:

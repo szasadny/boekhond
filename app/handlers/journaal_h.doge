@@ -98,18 +98,7 @@ such lijst much req:
         such oms = html.link("/journaal/{pid}", p["omschrijving"])
         such bron = html.escape(p["bron"])
         such bedrag = html.escape(geld.formatteer(totaal))
-        such slink = ""
-        if p.has("storno_van") and p["storno_van"] != none:
-            such van = p["storno_van"]
-            very slink = html.escape("storno van {van}")
-        elif gestorneerd.has(pid):
-            such door = gestorneerd[pid]
-            very slink = html.escape("gestorneerd door {door}")
-        elif terugbetaald.has(pid):
-            such rid = terugbetaald[pid]
-            very slink = html.escape("terugbetaald via {rid}")
-        else:
-            very slink = html.link("/journaal/storno?id={pid}", "Storneer")
+        such slink = storno_status(p, gestorneerd, terugbetaald)
         very body = body + "<tr><td>{d}</td><td>{oms}</td><td>{bron}</td><td class=\"num\">{bedrag}</td><td>{slink}</td></tr>"
     such tabel = "<table><thead><tr><th>Datum</th><th>Omschrijving</th><th>Bron</th><th class=\"num\">Bedrag</th><th>Actie</th></tr></thead><tbody>{body}</tbody></table>"
     such l_ink = html.link("/journaal/inkoop", "Inkoop boeken")
@@ -132,18 +121,16 @@ such bedrag_cel much rauw:
     return geld.formatteer(geld.bedrag(rauw))
 wow
 
-such storno_status much posten, p:
+such storno_status much p, gestorneerd, terugbetaald:
     such pid = p["id"]
     if p.has("storno_van") and p["storno_van"] != none:
         such van = p["storno_van"]
         such l = html.link("/journaal/{van}", van)
         return "Storno van {l}"
-    such gestorneerd = journaal.storno_index(posten)
     if gestorneerd.has(pid):
         such door = gestorneerd[pid]
         such l = html.link("/journaal/{door}", door)
         return "Gestorneerd door {l}"
-    such terugbetaald = journaal.refund_index(posten)
     if terugbetaald.has(pid):
         such rid = terugbetaald[pid]
         such l = html.link("/journaal/{rid}", rid)
@@ -162,8 +149,12 @@ such detail_inhoud much store, posten, p:
         very meta = meta + "<dt>Relatie</dt><dd>{rel}</dd>"
     if p.has("correctie_van_datum") and p["correctie_van_datum"] != none:
         such cd = html.escape(p["correctie_van_datum"])
+        if p.has("correctie_van") and p["correctie_van"] != none:
+            such van = p["correctie_van"]
+            such l = html.link("/journaal/{van}", van)
+            very cd = "{l} ({cd})"
         very meta = meta + "<dt>Correctie van</dt><dd>{cd}</dd>"
-    such status = storno_status(posten, p)
+    such status = storno_status(p, journaal.storno_index(posten), journaal.refund_index(posten))
     very meta = meta + "<dt>Storno</dt><dd>{status}</dd>"
     such rek_lijst = rekeningen.alle(store)
     such rijen = []
@@ -203,11 +194,8 @@ such inkoop_inhoud much store, melding, invoer = {}:
     such vd = html.veld("datum", "Datum", "date", forms.enkel(invoer, "datum", datum.vandaag()))
     such vlev = html.veld("leverancier", "Leverancier", "text", forms.enkel(invoer, "leverancier", ""))
     such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
-    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw", "text", forms.enkel(invoer, "bedrag_ex", ""))
-    such btw_opties = [["", "standaard van de kostenrekening"]]
-    for o in weergave.inkoop_btw_opties():
-        btw_opties.append(o)
-    such sbtw = html.select("btw_code", btw_opties, forms.enkel(invoer, "btw_code", ""))
+    such vbedrag = html.veld("bedrag_ex", "Bedrag excl. btw (horeca en BUA: incl. btw)", "text", forms.enkel(invoer, "bedrag_ex", ""))
+    such sbtw = html.select("btw_code", weergave.inkoop_btw_opties(true), forms.enkel(invoer, "btw_code", ""))
     such vbtw = "<label>Btw-code {sbtw}</label>"
     such srek = html.select("kosten_rek", weergave.kostenrekening_opties(store, true), forms.enkel(invoer, "kosten_rek", ""))
     such vrek = "<label>Kostenrekening {srek}</label>"
@@ -269,12 +257,13 @@ such bank much req:
         return http.html_response(weergave.render("Bank", bank_inhoud(store, weergave.domeinfout(err), v)), 400)
 wow
 
-such memoriaal_rij much store, rek = "", deb = "", cred = "", code = "":
+such memoriaal_rij much store, rek = "", deb = "", cred = "", code = "", bb = "":
     such rk = html.select("regel_rekening", rekening_opties(store), rek)
     such db = "<input name=\"regel_debet\" type=\"text\" inputmode=\"decimal\" value=\"{html.escape(deb)}\">"
     such cr = "<input name=\"regel_credit\" type=\"text\" inputmode=\"decimal\" value=\"{html.escape(cred)}\">"
     such bt = html.select("regel_btw", weergave.btw_opties_leeg(), code)
-    return "<tr><td>{rk}</td><td>{db}</td><td>{cr}</td><td>{bt}</td></tr>"
+    such fb = "<input name=\"regel_btw_bedrag\" type=\"text\" inputmode=\"decimal\" value=\"{html.escape(bb)}\">"
+    return "<tr><td>{rk}</td><td>{db}</td><td>{cr}</td><td>{bt}</td><td>{fb}</td></tr>"
 wow
 
 such memoriaal_inhoud much store, melding, invoer = {}:
@@ -286,10 +275,11 @@ such memoriaal_inhoud much store, melding, invoer = {}:
     such debs = lijst_van(invoer, "regel_debet")
     such creds = lijst_van(invoer, "regel_credit")
     such btws = lijst_van(invoer, "regel_btw")
+    such bbs = lijst_van(invoer, "regel_btw_bedrag")
     such rijen = ""
     for i in range(len(reks) if len(reks) > MEMO_RIJEN else MEMO_RIJEN):
-        very rijen = rijen + memoriaal_rij(store, element(reks, i), element(debs, i), element(creds, i), element(btws, i))
-    such tabel = "<table><thead><tr><th>Rekening</th><th>Debet</th><th>Credit</th><th>Btw-code</th></tr></thead><tbody>{rijen}</tbody></table>"
+        very rijen = rijen + memoriaal_rij(store, element(reks, i), element(debs, i), element(creds, i), element(btws, i), element(bbs, i))
+    such tabel = "<table><thead><tr><th>Rekening</th><th>Debet</th><th>Credit</th><th>Btw-code</th><th>Factuur-btw (optioneel)</th></tr></thead><tbody>{rijen}</tbody></table>"
     such knop = html.knop("Boeken")
     such form = "<form action=\"/journaal/memoriaal\" method=\"post\">{vd}{voms}{vrel}{vcor}{tabel}{knop}</form>"
     such leg = weergave.btw_legenda("alle")
@@ -306,6 +296,7 @@ such bouw_regels much v:
     such debs = lijst_van(v, "regel_debet")
     such creds = lijst_van(v, "regel_credit")
     such btws = lijst_van(v, "regel_btw")
+    such bbs = lijst_van(v, "regel_btw_bedrag")
     such regels = []
     such i = 0
     while i < len(reks):
@@ -319,7 +310,11 @@ such bouw_regels much v:
             such bc = none
             if code != "":
                 very bc = code
-            regels.append({"rekening": rek, "debet": deb, "credit": cred, "btw_code": bc})
+            such r = {"rekening": rek, "debet": deb, "credit": cred, "btw_code": bc}
+            such bb = weergave.bedrag_str(element(bbs, i))
+            if bb != "":
+                r["btw_bedrag"] = bb
+            regels.append(r)
         very i = i + 1
     return regels
 wow
@@ -348,7 +343,7 @@ such storno_inhoud much store, post_id, melding:
     such d = html.escape(orig["datum"])
     such oms = html.escape(orig["omschrijving"])
     such pid = html.escape(post_id)
-    such info = "<p>Storno van {pid}: {d} — {oms}</p>"
+    such info = "<p>Storno van {pid}: {d}, {oms}</p>"
     such reden = journaal.storno_weigering(posten, orig)
     if reden != "":
         such r = html.escape(reden)

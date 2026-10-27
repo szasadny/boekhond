@@ -4,8 +4,8 @@ so forms
 so pack
 so nap
 
-# HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers per
-# regel en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
+# HTTP/1.1 parse en response-build, domain-free. De body wordt byte-accuraat gelezen
+# omdat Content-Length bytes telt, geen characters.
 
 so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "411": "411 Length Required", "413": "413 Payload Too Large", "431": "431 Request Header Fields Too Large", "500": "500 Internal Server Error"}
 so MAX_BODY = 12582912

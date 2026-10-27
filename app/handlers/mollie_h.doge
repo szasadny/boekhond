@@ -19,9 +19,10 @@ wow
 such overzicht_inhoud much store, cfg, melding:
     such heeft_key = cfg.has("mollie_key") and cfg["mollie_key"] != none
     such ls = mollie.laatste_sync(store)
-    such lstxt = "nog niet gesynct"
+    such lstxt = "Nog niet gesynct."
     if ls != none:
-        very lstxt = html.escape(ls)
+        such lse = html.escape(ls)
+        very lstxt = "Laatste Mollie-sync: {lse}."
     such posten = mollie_posten(store)
     such payment_van = {}
     for p in posten:
@@ -47,7 +48,7 @@ such overzicht_inhoud much store, cfg, melding:
         very actie = "<form action=\"/mollie/sync\" method=\"post\">{kn}</form>"
     else:
         very actie = "<p class=\"fout\">Geen MOLLIE_API_KEY geconfigureerd (.env).</p>"
-    return "{melding}<h1>Inkomsten</h1><p>Laatste sync: {lstxt}</p>{actie}{tabel}"
+    return "{melding}<h1>Inkomsten</h1><p>{lstxt}</p>{actie}{tabel}"
 wow
 
 such overzicht much req:

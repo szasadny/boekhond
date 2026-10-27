@@ -723,4 +723,14 @@ such test_aansluiting_niet_bij_ingediend_tijdvak:
     amaze not strings.contains(aangifte_h.banners(ov), "sluit niet aan")
     schoon()
 wow
+
+such test_doen_laatste_sync:
+    such s = verse_store()
+    such ov = aangifte.overzicht(s, 2026, 2)
+    amaze "<li>Nog niet gesynct. <form" in aangifte_h.doen_inhoud(s, {"mollie_key": "test_x"}, ov, "")
+    such inst = {"mollie_laatste_sync": "2026-07-01"}
+    s.commit("instellingen", inst, "mollie-sync", "instellingen", "instellingen", inst)
+    amaze "<li>Laatste Mollie-sync: 2026-07-01. <form" in aangifte_h.doen_inhoud(s, {"mollie_key": "test_x"}, ov, "")
+    schoon()
+wow
 wow
