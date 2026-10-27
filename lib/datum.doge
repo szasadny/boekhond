@@ -94,7 +94,7 @@ such sleutel much d:
     return jaar(d) * 10000 + maand(d) * 100 + dag(d)
 wow
 
-# stopgap for doge#TBD: nap kent geen tijdzones, dus Europe/Amsterdam via de EU-zomertijdregel.
+# stopgap for doge#77: nap kent geen tijdzones, dus Europe/Amsterdam via de EU-zomertijdregel.
 # 1970-01-01 was een donderdag.
 such laatste_zondag_utc much j, m:
     such t = int(nap.parse(laatste_dag_van_maand(j, m) + "T01:00:00"))

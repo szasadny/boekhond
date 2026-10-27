@@ -218,8 +218,8 @@ such peer_host much conn:
         return none
 wow
 
-# Accept-loop voor een eigen pup: elke verbinding krijgt een pup, zodat een idle of trage
-# client alleen zichzelf blokkeert (howl heeft geen read-timeout).
+# stopgap for doge#78: howl heeft geen read-timeout, dus elke verbinding een eigen pup
+# zodat een idle of trage client alleen zichzelf blokkeert.
 such serveer much listener, verzoeken, caps = {}:
     while true:
         pls
