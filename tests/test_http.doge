@@ -224,4 +224,38 @@ such test_serveer_trage_client_blokkeert_niet:
     howl.close(traag)
     howl.close(idle)
 wow
+
+# Client-timeout ruim boven die van de server: een regressie faalt in plaats van te blijven hangen.
+such gesloten_zonder_antwoord much client:
+    howl.set_timeout(client, 3)
+    such data = howl.recv_bytes(client, 1)
+    howl.close(client)
+    return data == none
+wow
+
+such stille_verbinding much verzend:
+    such server = howl.listen("127.0.0.1", 0)
+    such client = howl.connect("127.0.0.1", howl.port(server))
+    such conn = howl.accept(server)
+    pack.zoom(http.verbinding, [conn, pack.bowl(), {}, 0.3])
+    howl.send(client, verzend)
+    such gesloten = gesloten_zonder_antwoord(client)
+    howl.close(server)
+    return gesloten
+wow
+
+such test_serveer_sluit_stille_client_na_timeout:
+    such server = howl.listen("127.0.0.1", 0)
+    such poort = howl.port(server)
+    pack.zoom(http.serveer, [server, pack.bowl(), {}, 0.3])
+    amaze gesloten_zonder_antwoord(howl.connect("127.0.0.1", poort))
+wow
+
+such test_halve_header_gesloten_na_timeout:
+    amaze stille_verbinding("GET / HTTP/1.1{CRLF}Host: loc")
+wow
+
+such test_halve_body_gesloten_na_timeout:
+    amaze stille_verbinding("POST /p HTTP/1.1{CRLF}Content-Length: 10{CRLF}{CRLF}abc")
+wow
 wow
