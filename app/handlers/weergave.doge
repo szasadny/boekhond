@@ -132,20 +132,15 @@ such boek_samenvatting much geboekt, geweigerd:
     return uit + "."
 wow
 
-# stopgap for doge#76: sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int;
-# bij gelijke datum gaat de laatst ingevoegde post voor.
-so POST_FACTOR = 10000000
+such post_datum much p:
+    return p["datum"]
+wow
 
+# Stabiel oplopend en dan omgekeerd: bij gelijke datum gaat de laatst ingevoegde post voor.
 such nieuwste_eerst much posten:
-    such sleutels = []
-    such i = 0
-    while i < len(posten):
-        sleutels.append(datum.sleutel(posten[i]["datum"]) * POST_FACTOR + i)
-        very i = i + 1
-    sleutels.sort()
-    such uit = []
-    for k in sleutels[::-1]:
-        uit.append(posten[k % POST_FACTOR])
+    such uit = posten[:]
+    uit.sort(post_datum)
+    uit.reverse()
     return uit
 wow
 wow

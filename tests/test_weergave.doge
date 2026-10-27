@@ -105,6 +105,12 @@ such test_nieuwste_eerst:
     amaze len(weergave.nieuwste_eerst([])) == 0
 wow
 
+such test_nieuwste_eerst_laat_invoer_heel:
+    such posten = [{"id": "a", "datum": "2026-03-01"}, {"id": "b", "datum": "2026-05-02"}]
+    weergave.nieuwste_eerst(posten)
+    amaze posten[0]["id"] == "a"
+wow
+
 # Na vandaag valt weg; daarna de eerste n van nieuwste_eerst.
 such test_recente_posten:
     such posten = [{"id": "a", "datum": "2026-03-01"}, {"id": "b", "datum": "2026-05-02"}, {"id": "c", "datum": "2026-12-31"}, {"id": "d", "datum": "2026-01-15"}, {"id": "e", "datum": "2026-05-02"}, {"id": "f", "datum": "2026-04-30"}]
