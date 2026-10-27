@@ -28,7 +28,7 @@ below is a **catchable** error (`pls`/`oh no`), never a crash.
 | `remove(item)` | `none` | remove first equal (not found is an error) |
 | `index_of(item)` | `Int` | index of first equal (not found is an error) |
 | `contains(item)` | `Bool` | any element equal |
-| `sort()` | `none` | in place; all Ints/Floats or all Strs |
+| `sort()` / `sort(key)` | `none` | in place, stable; `key` is any function value, called once per element. Keys all numbers (no Decimal beside a Float), all Strs, all Bytes, or all Lists (item by item, prefix first). Descending: sort, then `reverse()` |
 | `reverse()` | `none` | in place |
 | `clear()` | `none` | remove all |
 
@@ -84,10 +84,14 @@ OS failures are `IOError`; `join`/`basename`/`ext` are pure string ops.
 `listen(host, port)`→Socket (port 0 = OS-chosen) · `connect(host, port)`→Socket ·
 `accept(listener)`→Socket · `port(sock)`→Int · `peer(sock)`→`{host: Str, port: Int}` (remote endpoint; `TypeError` on a listener) · `send(conn, text)` · `send_bytes(conn, bytes)` ·
 `recv(conn, max)`→Str|none · `recv_bytes(conn, max)`→Bytes|none (binary-safe, byte-accurate) ·
-`recv_line(conn)`→Str|none · `close(sock)` · `get(url)`→`{status, body, headers}` ·
+`recv_line(conn[, max_bytes])`→Str|none · `set_timeout(conn, secs)` (`none` clears) · `close(sock)` · `get(url)`→`{status, body, headers}` ·
 `post(url, body)`→`{status, body, headers}` ·
 `request(method, url[, opts])`→`{status, body, headers}` — `opts` Dict: `headers` (Str→Str), `body` (Str or Bytes).
 Response `headers` keys are lowercased. Network/TLS failures are `IOError`; any HTTP status is data, not an error.
+`recv_line` `max_bytes` caps the line content (terminator excluded), enforced while reading; a longer line → `IOError`
+(connection left mid-line: answer and close); omitted → no cap.
+Reads block forever unless `set_timeout` is set; then a read with no data for `secs` → `IOError` (per wait for data,
+not per call; close the conn afterwards). Zero/negative/non-finite `secs` → `ValueError`.
 
 ### `crypto` — hashing, HMAC, secure randomness
 `sha256(data)`→Bytes (32-byte digest of a Str or Bytes) · `hmac_sha256(key, data)`→Bytes ·
@@ -108,7 +112,10 @@ fraction or exponent to an exact `Decimal` (whole numbers stay Int; `"float"` is
 
 ### `nap` — time (seconds as Float)
 `now()`→Float (Unix epoch, UTC) · `mono()`→Float (monotonic; use differences for benchmarking) ·
-`rest(seconds)` (sleep) · `stamp(secs)`→ISO-8601 Str · `parse(iso)`→Float.
+`rest(seconds)` (sleep) · `stamp(secs)`→ISO-8601 UTC Str (`…Z`) ·
+`stamp(secs, zone)`→local ISO-8601 Str in an IANA zone (`"Europe/Amsterdam"`), numeric offset
+(`+01:00`; `"UTC"` gives `+00:00`) · `offset(secs, zone)`→Int seconds east of UTC (DST-aware) ·
+`parse(iso)`→Float (UTC shape only). Unknown zone → catchable `ValueError`. Zone rules from the OS, bundled fallback.
 
 ### `roll` — random
 `seed(n)` · `int(low, high)`→Int (inclusive) · `float()`→Float in `[0,1)` · `choice(list)`→element ·
