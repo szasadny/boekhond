@@ -88,4 +88,17 @@ such test_bewaar_en_laad_bestand:
     amaze terug.hex() == data.hex()
     schoon()
 wow
+
+such test_commit_alle_een_write_audit_per_event:
+    schoon()
+    such s = store.Store(TMPMAP)
+    such events = [{"actie": "aangemaakt", "entiteit": "proef", "id": "p-1", "data": {}}, {"actie": "aangemaakt", "entiteit": "proef", "id": "p-2", "data": {}}]
+    s.commit_alle("proef", [1, 2], events)
+    amaze s.laad("proef", none) == [1, 2]
+    amaze not fetch.exists(fetch.join(TMPMAP, "proef.dson.tmp"))
+    such regels = strings.split(strings.trim(fetch.read(fetch.join(TMPMAP, "audit.dsonl"))), "\n")
+    amaze len(regels) == 2
+    amaze dson.parse(regels[1])["id"] == "p-2"
+    schoon()
+wow
 wow

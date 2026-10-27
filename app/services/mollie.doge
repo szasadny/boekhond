@@ -1,5 +1,6 @@
 so howl
 so json
+so hunt
 so journaal
 so btw
 so rekeningen
@@ -147,10 +148,11 @@ such refund_naar_post much refund:
 wow
 
 # --- Idempotente boeking (store-only, getest) ---
-# Niet gemarkeerd als geboekt, dus elke volgende sync meldt (en audit) 'm opnieuw.
-such weiger much store, soort, id, vv, geweigerd:
+# Elke volgende sync meldt (en audit) 'm opnieuw, tot de gebruiker hem als afgehandeld markeert.
+such weiger much store, soort, id, vv, geweigerd, items:
     store.audit("mollie-geweigerd", soort, id, {"reden": "valuta", "bedrag": vv})
     geweigerd.append("{id} ({vv})")
+    items.append({"soort": soort, "id": id, "bedrag": vv})
 wow
 
 such meld_mislukt much store, soort, id, reden, mislukt:
@@ -158,10 +160,10 @@ such meld_mislukt much store, soort, id, reden, mislukt:
     mislukt.append("{id} ({reden})")
 wow
 
-# Een weigering van bewaar (bv. inactieve rekening) mag de rest van de batch niet blokkeren.
-such probeer_bewaar much store, post, soort, id, mislukt:
+# Een geweigerde post (bv. inactieve rekening) mag de rest van de batch niet blokkeren.
+such probeer_post much store, post, rek_lijst, aangiften, soort, id, mislukt:
     pls
-        journaal.bewaar(store, post)
+        journaal.controleer_post(post, rek_lijst, aangiften)
         return true
     oh no err!
         if err.type != "Bonk":
@@ -203,11 +205,15 @@ such boek_betalingen much store, betalingen:
     such gezien = journaal.geboekte_sleutels(store, "mollie_payment_id")
     such ongekoppeld = ongekoppelde_refunds(store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
+    such rek_lijst = rekeningen.alle(store)
+    such afgehandeld = afgehandelde_ids(store)
+    such nieuw = []
     such geboekt = 0
     such overgeslagen = 0
     such verschoven = []
     such vergrendeld = []
     such geweigerd = []
+    such geweigerd_items = []
     such mislukt = []
     for b in betalingen:
         if ongeldig_item(store, b, "mollie-payment", mislukt):
@@ -220,7 +226,10 @@ such boek_betalingen much store, betalingen:
             continue
         such vv = vreemde_valuta(b["amount"])
         if vv != none:
-            weiger(store, "mollie-payment", pid, vv, geweigerd)
+            if afgehandeld.contains(pid):
+                very overgeslagen = overgeslagen + 1
+            else:
+                weiger(store, "mollie-payment", pid, vv, geweigerd, geweigerd_items)
             continue
         # Een betaling van 0,00 (bv. mandaat-eerste-betaling) heeft geen omzet en dus geen post.
         if dec(b["amount"]["value"]) == dec("0"):
@@ -236,13 +245,15 @@ such boek_betalingen much store, betalingen:
             very verschuift = true
         if ongekoppeld.has(pid):
             post["terugbetaald_via"] = ongekoppeld[pid]
-        if not probeer_bewaar(store, post, "mollie-payment", pid, mislukt):
+        if not probeer_post(store, post, rek_lijst, aangiften, "mollie-payment", pid, mislukt):
             continue
+        nieuw.append(post)
         if verschuift:
             verschoven.append(pid)
         gezien.append(pid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "mislukt": mislukt}
+    journaal.bewaar_alle(store, nieuw)
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "geweigerd_items": geweigerd_items, "mislukt": mislukt}
 wow
 
 such betaal_index much posten:
@@ -280,11 +291,15 @@ such boek_refund_lijst much store, refunds:
     such gezien = journaal.geboekte_sleutels(store, "mollie_refund_id")
     such betaal_posten = betaal_index(store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
+    such rek_lijst = rekeningen.alle(store)
+    such afgehandeld = afgehandelde_ids(store)
+    such nieuw = []
     such geboekt = 0
     such overgeslagen = 0
     such verschoven = []
     such vergrendeld = []
     such geweigerd = []
+    such geweigerd_items = []
     such mislukt = []
     for r in refunds:
         if ongeldig_item(store, r, "mollie-refund", mislukt):
@@ -297,7 +312,10 @@ such boek_refund_lijst much store, refunds:
             continue
         such vv = vreemde_valuta(r["amount"])
         if vv != none:
-            weiger(store, "mollie-refund", rid, vv, geweigerd)
+            if afgehandeld.contains(rid):
+                very overgeslagen = overgeslagen + 1
+            else:
+                weiger(store, "mollie-refund", rid, vv, geweigerd, geweigerd_items)
             continue
         if dec(r["amount"]["value"]) == dec("0"):
             very overgeslagen = overgeslagen + 1
@@ -311,13 +329,15 @@ such boek_refund_lijst much store, refunds:
                 continue
             verschuif(post, "terugbetaald")
             very verschuift = true
-        if not probeer_bewaar(store, post, "mollie-refund", rid, mislukt):
+        if not probeer_post(store, post, rek_lijst, aangiften, "mollie-refund", rid, mislukt):
             continue
+        nieuw.append(post)
         if verschuift:
             verschoven.append(rid)
         gezien.append(rid)
         very geboekt = geboekt + 1
-    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "mislukt": mislukt}
+    journaal.bewaar_alle(store, nieuw)
+    return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "geweigerd_items": geweigerd_items, "mislukt": mislukt}
 wow
 
 # --- Laatste sync (instellingen.dson; alleen weergave, geen filter) ---
@@ -334,12 +354,46 @@ such laatste_sync much store:
     return none
 wow
 
+# --- Afgehandeld (instellingen.dson): geweigerde items die de gebruiker met de hand heeft geboekt ---
+so SOORTEN = ["mollie-payment", "mollie-refund"]
+
+such afgehandeld much store:
+    such inst = store.laad("instellingen", {})
+    if inst.has("mollie_afgehandeld"):
+        return inst["mollie_afgehandeld"]
+    return []
+wow
+
+such afgehandelde_ids much store:
+    such uit = []
+    for a in afgehandeld(store):
+        uit.append(a["id"])
+    return uit
+wow
+
+such markeer_afgehandeld much store, soort, id:
+    if not SOORTEN.contains(soort):
+        bonk "onbekend soort Mollie-item"
+    if len(id) > 64 or not hunt.test("^[A-Za-z0-9_]+$", id):
+        bonk "ongeldig Mollie-id"
+    such inst = store.laad("instellingen", {})
+    such lijst = inst["mollie_afgehandeld"] if inst.has("mollie_afgehandeld") else []
+    for a in lijst:
+        if a["id"] == id:
+            return false
+    such item = {"soort": soort, "id": id, "datum": datum.vandaag()}
+    lijst.append(item)
+    inst["mollie_afgehandeld"] = lijst
+    store.commit("instellingen", inst, "mollie-afgehandeld", soort, id, item)
+    return true
+wow
+
 # --- Orchestratie (netwerk; door knop + scheduler aangeroepen) ---
 such sync much store, key:
     such betalingen = haal_betalingen(key)
     such pres = boek_betalingen(store, betalingen)
     such rres = boek_refund_lijst(store, haal_refunds(key))
     onthoud_sync(store)
-    return {"betalingen": pres, "refunds": rres, "geboekt": pres["geboekt"] + rres["geboekt"], "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"], "mislukt": pres["mislukt"] + rres["mislukt"]}
+    return {"betalingen": pres, "refunds": rres, "geboekt": pres["geboekt"] + rres["geboekt"], "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"], "geweigerd_items": pres["geweigerd_items"] + rres["geweigerd_items"], "mislukt": pres["mislukt"] + rres["mislukt"]}
 wow
 wow

@@ -12,6 +12,7 @@ so REK_BANK = "1100"
 so REK_AF_TE_DRAGEN = "1510"
 so REK_VOORBELASTING = "1520"
 so REK_CREDITEUREN = "1600"
+# Geen flow boekt hier meer op; blijft systeemrekening omdat oudere Mollie-posten ernaar verwijzen.
 so REK_AFRONDING = "8900"
 so REK_OMZET_HOOG = "8000"
 

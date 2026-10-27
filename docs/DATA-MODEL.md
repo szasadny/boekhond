@@ -18,11 +18,13 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
 
 ```text
 ─── instellingen.dson (singleton Dict) ───────────────────────
-  bedrijfsnaam, adres, kvk_nummer, btw_id, iban
-  standaard_btw_code   default btw_code voor nieuwe journaalregels
   mollie_laatste_sync  "YYYY-MM-DD" — datum van de laatste geslaagde Mollie-sync; alleen weergave,
                        geen filter (de sync haalt altijd alles op, idempotent per id)
                        (de Mollie API-key is een secret → .env, nooit hier)
+  mollie_afgehandeld   List van {soort ("mollie-payment" | "mollie-refund"), id, datum} — geweigerde
+                       niet-EUR Mollie-items die de gebruiker met de hand heeft geboekt; de sync slaat
+                       ze stil over. Uniek per id, toegevoegd via `mollie.markeer_afgehandeld`
+                       (audit-event `mollie-afgehandeld`), nooit verwijderd
 
 ─── rekeningen.dson (List) — rekeningschema (chart of accounts) ───
   Rekening — grootboekrekening; geseed met een standaard-schema voor een
@@ -38,6 +40,8 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
     actief                   Bool — deactiveren (en weer activeren) i.p.v. verwijderen (historie)
                              (systeemrekeningen `rekeningen.SYSTEEM` en rekeningen van een
                              actief kostensjabloon niet deactiveerbaar)
+  8900 Afrondingsverschillen blijft een systeemrekening: geen flow boekt er meer op, maar
+  oudere Mollie-posten verwijzen ernaar (Hard Rule 3)
 
 ─── journaal.dson (List) — dubbel boekhouden (double-entry) ──
   Journaalpost — één transactie; de bron van elke rubriek én de balans
@@ -177,7 +181,7 @@ All ids are `"{prefix}-{oplopend Int}"` (`j-1` journaalpost, `b-1` bijlage, …)
   17,36). De factuur-btw is verschuldigd (art. 37 Wet OB), dus de omzetregel draagt hem als
   `btw_bedrag` en de aangifte telt die; geen afrondingsregel. Oudere Mollie-posten met een
   8900-regel (Afrondingsverschillen) houden hun ex × pct-afleiding. Afronding blijft in `btw.doge` (Hard Rule 5).
-- Alleen Mollie-bedragen met `amount.currency == "EUR"` worden geboekt; een payment of refund in een andere valuta wordt geweigerd (geen koersconversie), niet als geboekt gemarkeerd en bij elke sync opnieuw gemeld (`geweigerd` + audit-event `mollie-geweigerd`). Een betaalde payment van 0,00 (bv. een mandaat-eerste-betaling) heeft geen omzet en wordt overgeslagen, net als een refund van 0,00. Weigert `journaal.bewaar` een post (bv. een inactieve rekening), dan wordt die payment of refund evenmin als geboekt gemarkeerd, gemeld als `mislukt` + audit-event `mollie-mislukt`, en boekt de rest van de batch gewoon door. Een item met ontbrekende of ongeldige velden (`id`, `status`, `amount.value`, `paidAt`/`createdAt`, `description`) gaat op dezelfde manier naar `mislukt` + `mollie-mislukt`; een pagina zonder `_embedded` breekt de sync af met "ongeldig antwoord van Mollie".
+- Alleen Mollie-bedragen met `amount.currency == "EUR"` worden geboekt; een payment of refund in een andere valuta wordt geweigerd (geen koersconversie), niet als geboekt gemarkeerd en bij elke sync opnieuw gemeld (`geweigerd` + audit-event `mollie-geweigerd`), tot de gebruiker het item na een handmatige boeking op de Inkomsten-pagina als afgehandeld markeert (`instellingen.mollie_afgehandeld`); daarna slaat de sync het stil over. `settlementAmount` wordt nooit geboekt. Een betaalde payment van 0,00 (bv. een mandaat-eerste-betaling) heeft geen omzet en wordt overgeslagen, net als een refund van 0,00. Weigert `journaal.controleer_post` een post (bv. een inactieve rekening), dan wordt die payment of refund evenmin als geboekt gemarkeerd, gemeld als `mislukt` + audit-event `mollie-mislukt`, en boekt de rest van de batch gewoon door. Een item met ontbrekende of ongeldige velden (`id`, `status`, `amount.value`, `paidAt`/`createdAt`, `description`) gaat op dezelfde manier naar `mislukt` + `mollie-mislukt`; een pagina zonder `_embedded` breekt de sync af met "ongeldig antwoord van Mollie".
 
 ---
 

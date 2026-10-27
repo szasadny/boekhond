@@ -145,7 +145,7 @@ such boek_samenvatting much geboekt, geweigerd:
     return uit + "."
 wow
 
-# Doge's sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int;
+# stopgap for doge#76: sort neemt alleen all-Int of all-Str, dus datum en index samen in één Int;
 # bij gelijke datum gaat de laatst ingevoegde post voor.
 so POST_FACTOR = 10000000
 

@@ -75,9 +75,9 @@ such controleer_boekdatum much d, vandaag:
         bonk "boekdatum {d} ligt meer dan een jaar in de toekomst"
 wow
 
-# Valideer + persisteer een gebalanceerde post. Weigert (bonk) bij een ongeldige of verre toekomstige datum,
-# te weinig regels, onbalans, een ongeldige regel of een vergrendeld tijdvak. Audit vóór de state-write.
-such bewaar much store, post:
+# Weigert (bonk) bij een ongeldige of verre toekomstige datum, te weinig regels, onbalans,
+# een ongeldige regel of een vergrendeld tijdvak.
+such controleer_post much post, rek_lijst, aangiften:
     such d = post["datum"]
     datum.controleer(d)
     controleer_boekdatum(d, datum.vandaag())
@@ -85,7 +85,6 @@ such bewaar much store, post:
         bonk "een journaalpost heeft minstens twee regels"
     if not balans_klopt(post["regels"]):
         bonk "post balanceert niet: som(debet) != som(credit)"
-    such rek_lijst = rekeningen.alle(store)
     such soort = none
     if SOORT_PER_BRON.has(post["bron"]):
         very soort = SOORT_PER_BRON[post["bron"]]
@@ -99,19 +98,46 @@ such bewaar much store, post:
         for r in post["regels"]:
             if r.has("btw_code") and r["btw_code"]:
                 rekeningen.kostenrekening(rek_lijst, r["rekening"])
-    if not tijdvak_open(store.laad("aangiften", []), d):
+    if not tijdvak_open(aangiften, d):
         such tv = datum.kwartaal(d)
         such j = datum.jaar(d)
         bonk "tijdvak Q{tv}-{j} is ingediend en vergrendeld"
-    such lijst = store.laad("journaal", [])
-    such id = store.nieuw_id("j")
-    post["id"] = id
+wow
+
+such nummer_post much store, post:
+    post["id"] = store.nieuw_id("j")
     post["created_at"] = nap.stamp(nap.now())
     if not post.has("bijlage_ids"):
         post["bijlage_ids"] = []
-    lijst.append(post)
-    store.commit("journaal", lijst, "aangemaakt", "journaalpost", id, post)
     return post
+wow
+
+# Valideer + persisteer een gebalanceerde post. Audit vóór de state-write.
+such bewaar much store, post:
+    controleer_post(post, rekeningen.alle(store), store.laad("aangiften", []))
+    such lijst = store.laad("journaal", [])
+    nummer_post(store, post)
+    lijst.append(post)
+    store.commit("journaal", lijst, "aangemaakt", "journaalpost", post["id"], post)
+    return post
+wow
+
+# Hele batch of niets: alles gecontroleerd vóór de eerste id, dan één journaal-write.
+such bewaar_alle much store, posten:
+    such rek_lijst = rekeningen.alle(store)
+    such aangiften = store.laad("aangiften", [])
+    for p in posten:
+        controleer_post(p, rek_lijst, aangiften)
+    if len(posten) == 0:
+        return posten
+    such lijst = store.laad("journaal", [])
+    such events = []
+    for p in posten:
+        nummer_post(store, p)
+        lijst.append(p)
+        events.append({"actie": "aangemaakt", "entiteit": "journaalpost", "id": p["id"], "data": p})
+    store.commit_alle("journaal", lijst, events)
+    return posten
 wow
 
 # Koppel een bijlage-id aan een bestaande post. journaal.doge is de enige schrijver

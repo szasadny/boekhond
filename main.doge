@@ -137,6 +137,7 @@ such maak_router:
     r.voeg_toe("GET", "/rapporten/jaaroverzicht.csv", rapporten_h.jaaroverzicht_csv)
     r.voeg_toe("GET", "/mollie", mollie_h.overzicht)
     r.voeg_toe("POST", "/mollie/sync", mollie_h.sync)
+    r.voeg_toe("POST", "/mollie/afgehandeld", mollie_h.markeer_afgehandeld)
     r.voeg_toe("GET", "/terugkerend", terugkerend_h.lijst)
     r.voeg_toe("POST", "/terugkerend", terugkerend_h.toevoegen)
     r.voeg_toe("GET", "/terugkerend/\{id\}/deactiveer", terugkerend_h.deactiveer_bevestig)

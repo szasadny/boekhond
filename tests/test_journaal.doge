@@ -598,4 +598,49 @@ such test_lijst_toont_gelinkte_stornostatus:
     schoon()
 wow
 
+such kas_post much bedrag:
+    return journaal.memoriaal_post("2026-07-15", "kas", "", [{"rekening": "1100", "debet": bedrag, "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": bedrag, "btw_code": none}])
+wow
+
+such test_bewaar_alle_nummert_en_audit_per_post:
+    such s = verse_store()
+    journaal.bewaar(s, kas_post("10"))
+    such posten = journaal.bewaar_alle(s, [kas_post("20"), kas_post("30")])
+    amaze posten[0]["id"] == "j-2"
+    amaze posten[1]["id"] == "j-3"
+    such lijst = s.laad("journaal", [])
+    amaze len(lijst) == 3
+    amaze lijst[2]["regels"][0]["debet"] == "30"
+    such audit = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
+    amaze aantal(audit, "journaalpost") == 3
+    amaze journaal.bewaar_alle(s, []) == []
+    schoon()
+wow
+
+such test_bewaar_alle_weigert_hele_batch:
+    such s = verse_store()
+    such scheef = journaal.memoriaal_post("2026-07-15", "scheef", "", [{"rekening": "1100", "debet": "50", "credit": "", "btw_code": none}, {"rekening": "0900", "debet": "", "credit": "40", "btw_code": none}])
+    such gevangen = false
+    pls
+        journaal.bewaar_alle(s, [kas_post("20"), scheef])
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze len(s.laad("journaal", [])) == 0
+    amaze s.laad("tellers", {}) == {}
+    schoon()
+wow
+
+such test_bewaar_alle_weigert_vergrendeld_tijdvak:
+    such s = verse_store()
+    s.bewaar("aangiften", [{"jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
+    such gevangen = ""
+    pls
+        journaal.bewaar_alle(s, [kas_post("20")])
+    oh no err!
+        very gevangen = err.message
+    amaze gevangen == "tijdvak Q3-2026 is ingediend en vergrendeld"
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
 wow

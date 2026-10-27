@@ -112,6 +112,13 @@ many Store:
         self.bewaar(naam, waarde)
     wow
 
+    # Eén write voor een batch, met één audit-event per entiteit. events = List van {actie, entiteit, id, data}.
+    such commit_alle much naam, waarde, events:
+        for e in events:
+            self.audit(e["actie"], e["entiteit"], e["id"], e["data"])
+        self.bewaar(naam, waarde)
+    wow
+
     # Doorlopende id-uitgifte per prefix: "b-1", "b-2", … (nooit hergebruikt).
     such nieuw_id much prefix:
         such tellers = self.laad("tellers", {})

@@ -601,4 +601,87 @@ such test_overzicht_laatste_sync:
     amaze "<p>Laatste Mollie-sync: {d}.</p>" in mollie_h.overzicht_inhoud(s, {"mollie_key": none}, "")
     schoon()
 wow
+
+such test_dubbele_payment_in_een_batch_eenmaal_geboekt:
+    such s = verse_store()
+    such res = mollie.boek_betalingen(s, [betaling("tr_1", "12.10"), betaling("tr_1", "12.10"), betaling("tr_2", "24.20")])
+    amaze res["geboekt"] == 2
+    amaze res["overgeslagen"] == 1
+    such lijst = s.laad("journaal", [])
+    amaze len(lijst) == 2
+    amaze lijst[0]["id"] == "j-1"
+    amaze lijst[1]["id"] == "j-2"
+    amaze len(audit_regels("\"aangemaakt\"")) == 2
+    schoon()
+wow
+
+such test_afgehandeld_item_overgeslagen:
+    such s = verse_store()
+    such lijst = [in_usd(betaling("tr_u", "25.00")), in_usd(betaling("tr_v", "30.00"))]
+    amaze len(mollie.boek_betalingen(s, lijst)["geweigerd"]) == 2
+    amaze mollie.markeer_afgehandeld(s, "mollie-payment", "tr_u")
+    such res = mollie.boek_betalingen(s, lijst)
+    amaze res["geweigerd"] == ["tr_v (USD 30.00)"]
+    amaze res["geweigerd_items"] == [{"soort": "mollie-payment", "id": "tr_v", "bedrag": "USD 30.00"}]
+    amaze res["overgeslagen"] == 1
+    amaze len(audit_regels("mollie-geweigerd")) == 3
+    amaze len(s.laad("journaal", [])) == 0
+    amaze mollie.markeer_afgehandeld(s, "mollie-refund", "re_u")
+    amaze mollie.boek_refund_lijst(s, [in_usd(refund_sample("re_u"))])["geweigerd"] == []
+    schoon()
+wow
+
+such test_markeer_afgehandeld_idempotent:
+    such s = verse_store()
+    amaze mollie.markeer_afgehandeld(s, "mollie-payment", "tr_u")
+    amaze not mollie.markeer_afgehandeld(s, "mollie-payment", "tr_u")
+    amaze len(mollie.afgehandeld(s)) == 1
+    amaze mollie.afgehandeld(s)[0]["datum"] == datum.vandaag()
+    such regels = audit_regels("mollie-afgehandeld")
+    amaze len(regels) == 1
+    amaze "tr_u" in regels[0]
+    schoon()
+wow
+
+such markeer_fout much s, soort, id:
+    pls
+        mollie.markeer_afgehandeld(s, soort, id)
+    oh no err!
+        return err.message
+    return ""
+wow
+
+such test_markeer_afgehandeld_valideert:
+    such s = verse_store()
+    amaze markeer_fout(s, "mollie-chargeback", "tr_u") == "onbekend soort Mollie-item"
+    amaze markeer_fout(s, "mollie-payment", "") == "ongeldig Mollie-id"
+    amaze markeer_fout(s, "mollie-payment", "<b>x</b>") == "ongeldig Mollie-id"
+    amaze markeer_fout(s, "mollie-payment", "t" * 65) == "ongeldig Mollie-id"
+    amaze mollie.afgehandeld(s) == []
+    schoon()
+wow
+
+such afhandel_req much s, body:
+    return {"body": body, "ctx": {"store": s, "config": {"mollie_key": none}}}
+wow
+
+such test_afgehandeld_handler:
+    such s = verse_store()
+    such resp = mollie_h.markeer_afgehandeld(afhandel_req(s, "soort=mollie-payment&id=tr_u"))
+    amaze resp["status"] == 200
+    amaze "tr_u is als afgehandeld gemarkeerd." in resp["body"]
+    amaze "<td>mollie-payment</td><td>tr_u</td>" in resp["body"]
+    such fout = mollie_h.markeer_afgehandeld(afhandel_req(s, "soort=mollie-payment&id=%3Cb%3E"))
+    amaze fout["status"] == 400
+    amaze "ongeldig Mollie-id" in fout["body"]
+    amaze "<b>" not in fout["body"]
+    schoon()
+wow
+
+such test_afhandel_formulier_escapet:
+    such h = mollie_h.afhandel_formulieren([{"soort": "mollie-payment", "id": "tr_<x>", "bedrag": "USD 1.00"}])
+    amaze "action=\"/mollie/afgehandeld\" method=\"post\"" in h
+    amaze "value=\"tr_&lt;x&gt;\"" in h
+    amaze "tr_<x>" not in h
+wow
 wow

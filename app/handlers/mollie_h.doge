@@ -1,5 +1,6 @@
 so "../../web/http.doge"
 so "../../web/html.doge"
+so "../../web/forms.doge"
 so "../services/mollie.doge"
 so "../../lib/geld.doge"
 so weergave
@@ -42,6 +43,13 @@ such overzicht_inhoud much store, cfg, melding:
         such incl = geld.formatteer(geld.bedrag(bank["debet"]) - geld.bedrag(bank["credit"]))
         rijen.append([p["datum"], p["omschrijving"], incl, pid])
     such tabel = html.tabel(["Datum", "Omschrijving", "Bedrag", "Payment"], rijen, [2])
+    such afg = mollie.afgehandeld(store)
+    if len(afg) > 0:
+        such arijen = []
+        for a in afg:
+            arijen.append([a["datum"], a["soort"], a["id"]])
+        such atabel = html.tabel(["Gemarkeerd op", "Soort", "Mollie-id"], arijen)
+        very tabel = tabel + "<h2>Met de hand afgehandeld</h2><p>Deze geweigerde items slaat de sync over.</p>{atabel}"
     such actie = ""
     if heeft_key:
         such kn = html.knop("Sync nu")
@@ -76,10 +84,34 @@ such sync much req:
             very m = m + weergave.fout("Niet geboekt, ook het huidige tijdvak is ingediend: {vg}.")
         if len(res["geweigerd"]) > 0:
             such gw = strings.join(res["geweigerd"], ", ")
-            very m = m + weergave.fout("Niet geboekt, bedrag niet in EUR: {gw}.")
+            very m = m + weergave.fout("Niet geboekt, bedrag niet in EUR: {gw}.") + afhandel_formulieren(res["geweigerd_items"])
         if len(res["mislukt"]) > 0:
             such ml = strings.join(res["mislukt"], ", ")
             very m = m + weergave.fout("Niet geboekt, post geweigerd: {ml}.")
+        return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
+    oh no err!
+        such m = weergave.domeinfout(err)
+        return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)), 400)
+wow
+such afhandel_formulieren much items:
+    such uit = "<p>Boek een geweigerd item met de hand en markeer het daarna als afgehandeld.</p><ul>"
+    for it in items:
+        such soort = html.escape(it["soort"])
+        such id = html.escape(it["id"])
+        such bedrag = html.escape(it["bedrag"])
+        such kn = html.knop("Markeer als afgehandeld")
+        very uit = uit + "<li><form action=\"/mollie/afgehandeld\" method=\"post\"><input type=\"hidden\" name=\"soort\" value=\"{soort}\"><input type=\"hidden\" name=\"id\" value=\"{id}\">{id} ({bedrag}) {kn}</form></li>"
+    return uit + "</ul>"
+wow
+
+such markeer_afgehandeld much req:
+    such store = req["ctx"]["store"]
+    such cfg = req["ctx"]["config"]
+    such v = forms.decode(req["body"])
+    pls
+        such id = forms.enkel(v, "id", "")
+        mollie.markeer_afgehandeld(store, forms.enkel(v, "soort", ""), id)
+        such m = "<p>{html.escape(id)} is als afgehandeld gemarkeerd.</p>"
         return http.html_response(weergave.render("Inkomsten", overzicht_inhoud(store, cfg, m)))
     oh no err!
         such m = weergave.domeinfout(err)
