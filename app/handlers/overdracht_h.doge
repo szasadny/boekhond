@@ -5,10 +5,8 @@ so "../services/overdracht.doge"
 so "../../lib/datum.doge"
 so weergave
 
-# Export en import van de volledige administratie (overdracht naar een andere instance).
-# De export is een download; de import is een multipart-upload van dat bestand. Het
-# uploadveld heet bewust niet "bestand": de upload-UX in boekhond.js checkt dat veld op
-# de bijlagen-allow-list (pdf/png/jpg) en zou een .json weigeren.
+# Het uploadveld heet bewust niet "bestand": boekhond.js checkt dat veld op de
+# bijlagen-allow-list en zou een .json weigeren.
 
 so TITEL = "Export en import"
 so JSON = "application/json"

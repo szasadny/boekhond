@@ -2,9 +2,7 @@ so strings
 so http
 so forms
 
-# Route-tabel met path-params (/journaal/{id}) en 404/405-onderscheid.
-# Handlers zijn opgeslagen function-values; ze worden positioneel met één
-# request-Dict aangeroepen (keyword-args werken niet op stored functions).
+# Handlers worden positioneel met één request-Dict aangeroepen: keyword-args werken niet op stored functions.
 
 many Router:
     such init:

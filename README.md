@@ -21,14 +21,9 @@ First install:
 ```sh
 git clone https://github.com/szasadny/boekhond.git && cd boekhond
 cp .env.example .env
-# Zet INTERN_TOKEN in .env op een random waarde (openssl rand -hex 32); leeg = geen dagelijkse scheduler.
-# Zet PUBLISH_HOST in .env op het LAN/VPN-adres van de VM/LXC voor directe netwerktoegang.
-# Zet TOEGESTANE_HOSTS op de host[:port]-waarden waarmee je de app opent; leeg = alleen loopback.
 mkdir -p data && sudo chown 1000:1000 data
 docker compose up -d --build
 ```
-
-The container runs as the non-root user `boekhond` with UID/GID `1000:1000` (build args `UID`/`GID` in the Dockerfile), so `data/` on the host must be writable by that UID. An install from before this change has root-owned files in `data/`: run `sudo chown -R 1000:1000 data` once before the update. Compose publishes `POORT` from `.env` on `PUBLISH_HOST`, runs an init process (`init: true`) so `docker stop` is immediate, and the image has a `HEALTHCHECK` on `/health`.
 
 Update:
 

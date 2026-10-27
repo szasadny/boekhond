@@ -2,10 +2,9 @@ so "../web/multipart.doge"
 
 so CRLF = "\r\n"
 
-# Binaire blob met een null-byte, 0xFF en een losse \n — nooit te decoden.
+# Binaire blob met een null-byte, 0xFF en een losse \n: nooit te decoden.
 so BLOB = [37, 80, 68, 70, 0, 255, 10]
 
-# Bouw een geldige multipart/form-data body: één tekstveld + één bestand.
 such bouw_body much boundary:
     such veld = "--{boundary}{CRLF}Content-Disposition: form-data; name=\"omschrijving\"{CRLF}{CRLF}factuur mei{CRLF}"
     such bestandkop = "--{boundary}{CRLF}Content-Disposition: form-data; name=\"bestand\"; filename=\"bewijs.pdf\"{CRLF}Content-Type: application/pdf{CRLF}{CRLF}"

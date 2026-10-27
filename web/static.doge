@@ -1,9 +1,6 @@
 so fetch
 so strings
 
-# Statische bestanden serveren, path-traversal-veilig. Geeft een response-Dict
-# ({status, headers, body}) terug; http.bouw_response maakt er bytes van.
-
 so CONTENT_TYPES = {"css": "text/css", "js": "text/javascript", "html": "text/html; charset=utf-8", "svg": "image/svg+xml", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "ico": "image/x-icon", "woff2": "font/woff2", "json": "application/json", "pdf": "application/pdf", "txt": "text/plain; charset=utf-8"}
 
 such content_type much pad:

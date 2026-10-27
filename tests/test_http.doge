@@ -106,7 +106,6 @@ such test_is_loopback:
     amaze not http.is_loopback("example.com")
 wow
 
-# peer_host leest het remote-adres van een echte loopback-verbinding via howl.peer.
 such test_peer_host_loopback:
     such server = howl.listen("127.0.0.1", 0)
     such poort = howl.port(server)

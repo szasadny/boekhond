@@ -7,15 +7,9 @@ so "../../lib/geld.doge"
 so weergave
 so strings
 
-# Overzichtspagina: het te-doen tijdvak (oudste afgelopen, nog niet ingediende kwartaal)
-# met live-berekende rubrieken + saldo + indien-deadline, een reeks CSS-staafgrafiekjes en de
-# recentste posten t/m vandaag.
-
 so MAANDEN = ["jan", "feb", "mrt", "apr", "mei", "jun", "jul", "aug", "sep", "okt", "nov", "dec"]
 
-# [label, waarde(Decimal)]-paren -> staafgrafiek-rijen [label, pct(Int), waardetekst, klasse].
-# Staaflengte op de absolute waarde t.o.v. het maximum; negatieve waarden krijgen klasse
-# "negatief". Ratio via Decimal-integerdeling + int() (geen Float; Hard Rule 1).
+# Ratio via Decimal-integerdeling + int(), nooit via Float.
 such staaf_rijen much paren:
     such maxv = dec("0")
     for p in paren:

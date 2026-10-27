@@ -23,17 +23,15 @@ such verse_store:
     return s
 wow
 
-# Verkooppost hoog_21 (ex 1000, btw 210, incl 1210) op datum d.
+# ex 1000, btw 210, incl 1210.
 such verkoop21 much d:
     return journaal.memoriaal_post(d, "verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}])
 wow
 
-# Verkooppost hoog_21 met grondslag ex op datum d.
 such verkoop21_bedrag much d, ex, btw_s, incl_s:
     return journaal.memoriaal_post(d, "verkoop", "", [{"rekening": "1300", "debet": incl_s, "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": ex, "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": btw_s, "btw_code": none}])
 wow
 
-# Verkooppost laag_9 met grondslag ex op datum d (btw = rond2(ex*9/100)).
 such verkoop9 much d, ex, btw_s, incl_s:
     return journaal.memoriaal_post(d, "verkoop laag", "", [{"rekening": "1300", "debet": incl_s, "credit": "", "btw_code": none}, {"rekening": "8100", "debet": "", "credit": ex, "btw_code": "laag_9"}, {"rekening": "1510", "debet": "", "credit": btw_s, "btw_code": none}])
 wow
@@ -110,7 +108,7 @@ such test_icp_flag:
     schoon()
 wow
 
-# Grens: btw exact 1000.00 => niet verplicht (strikt >). ex 11111.11 -> rond2(999.9999)=1000.00.
+# btw exact 1000.00 is niet verplicht (strikt >): ex 11111.11 -> rond2(999.9999) = 1000.00.
 such test_suppletie_op_de_grens:
     such s = verse_store()
     journaal.bewaar(s, verkoop9("2026-01-15", "11111.11", "1000.00", "12111.11"))
@@ -124,7 +122,6 @@ such test_suppletie_op_de_grens:
     schoon()
 wow
 
-# Boven de grens: hoog_21 verkoop 10000 -> btw 2100 > 1000 => verplicht.
 such test_suppletie_boven_grens:
     such s = verse_store()
     journaal.bewaar(s, journaal.memoriaal_post("2026-01-15", "grote verkoop", "", [{"rekening": "1300", "debet": "12100", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "10000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "2100", "btw_code": none}]))
@@ -137,7 +134,6 @@ such test_suppletie_boven_grens:
     schoon()
 wow
 
-# Storno van een post in een NIET-ingediend tijdvak telt niet mee.
 such test_suppletie_negeert_open_origineel:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-01-15"))
@@ -149,7 +145,7 @@ such test_suppletie_negeert_open_origineel:
     schoon()
 wow
 
-# Storno verkoop (btw -210) en storno inkoop (voorbelasting 21 terug, +21) op hetzelfde tijdvak: netto 189.
+# Storno verkoop (btw -210) en storno inkoop (voorbelasting +21): netto 189.
 such test_suppletie_nettoot_tegengestelde_correcties:
     such s = verse_store()
     such v = journaal.bewaar(s, verkoop21("2026-01-15"))
@@ -179,7 +175,7 @@ such test_suppletie_storno_plus_herboeking:
     schoon()
 wow
 
-# Q1 (btw -210) en Q2 (+21) zijn aparte tijdvakken en netten niet: 210 + 21 = 231.
+# Q1 (btw -210) en Q2 (+21) netten niet: 210 + 21 = 231.
 such test_suppletie_nettoot_niet_over_tijdvakken:
     such s = verse_store()
     such v = journaal.bewaar(s, verkoop21("2026-01-15"))
@@ -206,7 +202,7 @@ such test_markeer_correctie_weigert_open_tijdvak:
     schoon()
 wow
 
-# Uiterste indiendatums, handmatig geijkt tegen de Belastingdienst-bron.
+# Handmatig geijkt tegen de Belastingdienst-bron.
 such test_deadline_per_kwartaal:
     amaze aangifte.deadline(2026, 1) == "2026-04-30"
     amaze aangifte.deadline(2026, 2) == "2026-07-31"
@@ -214,8 +210,7 @@ such test_deadline_per_kwartaal:
     amaze aangifte.deadline(2026, 4) == "2027-01-31"
 wow
 
-# Lege administratie op 19 juli 2026 (Q3): ook zonder boekingen moet het vorige kwartaal worden
-# aangegeven, dus Q2.
+# Ook zonder boekingen moet het vorige kwartaal worden aangegeven: op 19 juli 2026 dus Q2.
 such test_te_doen_tijdvak_leeg:
     such s = verse_store()
     such tv = aangifte.te_doen_tijdvak(s, "2026-07-19")
@@ -224,7 +219,6 @@ such test_te_doen_tijdvak_leeg:
     schoon()
 wow
 
-# Lege administratie in Q1 kijkt over de jaargrens terug naar Q4 van het vorige jaar.
 such test_te_doen_tijdvak_leeg_jaargrens:
     such s = verse_store()
     such tv = aangifte.te_doen_tijdvak(s, "2026-01-15")
@@ -233,7 +227,6 @@ such test_te_doen_tijdvak_leeg_jaargrens:
     schoon()
 wow
 
-# Boeking in Q2 2026 op 19 juli (Q3): het afgelopen Q2 met posten is het te-doen tijdvak.
 such test_te_doen_tijdvak_met_posten:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-05-15"))
@@ -243,8 +236,7 @@ such test_te_doen_tijdvak_met_posten:
     schoon()
 wow
 
-# Alleen een post in het lopende Q3 maakt Q2 niet overbodig: het vorige afgeronde kwartaal
-# blijft het eerste te-doen tijdvak.
+# Een post in het lopende Q3 maakt het afgeronde Q2 niet overbodig.
 such test_te_doen_tijdvak_post_in_lopend_kwartaal:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-07-10"))
@@ -254,8 +246,7 @@ such test_te_doen_tijdvak_post_in_lopend_kwartaal:
     schoon()
 wow
 
-# Eerste post in Q1, Q2 leeg: lege kwartalen na de start van de administratie worden niet
-# overgeslagen; op 19 juli is het oudste, Q1, het te-doen tijdvak en staat Q2 ook open.
+# Lege kwartalen na de eerste post worden niet overgeslagen: Q1 is te-doen, Q2 staat ook open.
 such test_te_doen_tijdvak_leeg_tussenruimte:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-02-10"))
@@ -268,8 +259,7 @@ such test_te_doen_tijdvak_leeg_tussenruimte:
     schoon()
 wow
 
-# Q2 met posten ingediend en geen oudere boekingen -> niets meer openstaand (lopende kwartaal),
-# géén gezeur over lege eerdere kwartalen.
+# Lege kwartalen vóór de eerste post staan niet open.
 such test_te_doen_tijdvak_na_indienen:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-05-15"))
@@ -280,7 +270,6 @@ such test_te_doen_tijdvak_na_indienen:
     schoon()
 wow
 
-# Boekingen in Q1 én Q2, Q2 ingediend -> schuift naar Q1 (dat óók posten heeft), niet verder.
 such test_te_doen_tijdvak_eerder_met_posten:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-02-10"))
@@ -292,8 +281,7 @@ such test_te_doen_tijdvak_eerder_met_posten:
     schoon()
 wow
 
-# Posten sinds Q2-2025, alleen Q3-2026 ingediend, vandaag 2026-10-26: Q2-2025 t/m Q2-2026 staan
-# open en zijn allemaal te laat; het oudste is het te-doen tijdvak.
+# Posten sinds Q2-2025, alleen Q3-2026 ingediend: Q2-2025 t/m Q2-2026 open en te laat.
 such test_openstaande_tijdvakken_achterstallig:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2025-05-15"))
@@ -314,7 +302,6 @@ such test_openstaande_tijdvakken_achterstallig:
     schoon()
 wow
 
-# Het afgelopen kwartaal vóór zijn deadline staat open maar is niet te laat.
 such test_openstaande_tijdvakken_voor_deadline:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-08-15"))
@@ -326,14 +313,14 @@ such test_openstaande_tijdvakken_voor_deadline:
     schoon()
 wow
 
-# Te laat pas ná de uiterste datum; de deadline-dag zelf is nog op tijd.
+# De deadline-dag zelf is nog op tijd.
 such test_te_laat_grenzen:
     such gevallen = [[2026, 3, "2026-10-31", false], [2026, 3, "2026-11-01", true], [2025, 4, "2026-01-31", false], [2025, 4, "2026-02-01", true], [2026, 1, "2026-03-31", false]]
     for g in gevallen:
         amaze aangifte.te_laat(g[0], g[1], g[2]) == g[3]
 wow
 
-# Zonder posten geen achterstand: alleen het vorige kwartaal (nihil-aangifte), niet te laat.
+# Zonder posten alleen het vorige kwartaal (nihil-aangifte), niet te laat.
 such test_openstaande_tijdvakken_zonder_posten:
     such s = verse_store()
     such open = aangifte.openstaande_tijdvakken(s, "2026-10-26")
@@ -343,7 +330,6 @@ such test_openstaande_tijdvakken_zonder_posten:
     schoon()
 wow
 
-# Alles met posten ingediend -> niets te doen; het te-doen tijdvak is het lopende kwartaal.
 such test_openstaande_tijdvakken_alles_ingediend:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-08-15"))
@@ -354,8 +340,7 @@ such test_openstaande_tijdvakken_alles_ingediend:
     schoon()
 wow
 
-# De doen-checklist noemt elk eerder openstaand tijdvak, met termijn verstreken, maar niet het
-# bekeken tijdvak zelf.
+# Elk eerder openstaand tijdvak, maar niet het bekeken tijdvak zelf.
 such test_doen_eerdere_tijdvakken:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2025-05-15"))
@@ -381,7 +366,6 @@ such test_overzicht_termijn_status:
     schoon()
 wow
 
-# Privégebruik-correctie: gebalanceerde post via journaal.privegebruik_post -> rubriek 1d + 5a stijgen.
 such test_privegebruik_post_overzicht:
     such s = verse_store()
     journaal.bewaar(s, journaal.privegebruik_post("2026-12-31", dec("500")))
@@ -437,8 +421,7 @@ such test_icp_subeuro_levering:
     amaze ov["rubrieken"]["3b"]["bedrag"] == 0
     schoon()
 wow
-# Tijdvakkeuze journaal: van het oudste tijdvak met posten t/m het huidige kwartaal, nieuwste
-# eerst, met status per tijdvak.
+# Van het oudste tijdvak met posten t/m het huidige kwartaal, nieuwste eerst.
 such test_tijdvakken_lijst:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-05-15"))
@@ -452,7 +435,6 @@ such test_tijdvakken_lijst:
     schoon()
 wow
 
-# Lege administratie: alleen het te-doen tijdvak en het huidige kwartaal, over de jaargrens.
 such test_tijdvakken_leeg_jaargrens:
     such s = verse_store()
     such tv = aangifte.tijdvakken(s, "2026-01-15")
@@ -461,9 +443,8 @@ such test_tijdvakken_leeg_jaargrens:
     amaze tv[1]["jaar"] == 2025 and tv[1]["kwartaal"] == 4
     schoon()
 wow
-# Praktijkgeval Q4: verlegde inkoop in 4a (ex 1,20 -> btw 0,25) en 4b (ex 17,88 -> btw 3,75).
-# Op de cent is het saldo 0,00; afronding in eigen voordeel per rubriek (4a 0,25 -> 0, 4b 3,75 -> 3,
-# 5b 4,00 -> 4) geeft -1. Een post plus zijn storno nettoot naar nul.
+# 4a ex 1,20 -> btw 0,25, 4b ex 17,88 -> 3,75: op de cent saldo 0,00; afronding in eigen voordeel
+# per rubriek (4a 0, 4b 3, 5b 4) geeft -1. Een post plus zijn storno nettoot naar nul.
 such test_uitleg_afronding_verlegd:
     such s = verse_store()
     journaal.bewaar(s, journaal.inkoop_post("2026-10-01", "Google", "Hosting", dec("1.20"), "import_buiten_eu", "4100"))
@@ -492,8 +473,7 @@ such test_uitleg_afronding_verlegd:
     schoon()
 wow
 
-# Een memoriaalpost waarvan de geboekte btw niet past bij de btw-code wordt gemarkeerd; een
-# post zonder btw-regels (bank/privé) telt niet mee.
+# Een post zonder btw-regels (bank/privé) telt niet mee.
 such test_uitleg_controle_afwijking:
     such s = verse_store()
     journaal.bewaar(s, verkoop21("2026-07-15"))
@@ -713,7 +693,6 @@ such test_aansluiting_storno_herstelt:
     schoon()
 wow
 
-# Een ingediend tijdvak toont de bevroren snapshot; daar hoort geen aansluiting bij.
 such test_aansluiting_niet_bij_ingediend_tijdvak:
     such s = verse_store()
     journaal.bewaar(s, memoriaal_voorbelasting_zonder_1520("2020-06-15"))

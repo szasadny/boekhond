@@ -7,13 +7,9 @@ so "../../lib/geld.doge"
 so "../services/aangifte.doge"
 so "../../lib/datum.doge"
 
-# Gedeelde view-helpers voor de handlers: paginaschil met nav + foutmelding.
-# Alle dynamische waarden lopen via html.escape/builders (Hard Rule 6).
-
 so LINKS = [["/", "Overzicht"], ["/journaal", "Journaal"], ["/terugkerend", "Kosten"], ["/mollie", "Inkomsten"], ["/aangifte", "Aangifte"], ["/rapporten/balans", "Rapporten"], ["/rekeningen", "Rekeningen"], ["/inbox", "Inbox"], ["/overdracht", "Export/import"]]
 
-# Paginatitel → nav-sectie (href in LINKS), voor de actief-markering. Titels zonder entry
-# krijgen geen actieve link (veilige default: printversies, onbekende pagina's).
+# Titels zonder entry (printversies, onbekende pagina's) krijgen geen actieve nav-link.
 so SECTIE = {"Overzicht": "/", "Journaal": "/journaal", "Inkoop": "/journaal", "Bank": "/journaal", "Memoriaal": "/journaal", "Storno": "/journaal", "Kosten": "/terugkerend", "Inkomsten": "/mollie", "Aangifte": "/aangifte", "Aangifte doen": "/aangifte", "Aangiften": "/aangifte", "Rekeningen": "/rekeningen", "Uploaden": "/inbox", "Inbox": "/inbox", "Balans": "/rapporten/balans", "Winst en verlies": "/rapporten/balans", "Jaaroverzicht": "/rapporten/balans", "Export en import": "/overdracht"}
 
 such nav much actief:
@@ -24,8 +20,6 @@ such nav much actief:
     return "<nav>{items}</nav>"
 wow
 
-# Ingelogde paginaschil (nav + main). titel = tekst; inhoud = builder-output; klasse = code
-# (optioneel, bv. "breed"). De actieve nav-link volgt uit SECTIE[titel].
 such render much titel, inhoud, klasse = "":
     such actief = ""
     if SECTIE.has(titel):
@@ -33,7 +27,6 @@ such render much titel, inhoud, klasse = "":
     return html.layout(titel, nav(actief), inhoud, klasse)
 wow
 
-# Rode foutmelding; bericht = tekst (ge-escaped).
 such fout much bericht:
     return "<p class=\"fout\">{html.escape(bericht)}</p>"
 wow
@@ -61,7 +54,6 @@ such termijn_status much status, j, kw, vandaag:
     return termijn_markering(status != "ingediend" and aangifte.te_laat(j, kw, vandaag))
 wow
 
-# Redirect-doel na boeken, zodat je de post ziet.
 such tijdvak_href much pad, d:
     such j = datum.jaar(d)
     such kw = datum.kwartaal(d)
@@ -83,14 +75,11 @@ such kwartaal_nav much store, pad, j, kw:
     return "<p>{links}</p>"
 wow
 
-# Nav-loze schil voor printversies.
 such kaal much titel, inhoud:
     such body = "<main>\n{inhoud}\n</main>"
     return html.pagina(titel, body)
 wow
 
-# Uitklapbare legenda van de btw-codes voor de invoerformulieren. soort = "inkoop",
-# "verkoop" of "alle". Label + uitleg komen uit btw.doge (één bron van waarheid).
 such btw_legenda much soort:
     such rijen = []
     for e in btw.legenda(soort):
@@ -112,7 +101,7 @@ such kostenrekening_opties much store, met_btw = false:
     return o
 wow
 
-# Select-opties [code, label] voor de inkoop-btw-codes; de lege keuze laat de service de rekening-default nemen.
+# De lege keuze laat de service de rekening-default nemen.
 such inkoop_btw_opties much met_standaard = false:
     such o = []
     if met_standaard:
@@ -123,7 +112,6 @@ such inkoop_btw_opties much met_standaard = false:
     return o
 wow
 
-# Select-opties voor alle btw-codes, met een lege "(geen)"-keuze vooraan.
 such btw_opties_leeg:
     such o = [["", "(geen)"]]
     for c in btw.CODES:
@@ -131,7 +119,6 @@ such btw_opties_leeg:
     return o
 wow
 
-# Bedrag uit een formulierveld ("1.234,56") genormaliseerd naar een Decimal-string; leeg blijft leeg.
 such bedrag_str much rauw:
     if rauw == "":
         return ""

@@ -13,13 +13,8 @@ so "../../lib/csv.doge"
 so strings
 so weergave
 
-# Portaalvelden van Mijn Belastingdienst Zakelijk, in portaalvolgorde met de officiële labels —
-# ook de velden die Boekhond niet berekent (1c/3c/5d), zodat de flow-pagina 1-op-1 over te typen
-# is. kind "rub" leest uit de rubrieken-dict (veilige lookup); "totaal" is een berekend eindveld.
+# Ook de velden die Boekhond niet berekent (1c/3c/5d), zodat de flow-pagina 1-op-1 over te typen is.
 so PORTAAL = [{"code": "1a", "label": "Leveringen/diensten belast met hoog tarief", "kind": "rub", "btw": true}, {"code": "1b", "label": "Leveringen/diensten belast met laag tarief", "kind": "rub", "btw": true}, {"code": "1c", "label": "Leveringen/diensten belast met overige tarieven", "kind": "rub", "btw": true}, {"code": "1d", "label": "Privégebruik", "kind": "rub", "btw": true}, {"code": "1e", "label": "Leveringen/diensten belast met 0% of niet bij u belast", "kind": "rub", "btw": false}, {"code": "2a", "label": "Leveringen/diensten waarbij de omzetbelasting naar u is verlegd", "kind": "rub", "btw": true}, {"code": "3a", "label": "Leveringen naar landen buiten de EU (uitvoer)", "kind": "rub", "btw": false}, {"code": "3b", "label": "Leveringen naar/diensten in landen binnen de EU", "kind": "rub", "btw": false}, {"code": "3c", "label": "Installatie/afstandsverkopen binnen de EU", "kind": "rub", "btw": false}, {"code": "4a", "label": "Leveringen/diensten uit landen buiten de EU", "kind": "rub", "btw": true}, {"code": "4b", "label": "Leveringen/diensten uit landen binnen de EU", "kind": "rub", "btw": true}, {"code": "5a", "label": "Verschuldigde omzetbelasting (rubrieken 1a t/m 4b)", "kind": "totaal", "veld": "5a"}, {"code": "5b", "label": "Voorbelasting", "kind": "totaal", "veld": "5b"}, {"code": "5c", "label": "Subtotaal (5a min 5b)", "kind": "totaal", "veld": "5c"}, {"code": "5d", "label": "Vermindering volgens de kleineondernemersregeling", "kind": "totaal", "veld": "5d"}]
-
-# Aangifte-overzicht per tijdvak: rubrieken + saldo, ICP-/suppletie-banner, markeer-ingediend,
-# CSV- en printexport. Boekhond dient niet in — dit levert de cijfers voor Mijn Belastingdienst.
 
 such huidig_jkw much req:
     such store = req["ctx"]["store"]
@@ -68,7 +63,7 @@ such aansluiting_inhoud much a:
     return "<div class=\"fout\"><p>De aangifte sluit niet aan op het grootboek. Meestal is dat een memoriaalpost met een btw-code maar zonder boeking op {af}/{voor}, of een boeking op {af}/{voor} zonder btw-code. Storneer die post en boek hem opnieuw.</p>{t}</div>"
 wow
 
-# Het saldo in gewone taal (hele euro's, zoals op de aangifte).
+# Hele euro's, zoals op de aangifte.
 such conclusie much saldo:
     if saldo > 0:
         return "Je betaalt € {saldo} btw aan de Belastingdienst."
@@ -89,7 +84,6 @@ such begrippen:
     return "<details class=\"legenda\"><summary>Wat betekenen 5a, 5b en saldo?</summary><dl>{a}{b}{c}</dl></details>"
 wow
 
-# Controle per post: sluit de geboekte btw aan op wat de btw-codes voorschrijven?
 such controle_inhoud much u:
     such n = len(u["posten"])
     if n == 0:
@@ -105,7 +99,6 @@ such controle_inhoud much u:
     return "<div class=\"fout\"><p>Controle: bij deze posten wijkt de geboekte btw af van wat de btw-code voorschrijft. Storneer de post en boek hem opnieuw met het juiste bedrag of de juiste btw-code.</p><ul>{items}</ul></div>"
 wow
 
-# Per btw-regel: wat telt mee, in welke rubriek, en hoeveel btw verschuldigd/aftrekbaar.
 such posten_tabel much u:
     if len(u["posten"]) == 0:
         return "<p>Geen posten met btw in dit tijdvak.</p>"
@@ -147,8 +140,7 @@ such heeft_verlegd much u:
     return false
 wow
 
-# "Hoe komt dit saldo tot stand?" voor wie geen boekhouder is: conclusie, controle, per post wat
-# meetelt, afronding en verlegde btw. Alle rekenwerk komt uit btw.specificatie (Hard Rule 5).
+# Alle rekenwerk komt uit btw.specificatie; hier alleen weergave.
 such uitleg_inhoud much ov:
     such u = ov["uitleg"]
     such c = html.escape(conclusie(ov["saldo"]))
@@ -331,8 +323,7 @@ such lijst much req:
     return http.html_response(weergave.render("Aangiften", inhoud))
 wow
 
-# Alle portaalvelden (1a t/m 5d) in portaalvolgorde, klaar om over te typen. Veilige lookup zodat
-# oude ingediende snapshots (zonder de 1d-key) niet crashen; niet-berekende velden tonen 0/leeg.
+# Veilige lookup: oude ingediende snapshots missen de 1d-key.
 such portaal_rijen much ov:
     such rub = ov["rubrieken"]
     such rijen = []
@@ -359,8 +350,6 @@ such portaal_rijen much ov:
     return rijen
 wow
 
-# Geleide "aangifte doen"-flow: checklist (sync/inbox/eerder tijdvak/Q4-privégebruik) -> alle
-# portaalvelden 1-op-1 -> indienen. Verandert niets aan de cijfers; maakt het overtypen makkelijk.
 such doen_inhoud much store, cfg, ov, melding:
     such j = ov["jaar"]
     such kw = ov["kwartaal"]
@@ -436,7 +425,6 @@ such doen much req:
     return http.html_response(weergave.render("Aangifte doen", inhoud, "breed"))
 wow
 
-# Boek een privégebruik-correctie (rubriek 1d) in het open tijdvak; herrender de flow bij een fout.
 such boek_privegebruik much req:
     such store = req["ctx"]["store"]
     such cfg = req["ctx"]["config"]

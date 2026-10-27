@@ -8,9 +8,6 @@ so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 so weergave
 
-# Kostensjablonen tonen + beheren + de "genereer nu"-knop. Alle dynamische waarden
-# ge-escaped (Hard Rule 6); de generator- en boekingslogica zit in de service.
-
 such valuta_opties:
     such o = []
     for v in wisselkoers.VALUTA:
@@ -18,7 +15,7 @@ such valuta_opties:
     return o
 wow
 
-# Koersbron voor niet-EUR sjablonen; zonder WISE_API_TOKEN none (de service meldt dat).
+# Zonder WISE_API_TOKEN none; de service meldt dat.
 such koersbron_van much cfg:
     if cfg.has("wise_token") and cfg["wise_token"] != none:
         return wisselkoers.Wise(cfg["wise_token"])

@@ -25,7 +25,6 @@ such sjabloon much bedrag, dag, vanaf:
     return {"leverancier": "Testleverancier", "omschrijving": "Maandabonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": bedrag, "dag": dag, "vanaf": vanaf}
 wow
 
-# Stub-koersbronnen: vaste koers, en een die altijd faalt (netwerk/API-fout).
 many VasteKoers:
     such koers much van, naar:
         return {"koers": dec("0.86215"), "tijd": "2026-07-15T06:00:00+0000", "bron": "test"}

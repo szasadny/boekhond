@@ -1,7 +1,6 @@
 so "../app/services/btw.doge"
 
-# Bouwt een minimale journaalpost met één grondslagregel: omzet (verkoop) op
-# credit, kosten/inkoop op debet — de natuurlijke kant die rubrieken() verwacht.
+# Grondslag op de natuurlijke kant: omzet op credit, kosten/inkoop op debet.
 such maak much d, code, ex:
     such c = btw.info(code)
     such regel = {"rekening": "0000", "debet": "", "credit": "", "btw_code": code}
@@ -81,7 +80,7 @@ such test_post_effect:
     amaze btw.post_effect(maak("2026-01-01", "import_buiten_eu", "100")) == dec("0")
 wow
 
-# [incl, ex, btw] met de hand: ex = afgerond(incl / 1,21), btw = incl - ex (factuur-btw).
+# [incl, ex, btw]: ex = afgerond(incl / 1,21), btw = incl - ex (factuur-btw).
 so SPLITS_21 = [["100.00", "82.64", "17.36"], ["12.10", "10.00", "2.10"], ["0.01", "0.01", "0.00"], ["59.99", "49.58", "10.41"], ["9.99", "8.26", "1.73"], ["1000.00", "826.45", "173.55"], ["0.05", "0.04", "0.01"]]
 
 such test_splits_incl:
@@ -95,7 +94,7 @@ such test_splits_incl:
     amaze g[1] == dec("0")
 wow
 
-# Elke code moet een niet-lege label + uitleg hebben, anders lekt een rauwe code in een dropdown.
+# Anders lekt een rauwe code in een dropdown.
 such test_elke_code_heeft_label_en_uitleg:
     for c in btw.CODES:
         amaze btw.CODES[c].has("label")
@@ -118,7 +117,7 @@ such test_legenda_filtert_op_soort:
     amaze len(ink) < len(alle)
 wow
 
-# Privégebruik (rubriek 1d): grondslag op de credit-kant (soort verkoop), btw 21% -> 1d, telt in 5a.
+# Grondslag op de credit-kant (soort verkoop); telt via 1d mee in 5a.
 such test_privegebruik_1d:
     such boekingen = []
     boekingen.append(maak("2026-12-31", "prive_gebruik", "500"))
@@ -130,7 +129,7 @@ such test_privegebruik_1d:
     amaze r["saldo"] == 105
 wow
 
-# Aftrekbeperkingen (horeca, BUA): kosten zonder aftrek -> geen enkele rubriek, geen 5a/5b-effect.
+# Kosten zonder aftrek (horeca, BUA) raken geen rubriek, dus geen 5a/5b-effect.
 such test_aftrekbeperking_geen_rubriek:
     such boekingen = []
     boekingen.append(maak("2026-01-10", "horeca", "100"))

@@ -8,7 +8,6 @@ COPY web/ web/
 COPY app/ app/
 RUN doge build
 
-# Assets: Dogescript (static/djs/) -> JS (static/js/) via de npm-toolchain.
 FROM node:22-slim AS assets
 WORKDIR /app
 COPY package.json package-lock.json ./
@@ -25,7 +24,7 @@ RUN groupadd --gid "$GID" boekhond && useradd --uid "$UID" --gid "$GID" --no-cre
 WORKDIR /app
 COPY --from=build /app/boekhond /usr/local/bin/boekhond
 COPY static/ static/
-# Overlay de gecompileerde JS uit de assets-stage (static/js/ is gitignored, wordt hier gebouwd).
+# static/js/ is gitignored; de gecompileerde JS komt uit de assets-stage.
 COPY --from=assets /app/static/js static/js
 RUN mkdir -p /app/data && chown "$UID:$GID" /app/data
 USER boekhond

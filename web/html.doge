@@ -1,9 +1,7 @@
 so strings
 
-# De enige plek waar HTML-strings worden samengesteld (Hard Rule 6).
-# Handlers stellen builder-output samen; ze concatenen nooit zelf rauwe tags.
-# Regel per builder: parameters gemarkeerd "tekst" worden ge-escaped;
-# parameters gemarkeerd "inhoud" zijn al vertrouwde builder-output (rauw ingevoegd).
+# Security-contract: elke parameter wordt ge-escaped, behalve vertrouwde builder-output
+# (inhoud, nav, velden, tabel); die gaat rauw erin. Handlers concatenen nooit zelf tags.
 
 # Neutraliseer user-input voor HTML. '&' eerst, anders dubbel-escape je entities.
 such escape much s:
@@ -15,21 +13,16 @@ such escape much s:
     return r
 wow
 
-# Deferred script-tag. src = code (ge-escaped). Progressive enhancement:
-# de pagina werkt volledig zonder; ontbreekt het bestand dan 404't dit onschadelijk.
+# Progressive enhancement: de pagina werkt zonder; een ontbrekend bestand 404't onschadelijk.
 such script much src:
     return "<script src=\"{escape(src)}\" defer></script>"
 wow
 
-# Volledig HTML-document. titel = tekst; inhoud = vertrouwde builder-output.
-# boekhond.js wordt site-wide deferred geladen (feature-detect per pagina, geen JS-baseline vereist).
 such pagina much titel, inhoud:
     such js = script("/static/js/boekhond.js")
     return "<!DOCTYPE html>\n<html lang=\"nl\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>{escape(titel)}</title>\n<link rel=\"icon\" href=\"/static/favicon.svg\">\n<link rel=\"stylesheet\" href=\"/static/style.css\">\n</head>\n<body>\n{inhoud}\n{js}\n</body>\n</html>\n"
 wow
 
-# Documentschil met nav-balk. nav + inhoud = vertrouwde builder-output; klasse = code
-# (optioneel, bv. "breed" voor een wijdere content-kolom).
 such layout much titel, nav, inhoud, klasse = "":
     such kl = ""
     if klasse != "":
@@ -38,13 +31,10 @@ such layout much titel, nav, inhoud, klasse = "":
     return pagina(titel, body)
 wow
 
-# Eén gelabeld invoerveld. naam/type = code; label/waarde = tekst.
 such veld much naam, label, type = "text", waarde = "":
     return "<label>{escape(label)}<input name=\"{escape(naam)}\" type=\"{escape(type)}\" value=\"{escape(waarde)}\"></label>"
 wow
 
-# Dropdown. naam = code; opties = List van [waarde, label]; gekozen = code.
-# Alle waarden en labels ge-escaped; " selected" op de match.
 such select much naam, opties, gekozen:
     such items = ""
     for o in opties:
@@ -53,8 +43,6 @@ such select much naam, opties, gekozen:
     return "<select name=\"{escape(naam)}\">{items}</select>"
 wow
 
-# Eén file-upload-veld. naam = code; label = tekst; accept = code (extensie-hint);
-# verplicht = Bool (native required-constraint).
 such bestand much naam, label, accept = "", verplicht = false:
     such acc = ""
     if accept != "":
@@ -63,8 +51,6 @@ such bestand much naam, label, accept = "", verplicht = false:
     return "<label>{escape(label)}<input type=\"file\" name=\"{escape(naam)}\"{acc}{req}></label>"
 wow
 
-# Form-wrapper. actie/methode/enctype = code; velden = List van builder-output.
-# enctype alleen gezet als niet-leeg (multipart/form-data bij een upload-form).
 such formulier much actie, methode, velden, enctype = "":
     such inhoud = strings.join(velden, "\n")
     such enc = ""
@@ -73,9 +59,6 @@ such formulier much actie, methode, velden, enctype = "":
     return "<form action=\"{escape(actie)}\" method=\"{escape(methode)}\"{enc}>\n{inhoud}\n</form>"
 wow
 
-# Tabel. koppen = List<tekst>; rijen = List<List<tekst>>. Alle cellen ge-escaped.
-# rechts = List<Int> kolomindexen die rechts uitgelijnd worden (class="num"), bv. bedragkolommen.
-# voet = List<tekst> (optioneel): één totaalrij in <tfoot>.
 such tabel much koppen, rijen, rechts = [], voet = []:
     such kop = ""
     such ci = 0
@@ -104,13 +87,10 @@ such tabel much koppen, rijen, rechts = [], voet = []:
     return "<table>\n<thead><tr>{kop}</tr></thead>\n<tbody>{body}</tbody>{tfoot}\n</table>"
 wow
 
-# Scrollbare tabel-regio voor brede tabellen: toetsenbord-scrollbaar (tabindex) met een
-# toegankelijke naam. label = tekst (ge-escaped); tabel = builder-output van tabel().
 such tabel_regio much label, tabel:
     return "<div class=\"tabel-regio\" tabindex=\"0\" role=\"region\" aria-label=\"{escape(label)}\">{tabel}</div>"
 wow
 
-# Anker. href/tekst = tekst (beide ge-escaped); klasse = code (optioneel, bv. "actief").
 such link much href, tekst, klasse = "":
     such k = ""
     if klasse != "":
@@ -118,14 +98,12 @@ such link much href, tekst, klasse = "":
     return "<a href=\"{escape(href)}\"{k}>{escape(tekst)}</a>"
 wow
 
-# Knop. tekst = tekst; type = code.
 such knop much tekst, type = "submit":
     return "<button type=\"{escape(type)}\">{escape(tekst)}</button>"
 wow
 
-# Staafgrafiek (CSS, geen JS). titel = tekst; rijen = List van [label, pct, waarde, klasse]:
-# label/waarde ge-escaped; pct = server-berekende Int 0-100; klasse = code (bv. "" of "negatief").
-# Een SVG-rect i.p.v. style="width" omdat de CSP inline styles blokkeert.
+# pct en klasse gaan rauw erin, dus alleen server-berekende waarden. Een SVG-rect
+# i.p.v. style="width" omdat de CSP inline styles blokkeert.
 such staafgrafiek much titel, rijen:
     such body = ""
     for rij in rijen:

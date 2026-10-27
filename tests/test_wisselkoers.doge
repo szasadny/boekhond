@@ -47,7 +47,6 @@ such test_lees_koers_hele_koers:
     amaze str(k["koers"] + dec("0.5")) == "1.5"
 wow
 
-# Onverwachte vormen: lege lijst, object i.p.v. lijst, ongeldige JSON -> allemaal een bonk.
 such test_lees_koers_onverwachte_vorm_bonkt:
     for body in ["[]", "\{\"error\":\"unauthorized\"\}", "geen json", "[\{\"source\":\"USD\"\}]"]:
         such mislukt = false

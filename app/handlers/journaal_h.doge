@@ -12,11 +12,6 @@ so "../../lib/geld.doge"
 so "../../lib/csv.doge"
 so weergave
 
-# Journaal: lijst per tijdvak + de sjabloonflows (inkoop, bank/privé) en de
-# vrije memoriaalpost. Handlers parsen invoer (geld.parse), roepen journaal.doge;
-# alle boekingslogica en de balans-invariant zitten daar. Zonder keuze toont de lijst het
-# tijdvak dat nu aan de beurt is (aangifte.te_doen_tijdvak), niet blind het huidige kwartaal.
-
 so MEMO_RIJEN = 6
 
 such lijst_van much velden, sleutel:
@@ -41,9 +36,7 @@ such rekening_opties much store:
     return o
 wow
 
-# Gekozen tijdvak als [j, kw]: ?tv=JJJJ-K uit de keuzelijst, anders ?j=&kw=, anders het
-# tijdvak dat aan de beurt is (oudste afgelopen kwartaal dat nog niet is ingediend, of het
-# huidige kwartaal als alles is ingediend).
+# ?tv=JJJJ-K, anders ?j=&kw=, anders het te-doen tijdvak (niet blind het huidige kwartaal).
 such gekozen_tijdvak much store, query:
     such te = aangifte.te_doen_tijdvak(store, datum.vandaag())
     such j = forms.geheel(query, "j", te[0])

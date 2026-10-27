@@ -5,10 +5,6 @@ so nap
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
-# Aangifte-lifecycle: live overzicht, markeer ingediend (snapshot + vergrendeling) en het
-# suppletie-signaal. store komt als parameter binnen (nooit geïmporteerd). Btw-rekenwerk via
-# btw.doge (Hard Rule 5); de tijdvak-lock zit in journaal.doge (Hard Rule 3).
-
 so SUPPLETIE_DREMPEL = dec("1000")
 so BALANS_TYPES = ["activa", "passiva", "eigen_vermogen"]
 
@@ -20,8 +16,7 @@ such vroegste_datum much posten:
     return vroegste
 wow
 
-# Toegestane jaren als [min, max]. Ondergrens is de start van de administratie, met ruimte voor
-# een nihil-aangifte over het jaar ervoor.
+# Ondergrens laat ruimte voor een nihil-aangifte over het jaar vóór de administratie.
 such jaar_bereik much vandaag, posten:
     such huidig = datum.jaar(vandaag)
     such min_j = huidig - 1
@@ -54,8 +49,8 @@ such is_ingediend much aangiften, j, kw:
     return a != none and a["status"] == "ingediend"
 wow
 
-# Correcties in dit open tijdvak op een AL INGEDIEND tijdvak, per oorspronkelijk tijdvak genetteerd:
-# een storno plus herboeking telt alleen het verschil. Boven de drempel => suppletie verplicht (DATA-MODEL §3.4).
+# Per oorspronkelijk ingediend tijdvak genetteerd, zodat storno plus herboeking alleen het verschil telt;
+# boven de drempel is suppletie verplicht (DATA-MODEL §3.4).
 such suppletie_signaal much store, j, kw:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
@@ -88,9 +83,7 @@ such suppletie_signaal much store, j, kw:
     return {"bedrag": som, "aantal": aantal, "verplicht": verplicht}
 wow
 
-# Cijfers voor één tijdvak: de bevroren snapshot als het tijdvak ingediend is, anders live
-# uit de journaalposten. Eén bron van waarheid voor de aangiftepagina én het jaaroverzicht —
-# een ingediend tijdvak toont altijd wat er is aangegeven, nooit een herberekening.
+# Een ingediend tijdvak toont altijd de bevroren snapshot, nooit een herberekening.
 such cijfers much store, j, kw:
     such aangiften = store.laad("aangiften", [])
     such a = vind(aangiften, j, kw)
@@ -100,8 +93,6 @@ such cijfers much store, j, kw:
     return {"rubrieken": r["rubrieken"], "5a": r["5a"], "5b": r["5b"], "saldo": r["saldo"], "status": "open", "ingediend_op": none, "onbekend": r["onbekend"]}
 wow
 
-# Paginamodel voor één tijdvak: de cijfers (snapshot of live) + ICP- en suppletie-signaal + de
-# uitleg per post (zie uitleg()).
 such overzicht much store, j, kw:
     such c = cijfers(store, j, kw)
     such rub = c["rubrieken"]
@@ -114,8 +105,6 @@ such overzicht much store, j, kw:
     return {"jaar": j, "kwartaal": kw, "tijdvak": "Q{kw}", "status": c["status"], "ingediend_op": c["ingediend_op"], "rubrieken": rub, "5a": c["5a"], "5b": c["5b"], "saldo": c["saldo"], "icp": icp, "suppletie": supp, "onbekend": c["onbekend"], "uitleg": u, "aansluiting": ans}
 wow
 
-# Markeer een tijdvak ingediend: snapshot bevriezen + Aangifte-record wegschrijven.
-# Weigert dubbel indienen en een nog-niet-afgelopen tijdvak. Audit vóór de state-write.
 such dien_in much store, j, kw:
     controleer_tijdvak(j, kw, datum.vandaag(), store.laad("journaal", []))
     such aangiften = store.laad("aangiften", [])
@@ -136,9 +125,7 @@ such alle much store:
     return store.laad("aangiften", [])
 wow
 
-# Uiterste aangifte-/betaaldatum voor een kwartaal: laatste dag van de maand ná het tijdvak.
-# Bron: belastingdienst.nl/wps/wcm/connect/nl/btw/content/uiterste-aangifte-en-betaaldatums —
-# Q1 -> 30 apr, Q2 -> 31 jul, Q3 -> 31 okt, Q4 -> 31 jan (volgend jaar).
+# Uiterste aangifte-/betaaldatum: laatste dag van de maand ná het tijdvak (Q4 -> 31 jan volgend jaar).
 such deadline much j, kw:
     such m = kw * 3 + 1
     such nj = j
@@ -174,22 +161,16 @@ such openstaande_tijdvakken much store, vandaag:
     return uit
 wow
 
-# Oudste openstaande kwartaal, of het huidige als alles is ingediend.
 such te_doen_tijdvak much store, vandaag:
     such rij = openstaande_tijdvakken(store, vandaag)
     if len(rij) > 0:
         return [rij[0]["jaar"], rij[0]["kwartaal"]]
     return [datum.jaar(vandaag), datum.kwartaal(vandaag)]
 wow
-# Kwartaal als doorlopend getal (jaar * 4 + kwartaal - 1), zodat tijdvakken te vergelijken en
-# af te tellen zijn.
 such kwartaal_nummer much j, kw:
     return j * 4 + (kw - 1)
 wow
 
-# Alle tijdvakken van de administratie, nieuwste eerst: van het oudste van (vroegste post,
-# te-doen-tijdvak) t/m het nieuwste van (huidig kwartaal, laatste post). Elk element is
-# {jaar, kwartaal, status} met status "ingediend" of "open". Voor de tijdvakkeuze in het journaal.
 such tijdvakken much store, vandaag:
     such aangiften = store.laad("aangiften", [])
     such te = te_doen_tijdvak(store, vandaag)
@@ -211,7 +192,6 @@ such tijdvakken much store, vandaag:
         very n = n - 1
     return uit
 wow
-# Saldo-beweging (debet - credit) van één rekening binnen één post, Decimal.
 such beweging much post, rekening:
     such som = dec("0")
     for r in post["regels"]:
@@ -220,10 +200,8 @@ such beweging much post, rekening:
     return som
 wow
 
-# Uitleg + controle voor de aangiftepagina: btw.specificatie (per post, op de cent) plus per post
-# of de geboekte btw (rekening af te dragen en voorbelasting) aansluit op wat de btw-codes
-# voorschrijven. Elke spec-post krijgt "klopt"; "afwijkend" somt de posten op die niet aansluiten
-# (in de praktijk een handmatige memoriaalpost met een verkeerd btw-bedrag).
+# "afwijkend": posten waarvan de geboekte btw niet aansluit op de btw-codes, in de praktijk
+# een memoriaalpost met een verkeerd btw-bedrag.
 such uitleg much store, j, kw:
     such posten = store.laad("journaal", [])
     return uitleg_uit(posten, btw.specificatie(posten, j, kw))
@@ -243,8 +221,7 @@ such uitleg_uit much posten, spec:
     return spec
 wow
 
-# Betaling of teruggave van btw (1510/1520 tegen bank, of 1520 naar 1510) heeft geen btw-code en
-# raakt alleen balansrekeningen; die afrekening hoort niet in de aansluiting.
+# Btw-betaling of -teruggave raakt alleen balansrekeningen en hoort niet in de aansluiting.
 such is_afrekening much post, types:
     for r in post["regels"]:
         if r.has("btw_code") and r["btw_code"] != none:

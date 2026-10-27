@@ -23,15 +23,12 @@ so "app/handlers/terugkerend_h.doge"
 so "app/handlers/intern_h.doge"
 so "app/handlers/overdracht_h.doge"
 
-# Boot + wiring (ARCHITECTURE §2/§6.6). Geen login: single-user, LAN/VPN-only —
-# het netwerk is de grens, niet een wachtwoord. Handlers krijgen state via
-# req["ctx"] (de router roept handler(req) positioneel; closures kunnen de
-# bootstate niet bereiken).
+# Geen login: single-user achter LAN/VPN. State gaat via req["ctx"]: de router roept
+# handler(req) positioneel aan en closures bereiken de bootstate niet.
 
 so STATIC_ROOT = "static"
 so STATIC_PREFIX = "/static/"
 
-# Strip één paar omringende quotes (VALUE of "VALUE" of 'VALUE' in .env).
 such ontquote much s:
     if len(s) >= 2:
         such eerste = s[0]
@@ -41,9 +38,7 @@ such ontquote much s:
     return s
 wow
 
-# .env-bestand → Dict (KEY=VALUE per regel; # is commentaar, lege regels overgeslagen).
-# Ontbreekt het bestand, dan leeg — de echte environment blijft de bron (docker compose
-# injecteert via env_file, dan is dit leeg). Secrets blijven in .env, nooit in source (Hard Rule 8).
+# Ontbreekt .env, dan leeg: docker compose injecteert dan via env_file.
 such dotenv:
     such d = {}
     if not fetch.exists(".env"):
@@ -58,8 +53,7 @@ such dotenv:
     return d
 wow
 
-# Config-waarde: echte env-var wint, dan .env-bestand, anders none. Zo overriden
-# expliciete exports en `docker compose env_file` altijd het bestand.
+# Echte env-var wint van het .env-bestand, zodat exports en compose env_file altijd overriden.
 such haal much sleutel, envd:
     such v = env.get(sleutel)
     if v != none:
@@ -69,7 +63,6 @@ such haal much sleutel, envd:
     return none
 wow
 
-# .env één keer bij boot; instance-config uit de environment of het .env-bestand.
 such config:
     such envd = dotenv()
     such poort = haal("POORT", envd)
@@ -100,7 +93,6 @@ such health much req:
     return http.tekst_response(200, "ok")
 wow
 
-# Routes; handlers registreren zichzelf nooit.
 such maak_router:
     such r = router.Router()
     r.voeg_toe("GET", "/health", health)
@@ -163,8 +155,7 @@ such begint_met much s, voorvoegsel:
     return s[0:len(voorvoegsel)] == voorvoegsel
 wow
 
-# Eén request: static / router -> response-Bytes. Alles in één pls/oh no,
-# zodat een fout een schone 500 geeft en de verwerk-loop nooit sneuvelt.
+# Alles in één pls/oh no: een fout geeft een schone 500 en de verwerk-loop sneuvelt nooit.
 such afhandel much req, r, winkel, cfg:
     pls
         if req.has("afgewezen"):
@@ -185,10 +176,8 @@ such afhandel much req, r, winkel, cfg:
         return http.bouw_response(http.tekst_response(500, "interne fout"))
 wow
 
-# Scheduler-pup (§5.2): eigen thread, deelt geen state — loopback-HTTP is het enige kanaal.
-# Slaapt tot het volgende 06:00 en POSTt dan /internal/run-recurring met het INTERN_TOKEN.
-# De handler draait op de main-loop (deelt dus wél de store) en doet de drie idempotente
-# stappen. Fouten blijven binnen de lus zodat de pup nooit sneuvelt.
+# Pups delen geen state: loopback-HTTP naar /internal/run-recurring is het enige kanaal.
+# Fouten blijven binnen de lus zodat de pup nooit sneuvelt.
 such scheduler_lus much cfg:
     such poort = cfg["poort"]
     such token = cfg["intern_token"]

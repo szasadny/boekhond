@@ -4,17 +4,12 @@ so fetch
 so hunt
 so strings
 
-# Bijlagen (inkoopbewijs): upload-validatie, opslag onder een gegenereerde naam,
-# en de import-inbox (bijlage zonder journaalpost). store komt als parameter binnen;
-# deze service importeert de store nooit. Bijlagen worden nooit verwijderd (Hard Rule 3).
-# De grenzen hieronder zijn domein-constanten (geen secret) → hier, niet in .env.
-
 so TOEGESTANE_EXT = ["pdf", "png", "jpg", "jpeg"]
 so MAX_BYTES = 10485760
 # mime wordt afgeleid van de gevalideerde extensie, nooit van de client-header.
 so MIME = {"pdf": "application/pdf", "png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}
 
-# Genormaliseerde extensie zonder punt, lowercase. fetch.ext geeft ".PDF" → "pdf".
+# fetch.ext geeft punt en originele case mee (".PDF").
 such ext_van much filename:
     such e = strings.smoll(fetch.ext(filename))
     if len(e) > 0 and e[0] == ".":
@@ -22,8 +17,7 @@ such ext_van much filename:
     return e
 wow
 
-# Klopt een opgeslagen pad met de eigen layout "uploads/{jaar}/{id}.{ext}"? Voor paden die
-# van buiten komen (import van een export): nooit een willekeurig pad schrijven (Hard Rule 7).
+# Paden uit een import-bundel komen van buiten: alleen de eigen layout uploads/{jaar}/{id}.{ext}.
 such geldig_pad much id, pad:
     if not hunt.test("^b-[0-9]+$", str(id)):
         return false
@@ -53,7 +47,6 @@ such koppelingen much store:
     return m
 wow
 
-# De import-inbox: bijlagen die nog aan geen journaalpost hangen.
 such inbox much store:
     such geclaimd = koppelingen(store)
     such uit = []
@@ -63,7 +56,6 @@ such inbox much store:
     return uit
 wow
 
-# Gekoppelde bijlagen als [bijlage, post_id], nieuwste upload eerst.
 such gekoppeld much store:
     such geclaimd = koppelingen(store)
     such uit = []
@@ -103,7 +95,6 @@ such inhoud_past much ext, data:
     return data[0:3] == bytes([255, 216, 255])
 wow
 
-# Valideer + persisteer een geüpload part {name, filename, content_type, data:Bytes}.
 such bewaar much store, part, bron:
     such ext = valideer(part)
     such geupload_op = nap.stamp(nap.now())
@@ -155,11 +146,8 @@ such koppel much store, bijlage_id, post_id:
     return b
 wow
 
-# Scan de gemounte data/import/-map: elk bestand wordt via bewaar een inbox-bijlage
-# (bron "import"), waarna de bronfile weg gaat zodat een tweede scan niets dubbel doet
-# (Hard Rule 2 via bronfile-verwijdering — bijlagen zijn geen boekingen, geen stored key).
-# Een geweigerd bestand gaat naar import/overgeslagen/ (nooit verwijderd) en wordt dus één keer
-# gemeld; een onleesbaar bestand blijft staan. Dotfiles (.DS_Store e.d.) worden genegeerd.
+# De bronfile gaat na import weg zodat een tweede scan niets dubbel doet. Een geweigerd bestand
+# gaat naar import/overgeslagen/ (nooit verwijderd), een onleesbaar bestand blijft staan.
 such scan_import much store:
     such geimporteerd = 0
     such overgeslagen = []

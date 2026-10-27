@@ -490,7 +490,7 @@ such test_refund_voor_betaal_post_wordt_later_gekoppeld:
     schoon()
 wow
 
-# De refund-post staat in een ingediend tijdvak en blijft onaangeroerd; de link komt op de nieuwe betaal-post.
+# De link komt op de nieuwe betaal-post, niet op de vergrendelde refund-post.
 such test_late_koppeling_muteert_vergrendelde_refund_niet:
     such s = verse_store()
     mollie.boek_refund_lijst(s, [refund_voor("re_1", "tr_1", "6.05"), refund_voor("re_2", "tr_1", "6.05")])

@@ -6,8 +6,7 @@ so strings
 so IMPORT_MAP = "import"
 so OVERGESLAGEN_MAP = "overgeslagen"
 
-# Enige toegang tot data/ (Hard Rule 4): atomic writes + audit-append.
-# Bedragen komen hier altijd als Str binnen — dson.emit van een Decimal is een TypeError.
+# Bedragen komen hier altijd als Str binnen: dson.emit van een Decimal is een TypeError.
 many Store:
     such init much data_dir:
         self.dir = data_dir
@@ -25,7 +24,7 @@ many Store:
         return dson.parse(fetch.read(p))
     wow
 
-    # Atomic: eerst .tmp schrijven, dan rename — een crash laat nooit een half bestand achter.
+    # Eerst .tmp, dan rename: een crash laat nooit een half bestand achter.
     such bewaar much naam, waarde:
         such p = self.pad(naam)
         such tmp = p + ".tmp"
@@ -33,9 +32,7 @@ many Store:
         fetch.rename(tmp, p)
     wow
 
-    # Atomic binaire write onder data/ (uploads). relpad = "uploads/{jaar}/{id}{ext}";
-    # de tussenmappen worden aangemaakt (make_dir is recursief). Geen audit hier —
-    # het metadata-record in bijlagen.doge draagt het audit-event.
+    # Geen audit hier: het metadata-record in bijlagen.doge draagt het audit-event.
     such bewaar_bestand much relpad, data:
         such vol = fetch.join(self.dir, relpad)
         such delen = strings.split(relpad, "/")
@@ -51,8 +48,7 @@ many Store:
         return fetch.read_bytes(fetch.join(self.dir, relpad))
     wow
 
-    # De gemounte import-drop-map (data/import/). Alleen bestanden, gesorteerd;
-    # een ontbrekende mount geeft [] i.p.v. een IOError. Staging, geen collectie.
+    # Een ontbrekende mount geeft [] i.p.v. een IOError.
     such import_lijst:
         such p = fetch.join(self.dir, IMPORT_MAP)
         if not fetch.exists(p):
@@ -65,8 +61,7 @@ many Store:
         return namen
     wow
 
-    # Verwijder een verwerkte bronfile uit de import-map. Dit raakt nooit een
-    # opgeslagen bijlage (uploads/) — enkel de transiënte drop-file (Hard Rule 7).
+    # Raakt alleen de transiënte drop-file, nooit een opgeslagen bijlage onder uploads/.
     such import_verwijder much naam:
         such map = fetch.join(self.dir, IMPORT_MAP)
         fetch.delete(fetch.join(map, naam))
@@ -87,13 +82,12 @@ many Store:
         return relpad
     wow
 
-    # Append-only, vóór elke bewaar-aanroep door de caller (bewaarplicht).
+    # Append-only; de caller audit vóór elke bewaar-aanroep (bewaarplicht).
     such audit much actie, entiteit, id, data:
         such regel = dson.emit({"ts": nap.stamp(nap.now()), "actie": actie, "entiteit": entiteit, "id": id, "data": data})
         fetch.append(fetch.join(self.dir, "audit.dsonl"), regel + "\n")
     wow
 
-    # Het volledige audit-log als tekst ("" als het nog niet bestaat), voor de export.
     such laad_audit:
         such p = fetch.join(self.dir, "audit.dsonl")
         if not fetch.exists(p):
@@ -101,8 +95,7 @@ many Store:
         return fetch.read(p)
     wow
 
-    # Append rauwe audit-regels (de historie uit een import). Append-only: bestaande
-    # regels blijven onaangeroerd. tekst = complete dsonl-regels, elk met "\n".
+    # Append-only. tekst = complete dsonl-regels, elk met een afsluitende newline.
     such audit_aanvullen much tekst:
         fetch.append(fetch.join(self.dir, "audit.dsonl"), tekst)
     wow
@@ -112,14 +105,14 @@ many Store:
         self.bewaar(naam, waarde)
     wow
 
-    # Eén write voor een batch, met één audit-event per entiteit. events = List van {actie, entiteit, id, data}.
+    # Eén write voor de hele batch, met één audit-event per entiteit.
     such commit_alle much naam, waarde, events:
         for e in events:
             self.audit(e["actie"], e["entiteit"], e["id"], e["data"])
         self.bewaar(naam, waarde)
     wow
 
-    # Doorlopende id-uitgifte per prefix: "b-1", "b-2", … (nooit hergebruikt).
+    # Ids worden nooit hergebruikt.
     such nieuw_id much prefix:
         such tellers = self.laad("tellers", {})
         such n = 1

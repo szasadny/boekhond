@@ -1,14 +1,8 @@
 so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 
-# De enige plek met fiscale rekenregels (Hard Rule 5).
-# Specificatie: docs/DATA-MODEL.md §2 — elke code mapt op precies één rubriek-gedrag.
-#   grondslag: rubriek waar bedrag_ex in telt (none = geen)
-#   btw:       rubriek waar het btw-bedrag in telt (none = geen)
-#   aftrek:    btw telt ook als voorbelasting (5b)
-#   zelf:      btw wordt zelf aangegeven, niet aan de wederpartij betaald (incl = ex)
-#   label:     menselijke naam voor de UI-dropdowns
-#   uitleg:    korte betekenis voor de legenda in de invoerformulieren
+# Per code het rubriek-gedrag uit docs/DATA-MODEL.md §2. aftrek: btw telt ook in 5b;
+# zelf: btw zelf aangegeven, niet aan de wederpartij betaald (incl = ex).
 so CODES = {
     "hoog_21": {"soort": "verkoop", "pct": 21, "grondslag": "1a", "btw": "1a", "aftrek": false, "zelf": false, "label": "Omzet 21%", "uitleg": "Verkoop met 21% btw. Telt in rubriek 1a."},
     "laag_9": {"soort": "verkoop", "pct": 9, "grondslag": "1b", "btw": "1b", "aftrek": false, "zelf": false, "label": "Omzet 9%", "uitleg": "Verkoop met 9% btw. Telt in rubriek 1b."},
@@ -30,15 +24,12 @@ so CODES = {
 
 so RUBRIEKEN = ["1a", "1b", "1d", "1e", "2a", "3a", "3b", "4a", "4b"]
 
-# Menselijk label voor een btw-code (voor de UI-dropdowns); valt terug op de code zelf.
 such label much code:
     if CODES.has(code) and CODES[code].has("label"):
         return CODES[code]["label"]
     return code
 wow
 
-# Legenda-regels voor de invoerformulieren: [{code, label, uitleg}] voor een soort
-# ("inkoop", "verkoop" of "alle").
 such legenda much soort:
     such uit = []
     for c in CODES:
@@ -64,8 +55,8 @@ such btw_bedrag much bedrag_ex, code:
     return geld.rond2(bedrag_ex * c["pct"] / 100)
 wow
 
-# Splits een inclusief bedrag in [ex, btw] zoals op de factuur: btw = incl - ex, dus de btw
-# kan een cent van btw_bedrag(ex) afwijken. De factuur-btw is verschuldigd (art. 37 Wet OB).
+# btw = incl - ex zoals op de factuur, dus een cent afwijking van btw_bedrag(ex) kan;
+# de factuur-btw is verschuldigd (art. 37 Wet OB).
 such splits_incl much bedrag_incl, code:
     such c = info(code)
     if c["pct"] == 0:
@@ -74,7 +65,6 @@ such splits_incl much bedrag_incl, code:
     return [ex, bedrag_incl - ex]
 wow
 
-# incl - ex wijkt hoogstens een cent af van ex x pct.
 such factuur_btw_geldig much bedrag_ex, code, bb:
     such c = info(code)
     if c["pct"] == 0 or bb < dec("0"):
@@ -93,8 +83,7 @@ such regel_btw much regel, ex, code:
     return bb
 wow
 
-# Aangifte in hele euro's; afronden in eigen voordeel is toegestaan:
-# verschuldigde btw naar beneden, voorbelasting naar boven.
+# Aangifte in hele euro's, afronden in eigen voordeel mag: verschuldigd omlaag, voorbelasting omhoog.
 such euro_af much bedrag:
     such hele = int(bedrag)
     if bedrag < hele:
@@ -109,9 +98,7 @@ such euro_op much bedrag:
     return hele
 wow
 
-# Grondslag van één journaalregel op zijn natuurlijke kant: omzet (verkoop) staat
-# op credit, kosten/inkoop op debet. Antisymmetrisch, dus een storno (gespiegelde
-# debet/credit) nettoot vanzelf negatief.
+# Omzet staat op credit, kosten op debet; antisymmetrisch, dus een storno nettoot vanzelf negatief.
 such regel_grondslag much r, soort:
     such d = geld.bedrag(r["debet"])
     such c = geld.bedrag(r["credit"])
@@ -120,9 +107,6 @@ such regel_grondslag much r, soort:
     return d - c
 wow
 
-# Alle rubrieken voor één tijdvak, uit de journaalposten van dat tijdvak.
-# Elke regel met een btw_code is een grondslagregel; de btw komt uit regel_btw (invariant 1).
-# Resultaat: {"rubrieken": {rubriek: {"bedrag", "btw"}}, "5a", "5b", "saldo"} — alles hele euro's (Int).
 # Onbekende codes (data van vóór validatie) tellen niet mee; hun post-id komt in "onbekend".
 such rubrieken much posten, j, kw:
     such grondslag = {}
@@ -162,9 +146,6 @@ such rubrieken much posten, j, kw:
     return {"rubrieken": per_rubriek, "5a": r5a, "5b": r5b, "saldo": r5a - r5b, "onbekend": onbekend}
 wow
 
-# Netto btw-effect van één post op de cent (Decimal): verschuldigde btw minus voorbelasting.
-# Een storno (gespiegelde regels) nettoot vanzelf negatief. Voor het suppletie-signaal in
-# aangifte.doge — btw-rekenwerk blijft hier.
 such post_effect much post:
     such verschuldigd = dec("0")
     such voor = dec("0")
@@ -184,8 +165,7 @@ such post_effect much post:
     return verschuldigd - voor
 wow
 
-# Som van de grondslag (Decimal) over alle regels met deze btw_code in jaar j. Voor de
-# vrijgestelde-omzet-noot op het jaaroverzicht (vrijgesteld valt buiten RUBRIEKEN).
+# Voor de vrijgestelde-omzet-noot op het jaaroverzicht: vrijgesteld valt buiten RUBRIEKEN.
 such grondslag_voor_code much posten, j, code:
     such c = info(code)
     such som = dec("0")
@@ -213,7 +193,6 @@ such grondslag_code_tijdvak much posten, j, kw, code:
                 very som = som + regel_grondslag(regel, c["soort"])
     return som
 wow
-# Rubrieken die één btw-code raakt, als tekst voor de uitleg (bv. "4a + 5b", "1a", "5b").
 such rubriek_tekst much code:
     such c = info(code)
     such delen = []
@@ -229,12 +208,7 @@ such rubriek_tekst much code:
     return uit
 wow
 
-# Uitleg achter de aangifte van één tijdvak, op de cent (Decimal): per post de regels met een
-# btw_code, met grondslag, verschuldigde btw (telt in 5a) en voorbelasting (telt in 5b). Zelfde
-# rekenregels als rubrieken(), maar zonder afronding, zodat de UI het verschil met de aangifte in
-# hele euro's (afronding in eigen voordeel) kan tonen. Posten zonder btw-regels tellen niet mee.
-# Resultaat: {posten: [{id, datum, omschrijving, regels, verschuldigd, voorbelasting}],
-# btw_per_rubriek: {rubriek: Decimal}, verschuldigd, voorbelasting, saldo, zonder_btw: Int}.
+# Rekenregels van rubrieken() maar op de cent, zodat de UI het afrondingsverschil met de aangifte toont.
 such specificatie much posten, j, kw:
     such per_rubriek = {}
     for r in RUBRIEKEN:

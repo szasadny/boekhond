@@ -1,15 +1,11 @@
 so strings
 
-# multipart/form-data parser. Domeinvrij (web/), importeert nooit app/.
-# De body komt binaire als rauwe Bytes binnen (http.is_tekst houdt multipart als
-# Bytes); tekstvelden komen eruit in de forms-vorm Dict<Str,List<Str>>, bestanden
-# als List<Dict>{name, filename, content_type, data:Bytes}. Leunt op de native
-# Bytes-search van doge 0.3.3 (find/split); geen byte-scan-stopgap meer nodig.
+# Body blijft rauwe Bytes; tekstvelden komen eruit als forms-Dict, bestanden als
+# List<Dict>{name, filename, content_type, data:Bytes}.
 
 so CRLF = "\r\n"
 so SCHEIDER = "\r\n\r\n"
 
-# Strip omringende dubbele quotes van een header-parameterwaarde.
 such ontquote much s:
     such t = strings.trim(s)
     if len(t) >= 2 and t[0] == "\"" and t[-1] == "\"":
@@ -17,7 +13,6 @@ such ontquote much s:
     return t
 wow
 
-# Boundary uit een Content-Type-waarde halen. bonk als er geen is.
 such grens_uit_content_type much ct:
     for stuk in strings.split(ct, ";"):
         such s = strings.trim(stuk)
@@ -26,7 +21,6 @@ such grens_uit_content_type much ct:
     bonk "geen multipart-boundary in Content-Type"
 wow
 
-# Parse het header-blok van één part (al gedecodeerd naar Str).
 such parse_part_headers much blok:
     such naam = none
     such filename = none
@@ -55,7 +49,6 @@ such tekst much b:
         bonk "ongeldig formulier: geen geldige UTF-8-tekst"
 wow
 
-# Parse een multipart/form-data body (Bytes) met de gegeven boundary (Str).
 such parse much body, boundary:
     such velden = {}
     such bestanden = []

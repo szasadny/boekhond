@@ -7,10 +7,7 @@ so "../services/journaal.doge"
 so weergave
 so strings
 
-# Upload + import-inbox. Bestand komt binnen als multipart/form-data (rauwe Bytes),
-# wordt gevalideerd + opgeslagen door de bijlagen-service, en vandaaruit aan een
-# journaalpost gekoppeld. Download loopt via een router-route (nooit als /static/,
-# want bijlagen liggen buiten de static-root). Alle dynamische waarden ge-escaped (Hard Rule 6).
+# Download via een router-route, nooit /static/: bijlagen liggen buiten de static-root.
 
 # RFC 5987 attr-char: alles daarbuiten gaat percent-encoded in filename*.
 so ATTR_CHARS = "!#$&+-.^_`|~0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -41,8 +38,7 @@ such upload much req:
     return http.redirect("/inbox")
 wow
 
-# Koppelbare posten als [id, label], nieuwste datum eerst; posten in een ingediend tijdvak
-# kunnen geen bijlage meer krijgen en vallen weg.
+# Posten in een ingediend tijdvak krijgen geen bijlage meer.
 such post_opties much store:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
@@ -56,7 +52,6 @@ such post_opties much store:
     return o
 wow
 
-# Eén gedeelde datalist voor alle inbox-rijen: typen filtert op id, datum en omschrijving.
 such posten_datalist much opties:
     such items = ""
     for o in opties:
@@ -114,7 +109,6 @@ such inbox_inhoud much store, melding:
     return "{melding}<h1>Import-inbox</h1><p>{up} {scan_form}</p>{leeg}{tabel}{lijst}{gekoppeld}"
 wow
 
-# Bouwt een resultaat-melding voor de import-scan; overgeslagen namen/redenen ge-escaped.
 such scan_melding much res:
     such n = res["geimporteerd"]
     such over = res["overgeslagen"]
@@ -158,7 +152,7 @@ such koppel much req:
     return http.redirect("/inbox")
 wow
 
-# Strip tekens die een HTTP-header of quoted-string zouden breken uit een filename.
+# Strip tekens die een header of quoted-string breken.
 such veilige_naam much naam:
     such r = strings.replace(naam, "\"", "")
     very r = strings.replace(r, "\\", "")
@@ -185,7 +179,6 @@ such content_disposition much naam:
     return "attachment; filename=\"{ascii}\"; filename*=UTF-8''{enc}"
 wow
 
-# Serveer een bijlage terug via de router (nooit als static file).
 such download much req:
     such store = req["ctx"]["store"]
     such id = req["params"]["id"]

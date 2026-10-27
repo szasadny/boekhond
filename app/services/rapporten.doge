@@ -4,10 +4,6 @@ so aangifte
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
-# Balans + winst & verlies + jaaroverzicht, afgeleid uit de journaalposten (+ rekeningtype).
-# Leest het journaal, schrijft nooit (ARCHITECTURE §0). Bedragen blijven Decimal tot de handler.
-
-# nummer -> netto Decimal (debet - credit) over posten met datum.sleutel in [van, tot].
 such netto_per_rekening much posten, van, tot:
     such saldi = {}
     for p in posten:
@@ -31,9 +27,6 @@ such rek_map much store:
     return m
 wow
 
-# Omzet per maand over jaar j: som(credit - debet) op rekeningen met type "omzet", gebucket op
-# de maand van de post. Retourneert een List van 12 Decimals (index 0 = januari). Voor het
-# Overzicht-grafiekje; bedragen blijven Decimal.
 such omzet_per_maand much store, j:
     such m = rek_map(store)
     such per = []
@@ -56,7 +49,6 @@ such omzet_per_maand much store, j:
     return per
 wow
 
-# Winst & verlies over jaar j: omzet (credit-debet) en kosten (debet-credit).
 such winst_verlies much store, j:
     such g1 = datum.kwartaal_grenzen(j, 1)
     such g4 = datum.kwartaal_grenzen(j, 4)
@@ -83,8 +75,7 @@ such winst_verlies much store, j:
     return {"omzet": omzet, "totaal_omzet": totaal_omzet, "kosten": kosten, "totaal_kosten": totaal_kosten, "resultaat": resultaat}
 wow
 
-# Balans per jaareinde j. Activa positief (debet-credit), passiva/EV positief
-# (credit-debet); zonder jaarafsluiting vouwt het resultaat van alle jaren t/m j in het EV.
+# Zonder jaarafsluiting vouwt het resultaat van alle jaren t/m j in het eigen vermogen.
 such balans much store, j:
     such g = datum.kwartaal_grenzen(j, 4)
     such eind = g[1]
@@ -125,9 +116,7 @@ such balans much store, j:
     return {"activa": activa, "passiva": passiva, "eigen_vermogen": ev, "resultaat": resultaat, "resultaat_voorgaand": resultaat_voorgaand, "totaal_activa": totaal_activa, "totaal_passiva_ev": totaal_passiva_ev, "klopt": klopt}
 wow
 
-# Jaaroverzicht: per kwartaal de rubriektotalen + jaarsaldo, W&V, en vrijgestelde omzet.
-# Per kwartaal via aangifte.cijfers — ingediende tijdvakken tonen hun bevroren snapshot,
-# gelijk aan de aangiftepagina; open tijdvakken worden live berekend.
+# Via aangifte.cijfers, zodat ingediende kwartalen hun bevroren snapshot tonen.
 such jaaroverzicht much store, j:
     such posten = store.laad("journaal", [])
     such kwartalen = []

@@ -18,15 +18,13 @@ such verse:
     return s
 wow
 
-# Test-setup: leg een bronfile in de gemounte import-map ({TMPMAP}/import/).
 such drop much naam, data:
     such map = fetch.join(TMPMAP, "import")
     fetch.make_dir(map)
     fetch.write_bytes(fetch.join(map, naam), data)
 wow
 
-# Bouw een request-Dict zoals de router er een aanlevert. Headers zijn lowercase keys met
-# list-waarden (net als web/http.doge parse); mollie_key none zodat die stap wordt overgeslagen.
+# Headers als lowercase keys met list-waarden (zoals web/http.doge); mollie_key none slaat die stap over.
 # peer_host default loopback zodat de token-tests de token-dimensie isoleren.
 such maak_req much s, headers:
     return maak_req_van(s, headers, "127.0.0.1")

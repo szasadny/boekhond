@@ -85,7 +85,7 @@ docs/                   # ARCHITECTURE, DATA-MODEL — the on-demand reference s
 - **Layers:** handlers do HTTP (parse → service → render), services do behaviour, store does persistence. `web/` never imports from `app/`.
 - **Errors:** services `bonk` domain errors; the outer request loop catches everything and renders a 500 without leaking internals.
 - **Language:** identifiers in Dutch domain terms where the wet uses them (boeking, rubriek, tijdvak); user-facing copy in het Nederlands — kort en zakelijk, geen em-dashes of AI-marketingtoon. **Technical terms and jargon stay English** — never verdutchen (no "opslag", "persistentie", "domeinvrij"); mixed Dutch prose with English jargon is the house style.
-- **Comments:** sparse. Only a non-obvious *why* (a fiscal rule, a Hard Rule, a language quirk), at most one or two lines. Never restate what the code says, narrate a change ("nu", "fix", "voorheen"), or cite QA/finding IDs. Self-explanatory code gets no comment.
+- **Comments:** default is none. Write one only when a reader would otherwise make a mistake: a fiscal rule, a non-obvious invariant, a language quirk, a `# stopgap for doge#NN`. One line, two at most; no multi-line essays, no docstring-style param lists, no section banners. Never restate what the code or the function name says, re-explain AGENTS.md/docs (no "Hard Rule N"/"§0" citations as decoration), narrate a change ("nu", "fix", "voorheen"), or cite QA/finding IDs. Tests: a one-line hand-check of the expected value is enough. When in doubt, leave it out.
 - **Dates:** `YYYY-MM-DD` strings everywhere; all date math via `lib/datum.doge` (`nap` has no date arithmetic).
 - **No magic values:** tarieven/limieten → `app/services/btw.doge` (fiscaal); paden/secrets → `.env`.
 

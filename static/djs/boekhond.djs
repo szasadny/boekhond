@@ -1,16 +1,12 @@
-shh Boekhond progressive enhancement, gecompileerd uit Dogescript naar static/js/boekhond.js.
-shh Baseline werkt volledig zonder JS: alles hieronder is feature-detected en additief.
-shh De DOM-logica staat als plain JS (Dogescript laat onbekende regels door); Dogescript's
-shh eigen keyword-syntax mis-compileert echte DOM-code, dus we volgen de "gaps -> plain JS"-regel.
+shh Baseline werkt zonder JS; alles hieronder is feature-detected en additief.
+shh Plain JS: Dogescript's keyword-syntax mis-compileert echte DOM-code.
 (function () {
   'use strict';
 
-  shh Spiegelt app/services/bijlagen.doge: TOEGESTANE_EXT + MAX_BYTES. Alleen UX,
-  shh nooit de security-grens: bijlagen.bewaar hervalideert altijd server-side.
+  shh Spiegelt TOEGESTANE_EXT + MAX_BYTES uit bijlagen.doge; alleen UX, de server hervalideert.
   var TOEGESTANE_EXT = ['pdf', 'png', 'jpg', 'jpeg'];
   var MAX_BYTES = 10485760;
 
-  shh --- Memoriaalform: "+ regel"-knop (kloont een lege regel; server accepteert N regels) ---
   function verrijkMemoriaal() {
     var form = document.querySelector('form[action$="/journaal/memoriaal"]');
     if (!form) { return; }
@@ -33,7 +29,6 @@ shh eigen keyword-syntax mis-compileert echte DOM-code, dus we volgen de "gaps -
     form.insertBefore(knop, form.lastElementChild);
   }
 
-  shh --- Uploadform: bestandsnaam tonen, client-side check, drag-and-drop ---
   function extVan(naam) {
     var punt = naam.lastIndexOf('.');
     if (punt < 0) { return ''; }
@@ -79,7 +74,6 @@ shh eigen keyword-syntax mis-compileert echte DOM-code, dus we volgen de "gaps -
       });
     }
 
-    shh Drag-and-drop: het label is de drop-zone; gedropte files gaan in de input.
     var zone = input.closest('label') || input.parentNode;
     zone.classList.add('dropzone');
     ['dragenter', 'dragover'].forEach(function (naam) {

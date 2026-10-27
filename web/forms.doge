@@ -1,8 +1,7 @@
 so strings
 
-# Decode één component: '+' -> spatie, '%XX' -> byte. Bouwt eerst een Bytes-buffer
-# en decodeert die in één keer, zodat multi-byte UTF-8 (bv. %E2%82%AC = "€") klopt.
-# Een kapotte %XX wordt lenient als letterlijke '%' behandeld.
+# Eerst een Bytes-buffer, dan in één keer decoderen, anders breekt multi-byte UTF-8 (%E2%82%AC).
+# Een kapotte %XX blijft lenient een letterlijke '%'.
 such decode_component much s:
     such buf = bytes("")
     such i = 0

@@ -9,9 +9,6 @@ so "../../lib/csv.doge"
 so weergave
 so strings
 
-# Rapporten uit het journaal: balans, winst & verlies (+ CSV). Leest via rapporten.doge;
-# alle bedragen via geld.formatteer, alle cellen via html.escape (Hard Rule 6).
-
 such jaar_uit much req:
     such vandaag = datum.vandaag()
     return forms.geheel(req["query"], "j", datum.jaar(vandaag))

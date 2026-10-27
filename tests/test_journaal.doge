@@ -185,8 +185,7 @@ such test_storno_nettoot_rubriek_naar_nul:
     amaze r["saldo"] == 0
     schoon()
 wow
-# Tijdvakkeuze in de journaallijst: ?tv=JJJJ-K wint, daarna ?j=&kw=; ongeldige invoer valt
-# terug op het te-doen tijdvak.
+# ?tv=JJJJ-K wint, daarna ?j=&kw=; ongeldige invoer valt terug op het te-doen tijdvak.
 such test_gekozen_tijdvak:
     such s = verse_store()
     such te = aangifte.te_doen_tijdvak(s, datum.vandaag())

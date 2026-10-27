@@ -2,25 +2,19 @@ so btw
 so hunt
 so strings
 
-# Rekeningschema (chart of accounts) — master-data, los van het boeken zelf.
-# journaal.doge bindt aan de REK_*-constanten hieronder (single source of truth).
-# store wordt als parameter doorgegeven; deze service importeert de store nooit.
-
-# Vaste rekeningen waar de sjabloonflows in journaal.doge naar verwijzen.
 so REK_PRIVE = "0900"
 so REK_BANK = "1100"
 so REK_AF_TE_DRAGEN = "1510"
 so REK_VOORBELASTING = "1520"
 so REK_CREDITEUREN = "1600"
-# Geen flow boekt hier meer op; blijft systeemrekening omdat oudere Mollie-posten ernaar verwijzen.
+# Systeemrekening: oudere Mollie-posten verwijzen ernaar.
 so REK_AFRONDING = "8900"
 so REK_OMZET_HOOG = "8000"
 
 # De app boekt hier zelf op (sjabloonflows, Mollie, privégebruik); inactief zou die flows breken.
 so SYSTEEM = [REK_PRIVE, REK_BANK, REK_AF_TE_DRAGEN, REK_VOORBELASTING, REK_CREDITEUREN, REK_AFRONDING, REK_OMZET_HOOG]
 
-# Standaardschema voor een NL-eenmanszaak (RGS-geïnspireerd). Bij eerste boot
-# geseed; uitbreidbaar via de UI. nummer is uniek en onwijzigbaar.
+# nummer is uniek en onwijzigbaar.
 so STANDAARD = [
     {"nummer": "0100", "naam": "Inventaris", "type": "activa", "btw_code": none, "actief": true},
     {"nummer": "0800", "naam": "Eigen vermogen", "type": "eigen_vermogen", "btw_code": none, "actief": true},
@@ -44,7 +38,6 @@ so STANDAARD = [
 # Alleen deze types kent de balans/W&V; een ander type valt uit de rapporten.
 so TYPES = ["activa", "passiva", "eigen_vermogen", "omzet", "kosten"]
 
-# Idempotent: alleen seeden als de collectie nog leeg is.
 such seed much store:
     such huidig = store.laad("rekeningen", [])
     if len(huidig) > 0:
@@ -64,7 +57,6 @@ such zoek much lijst, nummer:
     return none
 wow
 
-# Inkoop en terugkerende kosten boeken hun grondslag alleen op een actieve kostenrekening.
 such kostenrekening much lijst, nummer:
     such rek = zoek(lijst, nummer)
     if rek == none:
@@ -100,7 +92,7 @@ such voeg_toe much store, invoer:
     return rekening
 wow
 
-# Nooit verwijderen (Hard Rule 3) — deactiveren bewaart de historie.
+# Nooit verwijderen: deactiveren bewaart de historie (Hard Rule 3).
 such deactiveer much store, nummer:
     such lijst = store.laad("rekeningen", [])
     such r = zoek(lijst, nummer)

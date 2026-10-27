@@ -6,18 +6,12 @@ so btw
 so rekeningen
 so "../../lib/datum.doge"
 
-# Mollie-import: betaalde payments (+ refunds) ophalen en als gebalanceerde omzet-posten
-# boeken (21% -> rubriek 1a), idempotent per mollie_payment_id / mollie_refund_id (§4.2/4.3).
-# Netwerk zit in de haal_*-functies; de mapping + boeking zijn puur/store-only en getest.
-# Getriggerd door de handmatige knop (mollie_h) en de scheduler (intern_h).
-
 so BASIS = "https://api.mollie.com/v2"
 so VALUTA = "EUR"
 so LIMIET = 250
 so MAX_PAGINAS = 200
 so VORMFOUTEN = ["KeyError", "TypeError", "ValueError", "IndexOutOfBounds", "AttrError"]
 
-# --- Netwerk ---
 such haal_json much key, url:
     such opts = {"headers": {"Authorization": "Bearer {key}"}}
     such resp = none
@@ -73,7 +67,6 @@ such haal_refunds much key:
     return haal_alle(haal_json, key, "{BASIS}/refunds?limit={LIMIET}", "refunds")
 wow
 
-# --- Pure mapping ---
 # Een Mollie-antwoord kan velden missen of een ander type hebben: none in plaats van een KeyError.
 such veld much obj, pad:
     such v = obj
@@ -115,8 +108,6 @@ such vreemde_valuta much bedrag:
     return "{cur} {waarde}"
 wow
 
-# Betaalde payment -> omzet-post: incl op de bank-kant (debet), ex als omzet-grondslag
-# (credit, hoog_21, met de factuur-btw als btw_bedrag), btw op af te dragen (credit).
 such betaling_naar_post much betaling:
     such vv = vreemde_valuta(betaling["amount"])
     if vv != none:
@@ -131,8 +122,7 @@ such betaling_naar_post much betaling:
     return {"datum": d, "omschrijving": betaling["description"], "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_payment_id": pid, "bijlage_ids": []}
 wow
 
-# Refund -> tegenboeking: gespiegeld t.o.v. de omzet-post (geld eraf, omzet + btw terug).
-# hoog_21 op de debet-kant -> regel_grondslag negatief -> trekt af van rubriek 1a.
+# hoog_21 op de debet-kant geeft een negatieve grondslag: trekt af van rubriek 1a.
 such refund_naar_post much refund:
     such vv = vreemde_valuta(refund["amount"])
     if vv != none:
@@ -147,7 +137,6 @@ such refund_naar_post much refund:
     return {"datum": d, "omschrijving": "Refund {rid}", "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_refund_id": rid, "bijlage_ids": []}
 wow
 
-# --- Idempotente boeking (store-only, getest) ---
 # Elke volgende sync meldt (en audit) 'm opnieuw, tot de gebruiker hem als afgehandeld markeert.
 such weiger much store, soort, id, vv, geweigerd, items:
     store.audit("mollie-geweigerd", soort, id, {"reden": "valuta", "bedrag": vv})
@@ -172,7 +161,6 @@ such probeer_post much store, post, rek_lijst, aangiften, soort, id, mislukt:
         return false
 wow
 
-# Zonder id of status valt een item niet te boeken of over te slaan.
 such ongeldig_item much store, item, soort, mislukt:
     such id = veld(item, ["id"])
     if id == none or veld(item, ["status"]) == none:
@@ -190,7 +178,7 @@ such ongeldige_velden much store, item, soort, velden, datumveld, mislukt:
     return true
 wow
 
-# Ingediend tijdvak is op slot (Hard Rule 3): boek als correctie in het open tijdvak van vandaag.
+# Ingediend tijdvak is op slot: boek als correctie in het open tijdvak van vandaag.
 such verschuif much post, soort:
     such orig = post["datum"]
     such tv = "Q{datum.kwartaal(orig)}-{datum.jaar(orig)}"
@@ -340,7 +328,6 @@ such boek_refund_lijst much store, refunds:
     return {"geboekt": geboekt, "overgeslagen": overgeslagen, "verschoven": verschoven, "vergrendeld": vergrendeld, "geweigerd": geweigerd, "geweigerd_items": geweigerd_items, "mislukt": mislukt}
 wow
 
-# --- Laatste sync (instellingen.dson; alleen weergave, geen filter) ---
 such onthoud_sync much store:
     such inst = store.laad("instellingen", {})
     inst["mollie_laatste_sync"] = datum.vandaag()
@@ -354,7 +341,7 @@ such laatste_sync much store:
     return none
 wow
 
-# --- Afgehandeld (instellingen.dson): geweigerde items die de gebruiker met de hand heeft geboekt ---
+# Geweigerde items die de gebruiker met de hand heeft geboekt.
 so SOORTEN = ["mollie-payment", "mollie-refund"]
 
 such afgehandeld much store:
@@ -388,7 +375,6 @@ such markeer_afgehandeld much store, soort, id:
     return true
 wow
 
-# --- Orchestratie (netwerk; door knop + scheduler aangeroepen) ---
 such sync much store, key:
     such betalingen = haal_betalingen(key)
     such pres = boek_betalingen(store, betalingen)

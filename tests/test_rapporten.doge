@@ -70,8 +70,7 @@ such test_jaaroverzicht:
     schoon()
 wow
 
-# Ingediend Q1 toont in het jaaroverzicht zijn bevroren snapshot; een storno in Q2 raakt
-# alleen Q2 (gelijk aan de aangiftepagina).
+# Ingediend Q1 toont zijn bevroren snapshot; een storno in Q2 raakt alleen Q2.
 such test_jaaroverzicht_gebruikt_snapshot:
     such s = verse_store()
     journaal.bewaar(s, journaal.memoriaal_post("2026-01-15", "q1 verkoop", "", [{"rekening": "1300", "debet": "1210", "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": "1000", "btw_code": "hoog_21"}, {"rekening": "1510", "debet": "", "credit": "210", "btw_code": none}]))

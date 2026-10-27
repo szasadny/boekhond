@@ -2,10 +2,6 @@ so howl
 so json
 so "../../lib/geld.doge"
 
-# Wisselkoersen voor terugkerende kosten in vreemde valuta (bv. USD-abonnementen).
-# De koers komt live van de Wise rates-API op het moment van boeken; de omrekening
-# naar EUR is Decimal-only (Hard Rule 1).
-
 so VALUTA = ["EUR", "USD"]
 so WISE_BASIS = "https://api.wise.com/v1/rates"
 
@@ -17,11 +13,8 @@ such is_antwoordfout much err:
     return ANTWOORDFOUTEN.contains(err.type)
 wow
 
-# Parse de ruwe Wise-response, bv. [{"rate":0.86215,"source":"USD","target":"EUR","time":"..."}].
-# json.parse in Decimal-modus: een koers met breuk of exponent wordt direct een exacte Decimal en
-# raakt nooit een Float (Hard Rule 1); een hele koers (bv. 1) komt als Int en wordt via dec()
-# Decimal. Een onverwachte vorm (geen lijst, lege lijst, geen rate, ongeldige JSON) wordt één
-# Nederlandse fout.
+# json.parse in Decimal-modus houdt een koers uit de Float; een hele koers (bv. 1) komt als Int.
+# Elke onverwachte vorm wordt één Nederlandse fout.
 such lees_koers much body:
     such koers = none
     such tijd = ""
@@ -40,7 +33,6 @@ such lees_koers much body:
     return {"koers": koers, "tijd": tijd}
 wow
 
-# Bedrag (Decimal, vreemde valuta) x koers (Decimal) -> EUR, half-up op centen.
 such omreken much bedrag, koers:
     return geld.rond2(bedrag * koers)
 wow

@@ -7,10 +7,8 @@ so "../../lib/datum.doge"
 so crypto
 so strings
 
-# Interne scheduler-endpoint (§5.2): de pack.zoom-pup POSTt hier dagelijks ~06:00. Draait op
-# de main-loop, dus deelt wél de store. Guard = INTERN_TOKEN via crypto.same (constant-time)
-# plus een loopback-peer-check (howl.peer): de call moet van dezelfde host komen. De drie stappen
-# zijn elk idempotent (Hard Rule 2) en lopen elk in pls/oh no zodat één fout de rest niet stopt.
+# Guard: INTERN_TOKEN via crypto.same (constant-time) plus loopback-peer. Elke stap loopt in
+# een eigen pls/oh no zodat één fout de rest niet stopt.
 such run_recurring much req:
     such cfg = req["ctx"]["config"]
     such store = req["ctx"]["store"]

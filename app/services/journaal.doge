@@ -4,12 +4,7 @@ so nap
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
-# De enige plek die journaalposten schrijft (ARCHITECTURE §0). store komt als
-# parameter binnen; deze service importeert de store nooit (blijft testbaar).
-# Bedragen: Str in de regels (de ongebruikte debet/credit-kant is ""), Decimal
-# in de rekenkant. Alle btw-rekenwerk gaat via btw.doge (Hard Rule 5).
-
-# Een tijdvak is dicht zodra er een ingediende Aangifte voor bestaat (Hard Rule 3).
+# Een ingediende aangifte vergrendelt het tijdvak (Hard Rule 3).
 such tijdvak_open much aangiften, d:
     such tv = "Q{datum.kwartaal(d)}"
     such j = datum.jaar(d)
@@ -19,7 +14,6 @@ such tijdvak_open much aangiften, d:
     return true
 wow
 
-# Invariant 0: som(debet) == som(credit), op de cent.
 such balans_klopt much regels:
     such debet = dec("0")
     such credit = dec("0")
@@ -75,8 +69,6 @@ such controleer_boekdatum much d, vandaag:
         bonk "boekdatum {d} ligt meer dan een jaar in de toekomst"
 wow
 
-# Weigert (bonk) bij een ongeldige of verre toekomstige datum, te weinig regels, onbalans,
-# een ongeldige regel of een vergrendeld tijdvak.
 such controleer_post much post, rek_lijst, aangiften:
     such d = post["datum"]
     datum.controleer(d)
@@ -112,7 +104,6 @@ such nummer_post much store, post:
     return post
 wow
 
-# Valideer + persisteer een gebalanceerde post. Audit vóór de state-write.
 such bewaar much store, post:
     controleer_post(post, rekeningen.alle(store), store.laad("aangiften", []))
     such lijst = store.laad("journaal", [])
@@ -140,9 +131,7 @@ such bewaar_alle much store, posten:
     return posten
 wow
 
-# Koppel een bijlage-id aan een bestaande post. journaal.doge is de enige schrijver
-# van journaalposten, dus de tijdvak-lock (Hard Rule 3) wordt hier bewaakt. Bijlagen
-# aan een post in een ingediend tijdvak hangen is muteren en dus verboden.
+# Een bijlage hangen aan een post in een ingediend tijdvak is muteren (Hard Rule 3).
 such koppel_bijlage much store, post_id, bijlage_id:
     such lijst = store.laad("journaal", [])
     such post = none
@@ -163,10 +152,7 @@ such koppel_bijlage much store, post_id, bijlage_id:
     return post
 wow
 
-# --- Sjabloonflows: bouwen een gebalanceerde post, persisteren niet. ---
-
-# Inkoop: de btw_code zit op de ene grondslagregel (de kostenregel); de btw- en
-# crediteurenregels dragen geen code en bestaan alleen voor de balans.
+# Alleen de kostenregel draagt de btw_code; btw- en crediteurenregels bestaan voor de balans.
 such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, kosten_rek:
     such ex = geld.rond2(bedrag_ex)
     such c = btw.info(code)
@@ -174,16 +160,14 @@ such inkoop_post much datum_s, leverancier, omschrijving, bedrag_ex, code, koste
     such regels = []
     regels.append({"rekening": kosten_rek, "debet": str(ex), "credit": "", "btw_code": code})
     if c["zelf"]:
-        # btw verlegd naar mij: factuur is exclusief; ik draag zelf af én trek voor
+        # verlegd: factuur is exclusief, zelf afdragen én voorbelasting
         regels.append({"rekening": rekeningen.REK_VOORBELASTING, "debet": str(bb), "credit": "", "btw_code": none})
         regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(ex), "btw_code": none})
         regels.append({"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(bb), "btw_code": none})
     elif c["aftrek"]:
-        # gewone NL-voorbelasting: factuur inclusief btw
         regels.append({"rekening": rekeningen.REK_VOORBELASTING, "debet": str(bb), "credit": "", "btw_code": none})
         regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(geld.rond2(ex + bb)), "btw_code": none})
     else:
-        # geen_btw: alleen kosten tegen crediteuren
         regels.append({"rekening": rekeningen.REK_CREDITEUREN, "debet": "", "credit": str(ex), "btw_code": none})
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": leverancier, "regels": regels, "bron": "handmatig", "bijlage_ids": []}
 wow
@@ -199,7 +183,7 @@ such inkoop_btw_code much rek_lijst, kosten_rek, code:
     return rek["btw_code"]
 wow
 
-# Bank/privé: geld dat via privé de zaak in of uit gaat. kant = "storting" | "onttrekking".
+# kant: "storting" of "onttrekking".
 such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
     if rekening == rekeningen.REK_PRIVE:
         bonk "kies een tegenrekening, niet de privérekening {rekeningen.REK_PRIVE} zelf"
@@ -214,11 +198,8 @@ such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": "", "regels": regels, "bron": "bank", "bijlage_ids": []}
 wow
 
-# Privégebruik: btw-correctie over privégebruik van zakelijke goederen/diensten. Economisch
-# verhuist alleen de btw (per saldo: debet privé, credit af te dragen); de grondslag (privé-waarde)
-# staat als self-nettend memo-paar op REK_PRIVE zodat btw.rubrieken 1d + 5a kan afleiden zonder de
-# omzet te vervuilen (btw-rekenwerk via btw.doge, Hard Rule 5). Boekdatum in Q4 (laatste aangifte
-# van het jaar); bewaar() bewaakt balans + tijdvak-lock.
+# Per saldo verhuist alleen de btw; de grondslag staat als self-nettend memo-paar op REK_PRIVE,
+# zodat 1d meetelt zonder de omzet te vervuilen.
 such privegebruik_post much datum_s, grondslag_ex:
     datum.controleer(datum_s)
     if datum.kwartaal(datum_s) != 4:
@@ -236,12 +217,10 @@ such privegebruik_post much datum_s, grondslag_ex:
     return {"datum": datum_s, "omschrijving": "Privégebruik {j}", "relatie": "", "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
 wow
 
-# Vrije memoriaalpost: rauwe regels erin; bewaar() dwingt de balans-invariant af.
 such memoriaal_post much datum_s, omschrijving, relatie, regels:
     return {"datum": datum_s, "omschrijving": omschrijving, "relatie": relatie, "regels": regels, "bron": "memoriaal", "bijlage_ids": []}
 wow
 
-# Alle waarden van veld (bv. mollie_payment_id) die al op een journaalpost staan (idempotentie-scan).
 such geboekte_sleutels much store, veld:
     such uit = []
     for p in store.laad("journaal", []):
@@ -250,7 +229,6 @@ such geboekte_sleutels much store, veld:
     return uit
 wow
 
-# De post met dit id uit een lijst, of none.
 such zoek_post much lijst, id:
     for p in lijst:
         if p["id"] == id:
@@ -258,7 +236,7 @@ such zoek_post much lijst, id:
     return none
 wow
 
-# Een herboeking na een storno nettoot in het suppletie-signaal tegen het ingediende tijdvak van de oorspronkelijke post.
+# Een herboeking na een storno nettoot in het suppletie-signaal tegen het oorspronkelijke tijdvak.
 such markeer_correctie much store, post, van_id:
     such orig = zoek_post(store.laad("journaal", []), van_id)
     if orig == none:
@@ -270,9 +248,7 @@ such markeer_correctie much store, post, van_id:
     return post
 wow
 
-# Tegenboeking (storno) van een bestaande post: elke regel gespiegeld (debet<->credit),
-# btw_code en btw_bedrag behouden zodat de rubriek terugdraait. Gedateerd in het OPEN tijdvak; bewaar()
-# dwingt balans + tijdvak-lock af. Zo corrigeer je een vergrendeld tijdvak (Hard Rule 3).
+# btw_code en btw_bedrag blijven staan zodat de rubriek terugdraait; gedateerd in het open tijdvak.
 such storno_post much oorspronkelijke_post, datum_s:
     such oid = oorspronkelijke_post["id"]
     such regels = []

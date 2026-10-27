@@ -1,6 +1,6 @@
 so strings
 
-# Request-level guard tegen CSRF en DNS rebinding. De host-allow-list komt van de caller.
+# Guard tegen CSRF en DNS rebinding.
 
 so VEILIGE_METHODES = ["GET", "HEAD", "OPTIONS"]
 so LOOPBACK = ["127.0.0.1", "localhost", "[::1]"]

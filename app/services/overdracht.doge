@@ -5,26 +5,18 @@ so strings
 so bijlagen
 so journaal
 
-# Overdracht tussen instances: de volledige administratie als één JSON-bundel exporteren
-# en die op een verse instance importeren. store komt als parameter binnen; deze service
-# importeert de store nooit. Alle writes lopen via de store (Hard Rule 4).
-#
-# Bundel: {formaat, versie, gemaakt_op, collecties: {naam: waarde}, bestanden: {bijlage-id: base64},
-# audit: rauwe audit.dsonl-tekst}. Bedragen blijven Decimal-as-string, precies zoals in data/.
-#
-# Importeren mag alleen op een instance zonder administratie: nooit iets overschrijven
-# (Hard Rule 3), en een tweede import van dezelfde bundel boekt niets dubbel (Hard Rule 2).
+# Import alleen op een instance zonder administratie: nooit iets overschrijven, en een tweede
+# import van dezelfde bundel boekt niets dubbel.
 
 so FORMAAT = "boekhond-export"
 so VERSIE = 1
 
-# Elke collectie in data/ (DATA-MODEL §1), in schrijfvolgorde bij een import. De laatste vier
-# vormen de administratie: zolang die niet geschreven zijn blijft een afgebroken import herhaalbaar.
+# Schrijfvolgorde bij import. Zolang de laatste vier (de administratie) niet geschreven zijn,
+# blijft een afgebroken import herhaalbaar.
 so COLLECTIES = ["tellers", "instellingen", "rekeningen", "terugkerend", "aangiften", "journaal", "bijlagen"]
 so ADMINISTRATIE = ["terugkerend", "aangiften", "journaal", "bijlagen"]
 
-# Bodycap voor de import-upload (de bundel draagt alle bijlagen als base64). De rest van de
-# app houdt de gewone cap uit web/http.doge.
+# Eigen bodycap: de bundel draagt alle bijlagen als base64.
 so MAX_IMPORT_BYTES = 268435456
 
 such is_leeg much store:
@@ -34,7 +26,6 @@ such is_leeg much store:
     return true
 wow
 
-# De volledige administratie als JSON-tekst. Bijlagen lezen via hun opgeslagen pad.
 such exporteer much store:
     such collecties = {}
     for naam in COLLECTIES:
@@ -46,8 +37,7 @@ such exporteer much store:
     return json.emit(bundel)
 wow
 
-# Parse + valideer een bundel volledig vóór er iets geschreven wordt. Geeft
-# {collecties, bestanden: {id: Bytes}, audit, gemaakt_op}; bonkt bij elke afwijking.
+# Valideert alles vóór er iets geschreven wordt.
 such lees much tekst:
     such bundel = none
     pls
@@ -98,9 +88,7 @@ such leeg_als_none much collecties, naam:
     return collecties[naam]
 wow
 
-# Importeer een bundel op een lege instance. Volgorde: valideren, audit (historie uit de
-# bundel + één import-event), bestanden, collecties. Rekeningschema en instellingen van
-# deze instance worden vervangen door die uit de bundel. Geeft de aantallen terug.
+# Rekeningschema en instellingen van deze instance worden vervangen door die uit de bundel.
 such importeer much store, tekst:
     if not is_leeg(store):
         bonk "deze instance heeft al een administratie; importeren kan alleen op een lege instance"

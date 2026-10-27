@@ -5,8 +5,7 @@ so "../services/rekeningen.doge"
 so "../services/btw.doge"
 so weergave
 
-# Rekeningschema tonen + beheren. Alle dynamische waarden ge-escaped (Hard Rule 6);
-# statische structuur is vast. Nooit verwijderen — deactiveren (Hard Rule 3).
+# Nooit verwijderen, alleen deactiveren (bewaarplicht).
 
 such type_opties:
     such opties = []

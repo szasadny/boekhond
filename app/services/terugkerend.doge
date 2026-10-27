@@ -5,17 +5,8 @@ so wisselkoers
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
-# Terugkerende kosten: vaste maandlasten (bv. abonnementen van buiten de EU, btw
-# verlegd -> rubriek 4a + 5b) als kostensjabloon beheren en per maand automatisch
-# boeken. De generator bouwt met journaal.inkoop_post en persisteert via journaal.bewaar
-# (single writer, Hard Rule 4); de btw-splitsing hangt aan de btw_code (Hard Rule 5).
-# Idempotent per sjabloon+maand via het terugkerend_sleutel-veld (Hard Rule 2) — exact
-# het mollie-patroon. store komt als parameter binnen; nooit geïmporteerd (testbaar).
-# Bedragen zijn instance-data en leven in data/terugkerend.dson, nooit in source.
-# Een sjabloon heeft een valuta (EUR | USD); bedrag_ex staat in die valuta. Een niet-EUR
-# sjabloon wordt bij het boeken omgerekend met de live koers van een koersbron
-# (wisselkoers.Wise in productie, een stub in tests); koers + vreemd bedrag gaan als
-# audit-metadata mee op de journaalpost.
+# Idempotent per sjabloon+maand via terugkerend_sleutel. Een niet-EUR sjabloon wordt bij het boeken
+# omgerekend met een live koers; koers + vreemd bedrag gaan als audit-metadata mee op de post.
 
 # Oude sjablonen hebben geen valuta-veld: die zijn EUR.
 such valuta_van much s:
@@ -79,7 +70,7 @@ such voeg_toe much store, sjabloon:
     return sjabloon
 wow
 
-# Nooit verwijderen (Hard Rule 3) — deactiveren bewaart de historie.
+# Nooit verwijderen (bewaarplicht): deactiveren bewaart de historie.
 such deactiveer much store, id:
     such lijst = store.laad("terugkerend", [])
     such s = zoek(lijst, id)
@@ -103,15 +94,8 @@ such activeer much store, id:
     store.commit("terugkerend", lijst, "geactiveerd", "kostensjabloon", id, s)
 wow
 
-# Boek de kostenpost van de huidige maand voor elk actief sjabloon dat aan de beurt is:
-# op/na zijn dag, niet vóór zijn vanaf-maand, en nog niet geboekt deze maand. Alleen de
-# lopende maand (geen backfill van gemiste maanden). Getriggerd door de knop en de
-# scheduler-pup. koersbron (object met koers(van, naar) -> {koers, tijd, bron}, of none)
-# is alleen nodig voor niet-EUR sjablonen; de koers wordt pas opgehaald als er echt
-# geboekt wordt. Geen koersbron of een koersfout -> fout-melding, sjabloon blijft
-# ongeboekt (de volgende run probeert opnieuw; idempotentie blijft via de sleutel).
-# Een weigering van bewaar (bv. inactieve rekening) gaat ook naar fouten en blokkeert de rest niet.
-# Retourneert {geboekt, overgeslagen, fouten}.
+# Alleen de lopende maand, geen backfill. Een koersfout of geweigerde post gaat naar fouten en
+# blokkeert de rest niet; de volgende run probeert opnieuw (idempotent via de sleutel).
 such genereer much store, vandaag, koersbron:
     such maand = vandaag[0:7]
     such dagnu = datum.dag(vandaag)

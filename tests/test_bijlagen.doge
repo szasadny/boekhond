@@ -24,7 +24,6 @@ such deel much filename, data:
     return {"name": "bewijs", "filename": filename, "content_type": "application/octet-stream", "data": data}
 wow
 
-# Een gebalanceerde memoriaalpost in een open tijdvak (Q3 2026).
 such maak_post much s:
     return maak_post_op(s, "2026-07-10")
 wow
@@ -47,7 +46,6 @@ such groter_dan much n:
     return bytes([0] * (n + 1))
 wow
 
-# Test-setup: leg een bronfile in de gemounte data/import/-map ({TMPMAP}/import/).
 such drop much naam, data:
     such map = fetch.join(TMPMAP, "import")
     fetch.make_dir(map)
@@ -372,7 +370,6 @@ such test_scan_zonder_map:
     schoon()
 wow
 
-# Store waarvan de importmap een bestand meldt dat niet te lezen is (IOError).
 many OnleesbareImport:
     such import_lijst:
         return ["weg.pdf"]

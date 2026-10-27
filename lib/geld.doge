@@ -4,9 +4,8 @@ so hunt
 # Sanity-grens tegen tikfouten en overflow-achtige invoer; geen fiscale grens.
 so MAX_BEDRAG = dec("999999999.99")
 
-# Rekenkundig afronden (half-up, weg van nul) op 2 decimalen. Het resultaat heeft altijd precies
-# twee decimalen in de tekstvorm: een product als 20.00 x 0.86215 houdt anders zijn schaal
-# ("17.2400000") en dat zou zo als string in de journaalregel belanden.
+# Half-up, weg van nul. Altijd twee decimalen: 20.00 x 0.86215 houdt anders schaal "17.2400000"
+# en die belandt zo als string in de journaalregel.
 such rond2 much bedrag:
     such neg = bedrag < 0
     such a = bedrag
@@ -26,8 +25,7 @@ such rond2 much bedrag:
     return dec("{teken}{euro}.{cc}")
 wow
 
-# Regel-bedrag uit de store naar Decimal: "" of none is de ongebruikte
-# debet/credit-kant en telt als nul. Houdt Decimal↔Str op één plek (Hard Rule 1).
+# "" of none is de ongebruikte debet/credit-kant en telt als nul.
 such bedrag much s:
     if s == "" or s == none:
         return dec("0")
@@ -60,7 +58,7 @@ such binnen_grens much bedrag:
     return bedrag <= MAX_BEDRAG and bedrag >= 0 - MAX_BEDRAG
 wow
 
-# Canonieke Decimal-string uit de services of de store ("1234.50"), geen NL-invoer.
+# Canonieke store-string ("1234.50"), geen NL-invoer; daarvoor is parse.
 such waarde much s:
     if s == none or strings.trim(s) == "":
         bonk "bedrag ontbreekt"
@@ -69,7 +67,6 @@ such waarde much s:
     return dec(s)
 wow
 
-# Geeft altijd twee decimalen met duizendtallen terug, bv. "1.234,50".
 such formatteer much bedrag:
     such b = rond2(bedrag)
     such neg = b < 0

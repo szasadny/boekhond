@@ -55,7 +55,6 @@ such test_parse_ambigu_geweigerd:
     amaze gevangen
     amaze geld.parse("1500") == dec("1500")
 wow
-# rond2: half-up op centen met precies twee decimalen in de tekstvorm (geen "17.2400000").
 # Nul toont Doge altijd als "0", ongeacht de schaal.
 such test_rond2_tekstvorm:
     such gevallen = [["17.2400000", "17.24"], ["8.6255", "8.63"], ["-8.6255", "-8.63"], ["0.005", "0.01"], ["3", "3.00"], ["0.1", "0.10"], ["-0.001", "0"], ["20.00", "20.00"]]
@@ -84,7 +83,6 @@ such test_waarde:
     amaze melding_van(geld.waarde, "abc") == "ongeldig bedrag: abc"
 wow
 
-# Precies twee decimalen in de opgeslagen string, ook voor deling-resten en korte invoer.
 such test_rond2_opslagvorm:
     such gevallen = [["8.264462809917355371900826446280991735537190082644628099173553719008264462809917355371900826446280992", "8.26"], ["259.2600", "259.26"], ["2.1", "2.10"], ["10", "10.00"], ["1234.567", "1234.57"], ["999999999.99", "999999999.99"]]
     for g in gevallen:
