@@ -135,7 +135,7 @@ such koppel much store, bijlage_id, post_id:
             very huidig = geclaimd[bijlage_id]
             b["journaalpost_id"] = huidig
             store.commit("bijlagen", lijst, "gekoppeld", "bijlage", bijlage_id, {"journaalpost_id": huidig})
-    # Alleen vanuit de inbox: omhangen haalt bewijs weg bij een mogelijk vergrendelde post (Hard Rule 3).
+    # Alleen vanuit de inbox: omhangen haalt bewijs weg bij een mogelijk vergrendelde post.
     if huidig == post_id:
         return b
     if huidig != none:

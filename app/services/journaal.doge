@@ -4,7 +4,7 @@ so nap
 so "../../lib/datum.doge"
 so "../../lib/geld.doge"
 
-# Een ingediende aangifte vergrendelt het tijdvak (Hard Rule 3).
+# Een ingediende aangifte vergrendelt het tijdvak.
 such tijdvak_open much aangiften, d:
     such tv = "Q{datum.kwartaal(d)}"
     such j = datum.jaar(d)
@@ -131,7 +131,7 @@ such bewaar_alle much store, posten:
     return posten
 wow
 
-# Een bijlage hangen aan een post in een ingediend tijdvak is muteren (Hard Rule 3).
+# Een bijlage hangen aan een post in een ingediend tijdvak is muteren.
 such koppel_bijlage much store, post_id, bijlage_id:
     such lijst = store.laad("journaal", [])
     such post = none

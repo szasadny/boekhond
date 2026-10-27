@@ -51,7 +51,7 @@ such afgewezen much status, tekst:
     return {"afgewezen": tekst_response(status, tekst)}
 wow
 
-# recv_line meldt zowel een overschreden max als ongeldige UTF-8 als IOError.
+# howl meldt te lange regel, ongeldige UTF-8 en timeout allemaal als IOError.
 such regel_te_lang much err:
     return strings.contains(err.message, "line exceeded")
 wow

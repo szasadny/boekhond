@@ -1,7 +1,7 @@
 so "../../lib/geld.doge"
 so "../../lib/datum.doge"
 
-# Per code het rubriek-gedrag uit docs/DATA-MODEL.md §2. aftrek: btw telt ook in 5b;
+# Per code het rubriek-gedrag. aftrek: btw telt ook in 5b;
 # zelf: btw zelf aangegeven, niet aan de wederpartij betaald (incl = ex).
 so CODES = {
     "hoog_21": {"soort": "verkoop", "pct": 21, "grondslag": "1a", "btw": "1a", "aftrek": false, "zelf": false, "label": "Omzet 21%", "uitleg": "Verkoop met 21% btw. Telt in rubriek 1a."},

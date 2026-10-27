@@ -92,7 +92,7 @@ such voeg_toe much store, invoer:
     return rekening
 wow
 
-# Nooit verwijderen: deactiveren bewaart de historie (Hard Rule 3).
+# Nooit verwijderen: deactiveren bewaart de historie.
 such deactiveer much store, nummer:
     such lijst = store.laad("rekeningen", [])
     such r = zoek(lijst, nummer)

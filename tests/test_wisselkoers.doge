@@ -34,7 +34,7 @@ such test_lees_koers_nul_bonkt:
     amaze mislukt
 wow
 
-# Exponent-notatie (kon de oude regex-stopgap niet aan) wordt een exacte Decimal.
+# Exponent-notatie wordt een exacte Decimal.
 such test_lees_koers_exponent:
     such k = wisselkoers.lees_koers("[\{\"rate\":8.6215E-1,\"time\":\"t\"\}]")
     amaze k["koers"] == dec("0.86215")

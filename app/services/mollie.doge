@@ -252,7 +252,7 @@ such betaal_index much posten:
     return idx
 wow
 
-# De link zit op de refund-post, zodat de betaal-post in een ingediend tijdvak onaangeroerd blijft (Hard Rule 3).
+# De link zit op de refund-post, zodat de betaal-post in een ingediend tijdvak onaangeroerd blijft.
 such koppel_betaling much post, refund, betaal_posten:
     if veld(refund, ["paymentId"]) == none:
         return post
@@ -263,7 +263,7 @@ such koppel_betaling much post, refund, betaal_posten:
 wow
 
 # Refund-posten die geboekt zijn voordat hun payment een post had. De betaal-post krijgt de link
-# bij het aanmaken, zodat een refund-post in een ingediend tijdvak nooit muteert (Hard Rule 3).
+# bij het aanmaken, zodat een refund-post in een ingediend tijdvak nooit muteert.
 such ongekoppelde_refunds much posten:
     such idx = {}
     for p in posten:

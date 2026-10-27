@@ -47,7 +47,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 | A user-facing (Dutch) error or label string | constants at the top of the owning handler/service — one home per string, no duplicates |
 | A config value / secret | `.env`, read once at boot in `main.doge` into a config Dict passed down — never `env.get` scattered through the code |
 | A background/periodic action | the scheduler pup in `main.doge` → loopback POST `/internal/<naam>` handler (§5.2) — never a sleep loop inside the request path |
-| A language-gap stopgap | `lib/` with a `# stopgap for doge#NN` comment (Hard Rule 11) |
+| A language-gap stopgap | `lib/`, tracked by a Boekhond issue that links the DogeLanguage/doge ticket (Hard Rule 11) |
 | A test | `tests/test_<module>.doge` — table-driven for fiscal rules |
 
 ---
@@ -58,7 +58,7 @@ Authoritative reference for the system's shape. Jump to the section you need and
 2. **Single source of truth.** Fiscal rules in `btw.doge`, persistence in `store.doge`, escaping in `html.doge`. Duplication of a fiscal rule is a compliance bug, not just debt.
 3. **Boring beats clever.** One user, tiny data volume: sequential request handling, JSON files, server-rendered HTML. Complexity needs a demonstrated reason.
 4. **Audit-first.** Every mutation is an append to `audit.dsonl` before it is state. The administratie must be reconstructable (bewaarplicht).
-5. **The language is young — push gaps upstream.** A missing primitive becomes a DogeLanguage/doge ticket + minimal marked stopgap (Hard Rule 11), so this app makes the language better instead of accumulating workarounds.
+5. **The language is young — push gaps upstream.** A missing primitive becomes a DogeLanguage/doge ticket + minimal stopgap tracked by a Boekhond issue (Hard Rule 11), so this app makes the language better instead of accumulating workarounds.
 
 ---
 

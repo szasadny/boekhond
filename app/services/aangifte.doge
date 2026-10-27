@@ -50,7 +50,7 @@ such is_ingediend much aangiften, j, kw:
 wow
 
 # Per oorspronkelijk ingediend tijdvak genetteerd, zodat storno plus herboeking alleen het verschil telt;
-# boven de drempel is suppletie verplicht (DATA-MODEL §3.4).
+# boven de drempel is suppletie verplicht.
 such suppletie_signaal much store, j, kw:
     such posten = store.laad("journaal", [])
     such aangiften = store.laad("aangiften", [])
