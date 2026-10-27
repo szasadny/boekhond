@@ -385,7 +385,7 @@ such doen_inhoud much store, cfg, ov, melding:
         if tj < j or (tj == j and tkw < kw):
             such tehref = "/aangifte/doen?j={tj}&kw={tkw}"
             such tlink = html.link(tehref, "Naar Q{tkw}-{tj}")
-            such status = " Termijn verstreken." if t["te_laat"] else ""
+            such status = weergave.termijn_markering(t["te_laat"])
             very items = items + "<li>Eerder tijdvak Q{tkw}-{tj} is nog niet ingediend.{status} {tlink}</li>"
     such checklist = "<ul>{items}</ul>"
     such ban = banners(ov)

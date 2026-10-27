@@ -35,6 +35,14 @@ such maak_post_op much s, datum_s:
     return journaal.bewaar(s, post)
 wow
 
+such pdf_data:
+    return bytes("%PDF-1.4 test")
+wow
+
+such png_data:
+    return bytes([137, 80, 78, 71, 13, 10, 26, 10, 0])
+wow
+
 such groter_dan much n:
     return bytes([0] * (n + 1))
 wow
@@ -52,7 +60,7 @@ wow
 
 such test_bewaar_geldig_pdf:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("factuur.pdf", bytes([37, 80, 68, 70, 1])), "upload")
+    such m = bijlagen.bewaar(s, deel("factuur.pdf", bytes("%PDF-")), "upload")
     amaze m["id"] == "b-1"
     amaze m["journaalpost_id"] == none
     amaze m["bron"] == "upload"
@@ -67,7 +75,7 @@ wow
 
 such test_audit_geschreven:
     such s = verse()
-    bijlagen.bewaar(s, deel("bon.png", bytes([1, 2, 3])), "upload")
+    bijlagen.bewaar(s, deel("bon.png", png_data()), "upload")
     such inhoud = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
     amaze strings.contains(inhoud, "geupload")
     amaze strings.contains(inhoud, "bijlage")
@@ -120,7 +128,7 @@ wow
 
 such test_koppel_zet_beide_kanten:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
     such post = maak_post(s)
     bijlagen.koppel(s, m["id"], post["id"])
     such bl = bijlagen.zoek(bijlagen.alle(s), m["id"])
@@ -133,7 +141,7 @@ wow
 
 such test_koppel_vergrendeld_bonkt:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
     such post = maak_post(s)
     s.bewaar("aangiften", [{"id": "a-1", "jaar": 2026, "tijdvak": "Q3", "status": "ingediend"}])
     such gevangen = false
@@ -148,7 +156,7 @@ wow
 
 such test_koppel_omhangen_geweigerd:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
     such eerste = maak_post(s)
     such tweede = maak_post(s)
     bijlagen.koppel(s, m["id"], eerste["id"])
@@ -167,7 +175,7 @@ wow
 
 such test_koppel_omhangen_uit_vergrendeld_tijdvak_geweigerd:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
     such oud = maak_post_op(s, "2026-07-10")
     such nieuw = maak_post_op(s, "2026-10-05")
     bijlagen.koppel(s, m["id"], oud["id"])
@@ -186,7 +194,7 @@ wow
 
 such test_koppel_zelfde_post_opnieuw_is_noop:
     such s = verse()
-    such m = bijlagen.bewaar(s, deel("f.pdf", bytes([1, 2])), "upload")
+    such m = bijlagen.bewaar(s, deel("f.pdf", pdf_data()), "upload")
     such post = maak_post(s)
     bijlagen.koppel(s, m["id"], post["id"])
     such audit_voor = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
@@ -199,8 +207,8 @@ wow
 
 such test_inbox_filtert_gekoppelde:
     such s = verse()
-    bijlagen.bewaar(s, deel("a.pdf", bytes([1])), "upload")
-    such tweede = bijlagen.bewaar(s, deel("b.pdf", bytes([2])), "upload")
+    bijlagen.bewaar(s, deel("a.pdf", pdf_data()), "upload")
+    such tweede = bijlagen.bewaar(s, deel("b.pdf", pdf_data()), "upload")
     amaze len(bijlagen.inbox(s)) == 2
     such post = maak_post(s)
     bijlagen.koppel(s, tweede["id"], post["id"])
@@ -238,10 +246,43 @@ such test_scan_slaat_ongeldig_over:
     drop("notitie.txt", bytes("hallo"))
     such res = bijlagen.scan_import(s)
     amaze res["geimporteerd"] == 0
-    amaze len(res["overgeslagen"]) == 1
-    amaze fetch.exists(import_pad("notitie.txt"))
+    amaze res["overgeslagen"] == [{"naam": "notitie.txt", "reden": "bestandstype niet toegestaan: txt"}]
+    amaze not fetch.exists(import_pad("notitie.txt"))
+    amaze fetch.read(fetch.join(fetch.join(TMPMAP, "import/overgeslagen"), "notitie.txt")) == "hallo"
     amaze len(bijlagen.inbox(s)) == 0
+    such audit = fetch.read(fetch.join(TMPMAP, "audit.dsonl"))
+    amaze strings.contains(audit, "import-overgeslagen")
+    amaze strings.contains(audit, "import/overgeslagen/notitie.txt")
+    such tweede = bijlagen.scan_import(s)
+    amaze tweede["overgeslagen"] == []
     schoon()
+wow
+
+such test_scan_overgeslagen_naamconflict_overschrijft_niet:
+    such s = verse()
+    drop("x.exe", bytes("een"))
+    bijlagen.scan_import(s)
+    drop("x.exe", bytes("twee"))
+    bijlagen.scan_import(s)
+    such map = fetch.join(TMPMAP, "import/overgeslagen")
+    amaze fetch.read(fetch.join(map, "x.exe")) == "een"
+    amaze fetch.read(fetch.join(map, "1-x.exe")) == "twee"
+    schoon()
+wow
+
+such test_scan_negeert_dotfiles:
+    such s = verse()
+    drop(".DS_Store", bytes([0, 0, 0, 1]))
+    such res = bijlagen.scan_import(s)
+    amaze res == {"geimporteerd": 0, "overgeslagen": []}
+    amaze fetch.exists(import_pad(".DS_Store"))
+    schoon()
+wow
+
+such test_scan_samenvatting:
+    amaze bijlagen.scan_samenvatting({"geimporteerd": 2, "overgeslagen": []}) == "2 geimporteerd"
+    such res = {"geimporteerd": 0, "overgeslagen": [{"naam": "a.exe", "reden": "bestandstype niet toegestaan: exe"}, {"naam": "b.pdf", "reden": "leeg bestand"}]}
+    amaze bijlagen.scan_samenvatting(res) == "0 geimporteerd, 2 overgeslagen: a.exe (bestandstype niet toegestaan: exe), b.pdf (leeg bestand)"
 wow
 
 such test_scan_zonder_map:
@@ -271,9 +312,13 @@ such test_scan_onleesbaar_bestand_geeft_vaste_reden:
 wow
 
 such upload_req much s, filename:
+    return upload_req_met(s, filename, pdf_data())
+wow
+
+such upload_req_met much s, filename, data:
     such grens = "X-GRENS-7"
     such kop = "--{grens}\r\nContent-Disposition: form-data; name=\"bestand\"; filename=\"{filename}\"\r\nContent-Type: application/octet-stream\r\n\r\n"
-    such body = bytes(kop) + bytes("inhoud") + bytes("\r\n--{grens}--\r\n")
+    such body = bytes(kop) + data + bytes("\r\n--{grens}--\r\n")
     return {"ctx": {"store": s, "config": {}}, "headers": {"content-type": ["multipart/form-data; boundary={grens}"]}, "body": body, "params": {}}
 wow
 
@@ -335,5 +380,75 @@ wow
 such test_posten_datalist_escaped:
     such h = bijlagen_h.posten_datalist([["j-1", "2026-07-10 <b>&"]])
     amaze h == "<datalist id=\"koppelbare-posten\"><option value=\"j-1\">2026-07-10 &lt;b&gt;&amp;</option></datalist>"
+wow
+
+such test_magic_bytes_per_extensie:
+    such jpeg = bytes([255, 216, 255, 224, 0, 16])
+    such gevallen = [["a.pdf", pdf_data(), true], ["a.PDF", bytes([0] * 100) + pdf_data(), true], ["a.pdf", bytes([0] * 1024) + pdf_data(), false], ["virus.pdf", bytes("MZ program"), false], ["a.png", png_data(), true], ["ruis.PNG", bytes([1, 2, 3, 4, 5, 6, 7, 8, 9]), false], ["a.jpg", jpeg, true], ["a.jpeg", jpeg, true], ["a.jpg", png_data(), false], ["a.png", jpeg, false], ["kort.png", bytes([137, 80]), false]]
+    for g in gevallen:
+        such goed = true
+        pls
+            bijlagen.valideer(deel(g[0], g[1]))
+        oh no err!
+            very goed = false
+            amaze err.type == "Bonk"
+            amaze strings.contains(err.message, "inhoud is geen geldig")
+        amaze goed == g[2], g[0]
+wow
+
+such test_zonder_bestand_vraagt_om_bestand:
+    for naam in ["", none]:
+        pls
+            bijlagen.valideer(deel(naam, bytes("")))
+            amaze false
+        oh no err!
+            amaze err.message == "kies een bestand"
+wow
+
+such test_bewaar_alle_slaat_niets_op_bij_fout:
+    such s = verse()
+    such gevangen = false
+    pls
+        bijlagen.bewaar_alle(s, [deel("goed.pdf", pdf_data()), deel("fout.png", pdf_data())], "upload")
+    oh no err!
+        very gevangen = true
+    amaze gevangen
+    amaze len(bijlagen.alle(s)) == 0
+    amaze not fetch.exists(fetch.join(TMPMAP, "uploads"))
+    such beide = bijlagen.bewaar_alle(s, [deel("a.pdf", pdf_data()), deel("b.png", png_data())], "upload")
+    amaze len(beide) == 2
+    amaze len(bijlagen.inbox(s)) == 2
+    schoon()
+wow
+
+such test_upload_handler_zonder_bestand:
+    such s = verse()
+    such resp = bijlagen_h.upload(upload_req_met(s, "", bytes("")))
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "kies een bestand")
+    amaze not strings.contains(resp["body"], "bestandstype niet toegestaan")
+    schoon()
+wow
+
+such test_upload_handler_weigert_vermomd_bestand:
+    such s = verse()
+    such resp = bijlagen_h.upload(upload_req_met(s, "virus.pdf", bytes("MZ program")))
+    amaze resp["status"] == 400
+    amaze strings.contains(resp["body"], "inhoud is geen geldig pdf-bestand")
+    amaze len(bijlagen.alle(s)) == 0
+    schoon()
+wow
+
+such test_inbox_rij_escaped_eenmaal:
+    such h = bijlagen_h.inbox_rij({"id": "b-1", "bestandsnaam_origineel": "Factuur A&B 'q'.pdf"})
+    amaze strings.contains(h, ">Factuur A&amp;B &#39;q&#39;.pdf</a>")
+    amaze not strings.contains(h, "&amp;amp;")
+wow
+
+such test_content_disposition:
+    amaze bijlagen_h.content_disposition("factuur.pdf") == "attachment; filename=\"factuur.pdf\""
+    amaze bijlagen_h.content_disposition("a\"b.pdf") == "attachment; filename=\"ab.pdf\""
+    amaze bijlagen_h.content_disposition("bon café 1.pdf") == "attachment; filename=\"bon caf_ 1.pdf\"; filename*=UTF-8''bon%20caf%C3%A9%201.pdf"
+    amaze bijlagen_h.content_disposition("€.png") == "attachment; filename=\"_.png\"; filename*=UTF-8''%E2%82%AC.png"
 wow
 wow

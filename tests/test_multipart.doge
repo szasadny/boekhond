@@ -49,4 +49,21 @@ such test_lege_body_geen_parts:
     amaze len(p["bestanden"]) == 0
     amaze len(p["velden"].keys()) == 0
 wow
+such bonkt_bij_parse much body:
+    pls
+        multipart.parse(body, "B")
+    oh no err!
+        return err.type == "Bonk"
+    return false
+wow
+
+such test_niet_utf8_tekstveld_bonkt:
+    such kop = "--B{CRLF}Content-Disposition: form-data; name=\"omschrijving\"{CRLF}{CRLF}"
+    amaze bonkt_bij_parse(bytes(kop) + "ff".from_hex() + bytes("{CRLF}--B--{CRLF}"))
+wow
+
+such test_niet_utf8_part_header_bonkt:
+    such kop = bytes("--B{CRLF}Content-Disposition: form-data; name=\"") + "ff".from_hex()
+    amaze bonkt_bij_parse(kop + bytes("\"{CRLF}{CRLF}x{CRLF}--B--{CRLF}"))
+wow
 wow

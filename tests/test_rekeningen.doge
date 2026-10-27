@@ -195,4 +195,23 @@ such test_rij_systeemrekening_zonder_deactiveerknop:
     such kantoor = rekeningen.zoek(rekeningen.STANDAARD, "4200")
     amaze strings.contains(rekeningen_h.rij(kantoor), "deactiveer")
 wow
+
+such test_voeg_toe_laat_invoer_ongemoeid:
+    schoon()
+    such s = store.Store(TMPMAP)
+    rekeningen.seed(s)
+    such invoer = {"nummer": " 4600 ", "naam": " Reiskosten ", "type": "kosten", "btw_code": none}
+    such r = rekeningen.voeg_toe(s, invoer)
+    amaze r["nummer"] == "4600" and r["naam"] == "Reiskosten"
+    amaze invoer["nummer"] == " 4600 " and invoer["naam"] == " Reiskosten "
+    amaze not invoer.has("actief")
+    schoon()
+wow
+
+such test_type_opties_volgen_types:
+    such opties = rekeningen_h.type_opties()
+    amaze len(opties) == len(rekeningen.TYPES)
+    for i in range(len(opties)):
+        amaze opties[i] == [rekeningen.TYPES[i], rekeningen.TYPES[i]]
+wow
 wow

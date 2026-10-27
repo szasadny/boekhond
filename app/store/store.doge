@@ -4,6 +4,7 @@ so nap
 so strings
 
 so IMPORT_MAP = "import"
+so OVERGESLAGEN_MAP = "overgeslagen"
 
 # Enige toegang tot data/ (Hard Rule 4): atomic writes + audit-append.
 # Bedragen komen hier altijd als Str binnen — dson.emit van een Decimal is een TypeError.
@@ -69,6 +70,21 @@ many Store:
     such import_verwijder much naam:
         such map = fetch.join(self.dir, IMPORT_MAP)
         fetch.delete(fetch.join(map, naam))
+    wow
+
+    # Nooit verwijderen (bewaarplicht); geparkeerd zodat een volgende scan hem niet opnieuw meldt.
+    such import_overslaan much naam, reden:
+        such map = fetch.join(fetch.join(self.dir, IMPORT_MAP), OVERGESLAGEN_MAP)
+        fetch.make_dir(map)
+        such doelnaam = naam
+        such n = 1
+        while fetch.exists(fetch.join(map, doelnaam)):
+            very doelnaam = "{n}-{naam}"
+            very n = n + 1
+        such relpad = "{IMPORT_MAP}/{OVERGESLAGEN_MAP}/{doelnaam}"
+        self.audit("import-overgeslagen", "importbestand", naam, {"reden": reden, "pad": relpad})
+        fetch.rename(fetch.join(fetch.join(self.dir, IMPORT_MAP), naam), fetch.join(map, doelnaam))
+        return relpad
     wow
 
     # Append-only, vóór elke bewaar-aanroep door de caller (bewaarplicht).

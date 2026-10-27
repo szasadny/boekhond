@@ -63,9 +63,8 @@ such zoek much lijst, nummer:
     return none
 wow
 
-such voeg_toe much store, rekening:
-    rekening["nummer"] = strings.trim(rekening["nummer"])
-    rekening["naam"] = strings.trim(rekening["naam"])
+such voeg_toe much store, invoer:
+    such rekening = {"nummer": strings.trim(invoer["nummer"]), "naam": strings.trim(invoer["naam"]), "type": invoer["type"], "btw_code": invoer["btw_code"], "actief": true}
     if rekening["nummer"] == "":
         bonk "rekeningnummer is verplicht"
     # Het nummer staat in URL-paden (/rekeningen/{nummer}/deactiveer).
@@ -83,7 +82,6 @@ such voeg_toe much store, rekening:
     if rekening["btw_code"] != none and not btw.bestaat(rekening["btw_code"]):
         such c = rekening["btw_code"]
         bonk "onbekende btw-code: {c}"
-    rekening["actief"] = true
     lijst.append(rekening)
     store.commit("rekeningen", lijst, "aangemaakt", "rekening", rekening["nummer"], rekening)
     return rekening

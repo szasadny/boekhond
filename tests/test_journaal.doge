@@ -333,7 +333,7 @@ such test_detail_toont_regels_bijlagen_en_storno:
     such s = verse_store()
     such post = journaal.memoriaal_post("2026-07-15", "<b>kantoor</b>", "", [{"rekening": "4200", "debet": "121", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "121", "btw_code": none}])
     such orig = journaal.bewaar(s, post)
-    such b = bijlagen.bewaar(s, {"filename": "bon.pdf", "data": bytes("%PDF")}, "upload")
+    such b = bijlagen.bewaar(s, {"filename": "bon.pdf", "data": bytes("%PDF-1.4")}, "upload")
     bijlagen.koppel(s, b["id"], orig["id"])
     journaal.storneer(s, orig["id"], "2026-07-20")
     such h = journaal_h.detail(detail_req(s, orig["id"]))["body"]
@@ -428,6 +428,68 @@ such test_sjabloonflows_melden_ontbrekende_invoer:
     oh no err!
         meldingen.append(err.message)
     amaze meldingen == ["bedrag ontbreekt", "bedrag ontbreekt", "datum ontbreekt", "ongeldige datum (JJJJ-MM-DD): 2026-14-01"]
+wow
+
+such test_storno_form_onbekende_post_is_404:
+    such s = verse_store()
+    such resp = journaal_h.storno_form({"ctx": {"store": s}, "query": {"id": ["j-99"]}})
+    amaze resp["status"] == 404
+    amaze "Onbekende post: j-99" in resp["body"]
+    such orig = journaal.bewaar(s, journaal.memoriaal_post("2026-07-15", "kantoor", "", [{"rekening": "4200", "debet": "121", "credit": "", "btw_code": none}, {"rekening": "1100", "debet": "", "credit": "121", "btw_code": none}]))
+    amaze journaal_h.storno_form({"ctx": {"store": s}, "query": {"id": [orig["id"]]}})["status"] == 200
+    schoon()
+wow
+such test_sjabloonflows_slaan_twee_decimalen_op:
+    such p = journaal.inkoop_post("2026-07-15", "Lev", "x", "10", "voorbelasting_hoog", "4200")
+    amaze [p["regels"][0]["debet"], p["regels"][1]["debet"], p["regels"][2]["credit"]] == ["10.00", "2.10", "12.10"]
+    such q = journaal.prive_post("2026-07-15", "x", "1100", "259.2600", "storting")
+    amaze q["regels"][0]["debet"] == "259.26"
+wow
+
+such test_boekdatum_hoogstens_een_jaar_vooruit:
+    such gevallen = [["2026-10-27", "2026-10-27", ""], ["2027-10-27", "2026-10-27", ""], ["2027-10-28", "2026-10-27", "boekdatum 2027-10-28 ligt meer dan een jaar in de toekomst"], ["2020-01-01", "2026-10-27", ""], ["2028-02-28", "2027-02-28", ""], ["2028-02-29", "2027-02-28", "boekdatum 2028-02-29 ligt meer dan een jaar in de toekomst"], ["2029-02-28", "2028-02-29", ""], ["2029-03-01", "2028-02-29", "boekdatum 2029-03-01 ligt meer dan een jaar in de toekomst"]]
+    for g in gevallen:
+        such melding = ""
+        pls
+            journaal.controleer_boekdatum(g[0], g[1])
+        oh no err!
+            very melding = err.message
+        amaze melding == g[2], g[0]
+wow
+
+such test_bewaar_weigert_verre_toekomst:
+    such s = verse_store()
+    such d = "{datum.jaar(datum.vandaag()) + 2}-01-01"
+    such p = journaal.memoriaal_post(d, "x", "", [regel("4200", "50", "", none), regel("1600", "", "50", none)])
+    amaze weigering(s, p) == "boekdatum {d} ligt meer dan een jaar in de toekomst"
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
+wow
+
+such test_bewaar_weigert_te_groot_bedrag:
+    such s = verse_store()
+    such te_groot = memo([regel("4200", "1000000000.00", "", none), regel("1600", "", "1000000000.00", none)], "memoriaal")
+    amaze weigering(s, te_groot) == "bedrag op rekening 4200 is te groot (maximaal 999.999.999,99)"
+    such grens = memo([regel("4200", "999999999.99", "", none), regel("1600", "", "999999999.99", none)], "memoriaal")
+    amaze weigering(s, grens) == ""
+    schoon()
+wow
+
+such test_bank_prive_weigert_priverekening_als_tegenrekening:
+    for kant in ["storting", "onttrekking"]:
+        such melding = ""
+        pls
+            journaal.prive_post("2026-07-15", "x", rekeningen.REK_PRIVE, "50", kant)
+        oh no err!
+            very melding = err.message
+        amaze melding == "kies een tegenrekening, niet de privérekening 0900 zelf", kant
+    such s = verse_store()
+    amaze "value=\"0900\"" not in journaal_h.bank_inhoud(s, "")
+    amaze "value=\"1100\"" in journaal_h.bank_inhoud(s, "")
+    such resp = journaal_h.bank(post_req(s, "datum=2026-07-15&omschrijving=x&rekening=0900&bedrag=50&kant=storting"))
+    amaze resp["status"] == 400
+    amaze len(s.laad("journaal", [])) == 0
+    schoon()
 wow
 
 wow

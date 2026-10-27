@@ -16,6 +16,7 @@ many Router:
     wow
 
     # Geen path-match geeft 404; een verkeerde methode op een bestaand path geeft 405.
+    # HEAD matcht elke GET-route; http.bouw_response laat dan de body weg.
     such match much methode, path:
         such padsegs = strings.split(path, "/")
         such pad_matcht = false
@@ -39,10 +40,12 @@ many Router:
             if not ok:
                 continue
             very pad_matcht = true
-            if route[0] == methode:
+            if route[0] == methode or (methode == "HEAD" and route[0] == "GET"):
                 return {"handler": route[2], "params": params}
             if not toegestaan.contains(route[0]):
                 toegestaan.append(route[0])
+            if route[0] == "GET" and not toegestaan.contains("HEAD"):
+                toegestaan.append("HEAD")
         if pad_matcht:
             return {"response": methode_niet_toegestaan(toegestaan)}
         return {"response": http.tekst_response(404, "niet gevonden")}

@@ -51,10 +51,11 @@ such inbox much store:
     return uit
 wow
 
-# Valideer + persisteer een geüpload part {name, filename, content_type, data:Bytes}.
-# Weigert (bonk) bij verkeerde extensie, leeg bestand of overschrijding van de cap.
-such bewaar much store, part, bron:
-    such ext = ext_van(part["filename"])
+such valideer much part:
+    such naam = part["filename"]
+    if naam == none or strings.trim(naam) == "":
+        bonk "kies een bestand"
+    such ext = ext_van(naam)
     if not TOEGESTANE_EXT.contains(ext):
         bonk "bestandstype niet toegestaan: {ext}"
     such grootte = len(part["data"])
@@ -62,16 +63,46 @@ such bewaar much store, part, bron:
         bonk "leeg bestand"
     if grootte > MAX_BYTES:
         bonk "bestand te groot: {grootte} bytes (max {MAX_BYTES})"
+    if not inhoud_past(ext, part["data"]):
+        bonk "inhoud is geen geldig {ext}-bestand"
+    return ext
+wow
+
+# Magic bytes per extensie; een pdf mag volgens de spec tot 1024 bytes rommel voor %PDF hebben.
+such inhoud_past much ext, data:
+    if ext == "pdf":
+        such pos = data.find(bytes("%PDF-"))
+        return pos >= 0 and pos < 1024
+    if ext == "png":
+        return data[0:8] == bytes([137, 80, 78, 71, 13, 10, 26, 10])
+    return data[0:3] == bytes([255, 216, 255])
+wow
+
+# Valideer + persisteer een geüpload part {name, filename, content_type, data:Bytes}.
+such bewaar much store, part, bron:
+    such ext = valideer(part)
     such geupload_op = nap.stamp(nap.now())
     such jaar = geupload_op[0:4]
     such id = store.nieuw_id("b")
     such pad = "uploads/{jaar}/{id}.{ext}"
-    such meta = {"id": id, "journaalpost_id": none, "bron": bron, "bestandsnaam_origineel": part["filename"], "pad": pad, "mime": MIME[ext], "grootte_bytes": grootte, "geupload_op": geupload_op}
+    such meta = {"id": id, "journaalpost_id": none, "bron": bron, "bestandsnaam_origineel": part["filename"], "pad": pad, "mime": MIME[ext], "grootte_bytes": len(part["data"]), "geupload_op": geupload_op}
     such lijst = store.laad("bijlagen", [])
     store.bewaar_bestand(pad, part["data"])
     lijst.append(meta)
     store.commit("bijlagen", lijst, "geupload", "bijlage", id, meta)
     return meta
+wow
+
+# Eerst alles valideren, dan pas opslaan: één fout bestand laat geen half opgeslagen batch achter.
+such bewaar_alle much store, parts, bron:
+    if len(parts) == 0:
+        bonk "kies een bestand"
+    for p in parts:
+        valideer(p)
+    such uit = []
+    for p in parts:
+        uit.append(bewaar(store, p, bron))
+    return uit
 wow
 
 # Koppel een inbox-bijlage aan een journaalpost. journaal.doge schrijft de post
@@ -96,11 +127,14 @@ wow
 # Scan de gemounte data/import/-map: elk bestand wordt via bewaar een inbox-bijlage
 # (bron "import"), waarna de bronfile weg gaat zodat een tweede scan niets dubbel doet
 # (Hard Rule 2 via bronfile-verwijdering — bijlagen zijn geen boekingen, geen stored key).
-# Een ongeldig bestand (ext/leeg/te groot) blijft staan en komt in overgeslagen met reden.
+# Een geweigerd bestand gaat naar import/overgeslagen/ (nooit verwijderd) en wordt dus één keer
+# gemeld; een onleesbaar bestand blijft staan. Dotfiles (.DS_Store e.d.) worden genegeerd.
 such scan_import much store:
     such geimporteerd = 0
     such overgeslagen = []
     for naam in store.import_lijst():
+        if naam[0:1] == ".":
+            continue
         pls
             such data = store.laad_bestand("import/{naam}")
             such part = {"filename": naam, "data": data}
@@ -108,8 +142,26 @@ such scan_import much store:
             store.import_verwijder(naam)
             very geimporteerd = geimporteerd + 1
         oh no err!
-            such reden = err.message if err.type == "Bonk" else "bestand niet te verwerken"
-            overgeslagen.append({"naam": naam, "reden": reden})
+            if err.type == "Bonk":
+                store.import_overslaan(naam, err.message)
+                overgeslagen.append({"naam": naam, "reden": err.message})
+            else:
+                overgeslagen.append({"naam": naam, "reden": "bestand niet te verwerken"})
     return {"geimporteerd": geimporteerd, "overgeslagen": overgeslagen}
+wow
+
+such scan_samenvatting much res:
+    such n = res["geimporteerd"]
+    such tekst = "{n} geimporteerd"
+    such over = res["overgeslagen"]
+    if len(over) > 0:
+        such delen = []
+        for o in over:
+            such nm = o["naam"]
+            such rd = o["reden"]
+            delen.append("{nm} ({rd})")
+        such k = len(over)
+        very tekst = tekst + ", {k} overgeslagen: " + strings.join(delen, ", ")
+    return tekst
 wow
 wow

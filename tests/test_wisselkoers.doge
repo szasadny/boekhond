@@ -64,4 +64,14 @@ such test_omreken_tabel:
         such uit = wisselkoers.omreken(dec(g[0]), dec(g[1]))
         amaze str(uit) == g[2], "omreken {g}"
 wow
+
+such test_wise_onbereikbaar_bonkt:
+    such err = none
+    pls
+        wisselkoers.haal_koers("t", "http://127.0.0.1:1/v1/rates?source=USD&target=EUR")
+    oh no e!
+        very err = e
+    amaze err.type == "Bonk"
+    amaze err.message == "Wise is niet bereikbaar"
+wow
 wow

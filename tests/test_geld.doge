@@ -84,4 +84,29 @@ such test_waarde:
     amaze melding_van(geld.waarde, "abc") == "ongeldig bedrag: abc"
 wow
 
+# Precies twee decimalen in de opgeslagen string, ook voor deling-resten en korte invoer.
+such test_rond2_opslagvorm:
+    such gevallen = [["8.264462809917355371900826446280991735537190082644628099173553719008264462809917355371900826446280992", "8.26"], ["259.2600", "259.26"], ["2.1", "2.10"], ["10", "10.00"], ["1234.567", "1234.57"], ["999999999.99", "999999999.99"]]
+    for g in gevallen:
+        amaze str(geld.rond2(dec(g[0]))) == g[1], g[0]
+    amaze str(geld.rond2(dec("10.00") * 100 / 121)) == "8.26"
+    amaze str(geld.rond2(dec("313.70") * 100 / 121)) == "259.26"
+wow
+
+such test_parse_weigert_meer_dan_twee_decimalen:
+    amaze melding_van(geld.parse, "12,345") == "bedrag heeft meer dan twee decimalen: 12,345"
+    amaze melding_van(geld.parse, "1234.567") == "bedrag heeft meer dan twee decimalen: 1234.567"
+    amaze melding_van(geld.parse, "0,001") == "bedrag heeft meer dan twee decimalen: 0,001"
+    amaze geld.parse("12,3") == dec("12.30")
+    amaze geld.parse("12,35") == dec("12.35")
+wow
+
+such test_parse_bovengrens:
+    amaze geld.parse("999.999.999,99") == dec("999999999.99")
+    amaze geld.parse("-999.999.999,99") == dec("-999999999.99")
+    amaze melding_van(geld.parse, "1.000.000.000,00") == "bedrag te groot (maximaal 999.999.999,99): 1.000.000.000,00"
+    amaze melding_van(geld.parse, "-1000000000") == "bedrag te groot (maximaal 999.999.999,99): -1000000000"
+    amaze melding_van(geld.parse, "99999999999999999999999,99") == "bedrag te groot (maximaal 999.999.999,99): 99999999999999999999999,99"
+wow
+
 wow

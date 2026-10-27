@@ -22,12 +22,21 @@ such overzicht_inhoud much store, cfg, melding:
     such lstxt = "nog niet gesynct"
     if ls != none:
         very lstxt = html.escape(ls)
+    such posten = mollie_posten(store)
+    such payment_van = {}
+    for p in posten:
+        if p.has("mollie_payment_id"):
+            payment_van[p["id"]] = p["mollie_payment_id"]
     such rijen = []
-    for p in mollie_posten(store):
+    for p in posten:
         such pid = ""
         if p.has("mollie_payment_id"):
             very pid = p["mollie_payment_id"]
-        such incl = geld.formatteer(geld.bedrag(p["regels"][0]["debet"]))
+        elif p.has("refund_van") and payment_van.has(p["refund_van"]):
+            very pid = payment_van[p["refund_van"]]
+        # Een refund staat credit op de bank en verschijnt dus negatief.
+        such bank = p["regels"][0]
+        such incl = geld.formatteer(geld.bedrag(bank["debet"]) - geld.bedrag(bank["credit"]))
         rijen.append([p["datum"], p["omschrijving"], incl, pid])
     such tabel = html.tabel(["Datum", "Omschrijving", "Bedrag", "Payment"], rijen, [2])
     such actie = ""
@@ -53,9 +62,9 @@ such sync much req:
         if key == none:
             bonk "geen MOLLIE_API_KEY geconfigureerd"
         such res = mollie.sync(store, key)
-        if len(res["verschoven"]) == 0 and len(res["vergrendeld"]) == 0 and len(res["geweigerd"]) == 0 and len(res["mislukt"]) == 0:
-            return http.redirect("/mollie")
-        such m = ""
+        such n_geweigerd = len(res["vergrendeld"]) + len(res["geweigerd"]) + len(res["mislukt"])
+        such samenvatting = html.escape(weergave.boek_samenvatting(res["geboekt"], n_geweigerd))
+        such m = "<p>{samenvatting}</p>"
         if len(res["verschoven"]) > 0:
             such vs = strings.join(res["verschoven"], ", ")
             very m = m + weergave.fout("Eigen tijdvak al ingediend, geboekt in het open tijdvak: {vs}.")

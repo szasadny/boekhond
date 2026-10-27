@@ -40,7 +40,7 @@ such gevulde_bron:
     such p = memoriaal(s, "2025-11-03", "1250.00")
     such b = bijlagen.bewaar(s, {"filename": "bon.pdf", "data": bytes(PDF)}, "upload")
     bijlagen.koppel(s, b["id"], p["id"])
-    bijlagen.bewaar(s, {"filename": "inbox.png", "data": bytes([137, 80, 78, 71, 0, 255])}, "upload")
+    bijlagen.bewaar(s, {"filename": "inbox.png", "data": bytes([137, 80, 78, 71, 13, 10, 26, 10, 0, 255])}, "upload")
     terugkerend.voeg_toe(s, {"leverancier": "Test", "omschrijving": "Abonnement", "kosten_rek": "4000", "btw_code": "import_buiten_eu", "bedrag_ex": "20.00", "dag": 1, "vanaf": "2026-01"})
     aangifte.dien_in(s, 2025, 4)
     return s

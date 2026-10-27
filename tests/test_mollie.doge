@@ -462,4 +462,69 @@ such test_mollie_post_zonder_refund_storneerbaar:
     amaze post_met(s, "storno_van", bp["id"]) != none
     schoon()
 wow
+
+so KAPOTTE_PAGINAS = {"leeg": {"count": 0}, "ander_soort": {"_embedded": {"refunds": []}}, "tekst": {"_embedded": "x"}, "lijst": []}
+
+such nep_kapot much key, url:
+    return KAPOTTE_PAGINAS[url]
+wow
+
+such test_haal_alle_zonder_embedded_bonkt:
+    for url in KAPOTTE_PAGINAS:
+        such fout = ""
+        pls
+            mollie.haal_alle(nep_kapot, "k", url, "payments")
+        oh no err!
+            very fout = err.message
+        amaze fout == "ongeldig antwoord van Mollie"
+wow
+
+such test_volgende_url_onverwachte_vorm:
+    amaze mollie.volgende_url({"_links": {"next": "p2"}}) == none
+    amaze mollie.volgende_url({"_links": []}) == none
+wow
+
+such test_kapotte_payment_blokkeert_batch_niet:
+    such s = verse_store()
+    such zonder_amount = betaling("tr_a", "12.10")
+    zonder_amount.remove("amount")
+    such kapot_bedrag = betaling("tr_b", "abc")
+    such zonder_paid_at = betaling("tr_c", "12.10")
+    zonder_paid_at["paidAt"] = none
+    such zonder_oms = betaling("tr_d", "12.10")
+    zonder_oms.remove("description")
+    such zonder_id = betaling("tr_e", "12.10")
+    zonder_id.remove("id")
+    such lijst = [zonder_amount, kapot_bedrag, zonder_paid_at, zonder_oms, zonder_id, "geen object", betaling("tr_1", "12.10")]
+    such res = mollie.boek_betalingen(s, lijst)
+    amaze res["geboekt"] == 1
+    amaze res["mislukt"] == ["tr_a (ongeldig antwoord van Mollie: amount ontbreekt of is ongeldig)", "tr_b (ongeldig antwoord van Mollie: amount ontbreekt of is ongeldig)", "tr_c (ongeldig antwoord van Mollie: paidAt ontbreekt of is ongeldig)", "tr_d (ongeldig antwoord van Mollie: description ontbreekt of is ongeldig)", "? (ongeldig antwoord van Mollie: id of status ontbreekt)", "? (ongeldig antwoord van Mollie: id of status ontbreekt)"]
+    amaze len(audit_regels("mollie-mislukt")) == 6
+    amaze len(s.laad("journaal", [])) == 1
+    schoon()
+wow
+
+such test_kapotte_refund_blokkeert_batch_niet:
+    such s = verse_store()
+    such zonder_datum = refund_sample("re_a")
+    zonder_datum["createdAt"] = "gisteren"
+    such zonder_status = refund_sample("re_b")
+    zonder_status.remove("status")
+    such res = mollie.boek_refund_lijst(s, [zonder_datum, zonder_status, refund_sample("re_1")])
+    amaze res["geboekt"] == 1
+    amaze res["mislukt"] == ["re_a (ongeldig antwoord van Mollie: createdAt ontbreekt of is ongeldig)", "re_b (ongeldig antwoord van Mollie: id of status ontbreekt)"]
+    schoon()
+wow
+
+such test_inkomsten_toont_refund_negatief_met_payment:
+    such s = verse_store()
+    mollie.boek_betalingen(s, [betaling("tr_1", "12.10")])
+    such r = refund_sample("re_1")
+    r["paymentId"] = "tr_1"
+    mollie.boek_refund_lijst(s, [r])
+    such h = mollie_h.overzicht_inhoud(s, {"mollie_key": none}, "")
+    amaze strings.contains(h, "<td>SaaS abonnement</td><td class=\"num\">12,10</td><td>tr_1</td>")
+    amaze strings.contains(h, "<td>Refund re_1</td><td class=\"num\">-12,10</td><td>tr_1</td>")
+    schoon()
+wow
 wow

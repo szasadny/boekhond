@@ -114,6 +114,9 @@ wow
 such jaaroverzicht much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such jo = rapporten.jaaroverzicht(store, j)
     such body = ""
     for k in jo["kwartalen"]:
@@ -133,6 +136,9 @@ wow
 such jaaroverzicht_csv much req:
     such store = req["ctx"]["store"]
     such j = jaar_uit(req)
+    such fout = weergave.tijdvak_fout(store, j, 1)
+    if fout != none:
+        return fout
     such jo = rapporten.jaaroverzicht(store, j)
     such rijen = []
     for k in jo["kwartalen"]:

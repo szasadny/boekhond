@@ -8,13 +8,13 @@ so "../../lib/datum.doge"
 # Mollie-import: betaalde payments (+ refunds) ophalen en als gebalanceerde omzet-posten
 # boeken (21% -> rubriek 1a), idempotent per mollie_payment_id / mollie_refund_id (§4.2/4.3).
 # Netwerk zit in de haal_*-functies; de mapping + boeking zijn puur/store-only en getest.
-# Getriggerd door de handmatige knop (mollie_h) en straks de scheduler-pup (Fase 5).
+# Getriggerd door de handmatige knop (mollie_h) en de scheduler (intern_h).
 
 so BASIS = "https://api.mollie.com/v2"
-so TEGENREKENING = "1100"
 so VALUTA = "EUR"
 so LIMIET = 250
 so MAX_PAGINAS = 200
+so VORMFOUTEN = ["KeyError", "TypeError", "ValueError", "IndexOutOfBounds", "AttrError"]
 
 # --- Netwerk ---
 such haal_json much key, url:
@@ -50,7 +50,10 @@ such haal_alle much haal, key, url, soort:
         if paginas >= MAX_PAGINAS:
             bonk "Mollie {soort}: meer dan {MAX_PAGINAS} pagina's, sync afgebroken"
         such data = haal(key, volgende)
-        for x in data["_embedded"][soort]:
+        such items = veld(data, ["_embedded", soort])
+        if items == none:
+            bonk "ongeldig antwoord van Mollie"
+        for x in items:
             uit.append(x)
         very paginas = paginas + 1
         very volgende = volgende_url(data)
@@ -58,12 +61,7 @@ such haal_alle much haal, key, url, soort:
 wow
 
 such volgende_url much data:
-    if not data.has("_links"):
-        return none
-    such links = data["_links"]
-    if not links.has("next") or links["next"] == none:
-        return none
-    return links["next"]["href"]
+    return veld(data, ["_links", "next", "href"])
 wow
 
 such haal_betalingen much key:
@@ -75,8 +73,36 @@ such haal_refunds much key:
 wow
 
 # --- Pure mapping ---
-such datum_van much iso:
-    return datum.lokale_datum(iso)
+# Een Mollie-antwoord kan velden missen of een ander type hebben: none in plaats van een KeyError.
+such veld much obj, pad:
+    such v = obj
+    pls
+        for k in pad:
+            very v = v[k]
+    oh no err!
+        if not VORMFOUTEN.contains(err.type):
+            bonk err
+        return none
+    return v
+wow
+
+such gebrek much item, velden, datumveld:
+    for v in velden:
+        if veld(item, [v]) == none:
+            return v
+    pls
+        dec(veld(item, ["amount", "value"]))
+    oh no err!
+        if not VORMFOUTEN.contains(err.type):
+            bonk err
+        return "amount"
+    pls
+        datum.lokale_datum(item[datumveld])
+    oh no err!
+        if not VORMFOUTEN.contains(err.type):
+            bonk err
+        return datumveld
+    return none
 wow
 
 # Geen koersconversie: een niet-EUR bedrag als euro boeken vervalst rubriek 1a.
@@ -98,9 +124,9 @@ such betaling_naar_post much betaling:
     such split = btw.splits_incl(incl, "hoog_21")
     such ex = split[0]
     such vat = split[1]
-    such d = datum_van(betaling["paidAt"])
+    such d = datum.lokale_datum(betaling["paidAt"])
     such pid = betaling["id"]
-    such regels = [{"rekening": rekeningen.REK_BANK, "debet": str(incl), "credit": "", "btw_code": none}, {"rekening": "8000", "debet": "", "credit": str(ex), "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(vat), "btw_code": none}]
+    such regels = [{"rekening": rekeningen.REK_BANK, "debet": str(incl), "credit": "", "btw_code": none}, {"rekening": rekeningen.REK_OMZET_HOOG, "debet": "", "credit": str(ex), "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": "", "credit": str(vat), "btw_code": none}]
     return {"datum": d, "omschrijving": betaling["description"], "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_payment_id": pid, "bijlage_ids": []}
 wow
 
@@ -114,9 +140,9 @@ such refund_naar_post much refund:
     such split = btw.splits_incl(incl, "hoog_21")
     such ex = split[0]
     such vat = split[1]
-    such d = datum_van(refund["createdAt"])
+    such d = datum.lokale_datum(refund["createdAt"])
     such rid = refund["id"]
-    such regels = [{"rekening": rekeningen.REK_BANK, "debet": "", "credit": str(incl), "btw_code": none}, {"rekening": "8000", "debet": str(ex), "credit": "", "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": str(vat), "credit": "", "btw_code": none}]
+    such regels = [{"rekening": rekeningen.REK_BANK, "debet": "", "credit": str(incl), "btw_code": none}, {"rekening": rekeningen.REK_OMZET_HOOG, "debet": str(ex), "credit": "", "btw_code": "hoog_21", "btw_bedrag": str(vat)}, {"rekening": rekeningen.REK_AF_TE_DRAGEN, "debet": str(vat), "credit": "", "btw_code": none}]
     return {"datum": d, "omschrijving": "Refund {rid}", "relatie": "Mollie", "regels": regels, "bron": "mollie", "mollie_refund_id": rid, "bijlage_ids": []}
 wow
 
@@ -127,6 +153,11 @@ such weiger much store, soort, id, vv, geweigerd:
     geweigerd.append("{id} ({vv})")
 wow
 
+such meld_mislukt much store, soort, id, reden, mislukt:
+    store.audit("mollie-mislukt", soort, id, {"reden": reden})
+    mislukt.append("{id} ({reden})")
+wow
+
 # Een weigering van bewaar (bv. inactieve rekening) mag de rest van de batch niet blokkeren.
 such probeer_bewaar much store, post, soort, id, mislukt:
     pls
@@ -135,9 +166,26 @@ such probeer_bewaar much store, post, soort, id, mislukt:
     oh no err!
         if err.type != "Bonk":
             bonk err
-        store.audit("mollie-mislukt", soort, id, {"reden": err.message})
-        mislukt.append("{id} ({err.message})")
+        meld_mislukt(store, soort, id, err.message, mislukt)
         return false
+wow
+
+# Zonder id of status valt een item niet te boeken of over te slaan.
+such ongeldig_item much store, item, soort, mislukt:
+    such id = veld(item, ["id"])
+    if id == none or veld(item, ["status"]) == none:
+        meld_mislukt(store, soort, "?" if id == none else id, "ongeldig antwoord van Mollie: id of status ontbreekt", mislukt)
+        return true
+    return false
+wow
+
+such ongeldige_velden much store, item, soort, velden, datumveld, mislukt:
+    such g = gebrek(item, velden, datumveld)
+    if g == none:
+        return false
+    such id = item["id"]
+    meld_mislukt(store, soort, id, "ongeldig antwoord van Mollie: {g} ontbreekt of is ongeldig", mislukt)
+    return true
 wow
 
 # Ingediend tijdvak is op slot (Hard Rule 3): boek als correctie in het open tijdvak van vandaag.
@@ -161,9 +209,13 @@ such boek_betalingen much store, betalingen:
     such geweigerd = []
     such mislukt = []
     for b in betalingen:
+        if ongeldig_item(store, b, "mollie-payment", mislukt):
+            continue
         such pid = b["id"]
         if b["status"] != "paid" or gezien.contains(pid):
             very overgeslagen = overgeslagen + 1
+            continue
+        if ongeldige_velden(store, b, "mollie-payment", ["description"], "paidAt", mislukt):
             continue
         such vv = vreemde_valuta(b["amount"])
         if vv != none:
@@ -216,9 +268,13 @@ such boek_refund_lijst much store, refunds:
     such geweigerd = []
     such mislukt = []
     for r in refunds:
+        if ongeldig_item(store, r, "mollie-refund", mislukt):
+            continue
         such rid = r["id"]
         if r["status"] != "refunded" or gezien.contains(rid):
             very overgeslagen = overgeslagen + 1
+            continue
+        if ongeldige_velden(store, r, "mollie-refund", [], "createdAt", mislukt):
             continue
         such vv = vreemde_valuta(r["amount"])
         if vv != none:
@@ -262,6 +318,6 @@ such sync much store, key:
     such pres = boek_betalingen(store, betalingen)
     such rres = boek_refund_lijst(store, haal_refunds(key))
     onthoud_sync(store)
-    return {"betalingen": pres, "refunds": rres, "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"], "mislukt": pres["mislukt"] + rres["mislukt"]}
+    return {"betalingen": pres, "refunds": rres, "geboekt": pres["geboekt"] + rres["geboekt"], "verschoven": pres["verschoven"] + rres["verschoven"], "vergrendeld": pres["vergrendeld"] + rres["vergrendeld"], "geweigerd": pres["geweigerd"] + rres["geweigerd"], "mislukt": pres["mislukt"] + rres["mislukt"]}
 wow
 wow

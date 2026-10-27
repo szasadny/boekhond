@@ -47,6 +47,14 @@ such parse_part_headers much blok:
     return {"naam": naam, "filename": filename, "content_type": content_type}
 wow
 
+# Een bonk (geen ValueError) zodat handlers een kapotte upload als 400 tonen.
+such tekst much b:
+    pls
+        return b.decode()
+    oh no err!
+        bonk "ongeldig formulier: geen geldige UTF-8-tekst"
+wow
+
 # Parse een multipart/form-data body (Bytes) met de gegeven boundary (Str).
 such parse much body, boundary:
     such velden = {}
@@ -66,13 +74,13 @@ such parse much body, boundary:
         if sep == -1:
             very i = i + 1
             continue
-        such h = parse_part_headers(deel[0:sep].decode())
+        such h = parse_part_headers(tekst(deel[0:sep]))
         such inhoud = deel[sep + 4:]
         if h["naam"] == none:
             very i = i + 1
             continue
         if h["filename"] == none:
-            such waarde = inhoud.decode()
+            such waarde = tekst(inhoud)
             if velden.has(h["naam"]):
                 velden[h["naam"]].append(waarde)
             else:

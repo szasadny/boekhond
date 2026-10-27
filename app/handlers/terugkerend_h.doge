@@ -94,7 +94,10 @@ such toevoegen much req:
     such store = req["ctx"]["store"]
     such v = forms.decode(req["body"])
     pls
-        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": weergave.bedrag_str(forms.enkel(v, "bedrag_ex", "")), "valuta": forms.enkel(v, "valuta", "EUR"), "dag": forms.geheel(v, "dag", 1), "vanaf": forms.enkel(v, "vanaf", "")}
+        such dag = forms.geheel(v, "dag", none)
+        if dag == none:
+            bonk "dag van de maand moet een geheel getal tussen 1 en 28 zijn"
+        such sjabloon = {"leverancier": forms.enkel(v, "leverancier", ""), "omschrijving": forms.enkel(v, "omschrijving", ""), "kosten_rek": forms.enkel(v, "kosten_rek", ""), "btw_code": forms.enkel(v, "btw_code", ""), "bedrag_ex": weergave.bedrag_str(forms.enkel(v, "bedrag_ex", "")), "valuta": forms.enkel(v, "valuta", "EUR"), "dag": dag, "vanaf": forms.enkel(v, "vanaf", "")}
         terugkerend.voeg_toe(store, sjabloon)
         return http.redirect("/terugkerend")
     oh no err!
@@ -146,12 +149,12 @@ such genereer much req:
     such kb = koersbron_van(req["ctx"]["config"])
     pls
         such res = terugkerend.genereer(store, datum.vandaag(), kb)
-        if len(res["fouten"]) > 0:
-            such meldingen = ""
-            for f in res["fouten"]:
-                very meldingen = meldingen + weergave.fout(f)
-            return http.html_response(weergave.render("Kosten", inhoud_van(store, meldingen)), 400)
-        return http.redirect("/terugkerend")
+        such samenvatting = html.escape(weergave.boek_samenvatting(res["geboekt"], len(res["fouten"])))
+        such meldingen = "<p>{samenvatting}</p>"
+        for f in res["fouten"]:
+            very meldingen = meldingen + weergave.fout(f)
+        such status = 400 if len(res["fouten"]) > 0 else 200
+        return http.html_response(weergave.render("Kosten", inhoud_van(store, meldingen)), status)
     oh no err!
         return http.html_response(weergave.render("Kosten", inhoud_van(store, weergave.domeinfout(err))), 400)
 wow

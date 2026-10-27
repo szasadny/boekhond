@@ -4,8 +4,7 @@ so "../../lib/geld.doge"
 
 # Wisselkoersen voor terugkerende kosten in vreemde valuta (bv. USD-abonnementen).
 # De koers komt live van de Wise rates-API op het moment van boeken; de omrekening
-# naar EUR is Decimal-only (Hard Rule 1). Pure helpers (lees_koers, omreken) zijn
-# getest; het netwerkdeel (Wise.koers) niet, net als mollie.haal_*.
+# naar EUR is Decimal-only (Hard Rule 1).
 
 so VALUTA = ["EUR", "USD"]
 so WISE_BASIS = "https://api.wise.com/v1/rates"
@@ -36,6 +35,23 @@ such omreken much bedrag, koers:
     return geld.rond2(bedrag * koers)
 wow
 
+such haal_koers much token, url:
+    such opts = {"headers": {"Authorization": "Bearer {token}"}}
+    such resp = none
+    pls
+        very resp = howl.request("GET", url, opts)
+    oh no err!
+        if err.type != "IOError":
+            bonk err
+        bonk "Wise is niet bereikbaar"
+    such st = resp["status"]
+    if st != 200:
+        bonk "Wise API gaf status {st}"
+    such uit = lees_koers(resp["body"])
+    uit["bron"] = "wise"
+    return uit
+wow
+
 # Koersbron voor terugkerend.genereer: koers(van, naar) -> {koers, tijd, bron}.
 many Wise:
     such init much token:
@@ -43,21 +59,7 @@ many Wise:
     wow
 
     such koers much van, naar:
-        such tok = self.token
-        such opts = {"headers": {"Authorization": "Bearer {tok}"}}
-        such resp = none
-        pls
-            very resp = howl.request("GET", "{WISE_BASIS}?source={van}&target={naar}", opts)
-        oh no err!
-            if err.type != "IOError":
-                bonk err
-            bonk "Wise is niet bereikbaar"
-        such st = resp["status"]
-        if st != 200:
-            bonk "Wise API gaf status {st}"
-        such uit = lees_koers(resp["body"])
-        uit["bron"] = "wise"
-        return uit
+        return haal_koers(self.token, "{WISE_BASIS}?source={van}&target={naar}")
     wow
 wow
 wow

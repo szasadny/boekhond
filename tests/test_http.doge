@@ -19,6 +19,22 @@ such rond much req_txt:
     return req
 wow
 
+such rond_bytes much raw:
+    such server = howl.listen("127.0.0.1", 0)
+    such client = howl.connect("127.0.0.1", howl.port(server))
+    howl.send_bytes(client, raw)
+    such conn = howl.accept(server)
+    such req = http.parse_request(conn)
+    howl.close(conn)
+    howl.close(client)
+    howl.close(server)
+    return req
+wow
+
+such afgewezen_status much req:
+    return req["afgewezen"]["status"]
+wow
+
 such test_parse_post_body:
     such req = rond("POST /p?x=1&y=2 HTTP/1.1{CRLF}Host: local{CRLF}Content-Type: application/x-www-form-urlencoded{CRLF}Content-Length: 3{CRLF}{CRLF}abc")
     amaze req["method"] == "POST"
@@ -112,7 +128,43 @@ wow
 
 such test_oversize_body_geweigerd:
     such req = rond("POST /p HTTP/1.1{CRLF}Content-Length: 99999999{CRLF}{CRLF}")
-    amaze req.has("oversize")
+    amaze afgewezen_status(req) == 413
+wow
+
+such test_niet_utf8_tekstbody_geeft_400:
+    such kop = "POST /p HTTP/1.1{CRLF}Content-Type: application/x-www-form-urlencoded{CRLF}Content-Length: 3{CRLF}{CRLF}"
+    such req = rond_bytes(bytes(kop) + bytes("a=") + "ff".from_hex())
+    amaze afgewezen_status(req) == 400
+wow
+
+such test_niet_utf8_header_geeft_400:
+    such req = rond_bytes(bytes("GET / HTTP/1.1{CRLF}X-Kapot: ") + "ff".from_hex() + bytes("{CRLF}{CRLF}"))
+    amaze afgewezen_status(req) == 400
+wow
+
+such test_chunked_body_geweigerd:
+    such req = rond("POST /p HTTP/1.1{CRLF}Transfer-Encoding: chunked{CRLF}{CRLF}3{CRLF}abc{CRLF}0{CRLF}{CRLF}")
+    amaze afgewezen_status(req) == 411
+wow
+
+such test_headers_boven_cap_geven_431:
+    such lang = "a" * http.MAX_KOPPEN
+    such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {lang}{CRLF}{CRLF}")
+    amaze afgewezen_status(req) == 431
+wow
+
+such test_headers_onder_cap_toegestaan:
+    such lang = "a" * (http.MAX_KOPPEN - 20)
+    such req = rond("GET / HTTP/1.1{CRLF}X-Lang: {lang}{CRLF}{CRLF}")
+    amaze not req.has("afgewezen")
+    amaze len(req["headers"]["x-lang"][0]) == http.MAX_KOPPEN - 20
+wow
+
+such test_head_response_zonder_body:
+    such txt = http.bouw_response(http.html_response("€"), true).decode()
+    amaze strings.contains(txt, "Content-Length: 3{CRLF}")
+    amaze txt[-4:] == "{CRLF}{CRLF}"
+    amaze not strings.contains(txt, "€")
 wow
 
 such test_serveer_trage_client_blokkeert_niet:

@@ -1,6 +1,7 @@
 so strings
 so fetch
 so "../app/handlers/weergave.doge"
+so "../app/handlers/dashboard_h.doge"
 so "../app/store/store.doge"
 so "../lib/datum.doge"
 
@@ -83,5 +84,14 @@ such test_termijn_status:
     for g in gevallen:
         such uit = weergave.termijn_status(g[0], 2026, 1, g[1])
         amaze strings.contains(uit, "Termijn verstreken.") == g[2]
+wow
+
+such test_openstaand_banner_termijn:
+    such laat = dashboard_h.openstaand_banner([{"jaar": 2026, "kwartaal": 1, "deadline": "2026-04-30", "te_laat": true}])
+    amaze strings.contains(laat, "<p class=\"banner te-laat\">")
+    amaze strings.contains(laat, weergave.termijn_markering(true))
+    such optijd = dashboard_h.openstaand_banner([{"jaar": 2026, "kwartaal": 2, "deadline": "2026-07-31", "te_laat": false}])
+    amaze strings.contains(optijd, "<p class=\"banner\">")
+    amaze not strings.contains(optijd, "Termijn verstreken.")
 wow
 wow

@@ -4,6 +4,8 @@ so "../app/services/rapporten.doge"
 so "../app/services/aangifte.doge"
 so "../app/services/journaal.doge"
 so "../app/services/rekeningen.doge"
+so "../app/handlers/rapporten_h.doge"
+so "../lib/datum.doge"
 so "../lib/geld.doge"
 
 so TMPMAP = "tmp_test_rapporten"
@@ -94,6 +96,16 @@ such test_omzet_per_maand:
     amaze per[1] == dec("1500")
     amaze per[4] == dec("800")
     amaze per[0] == dec("0")
+    schoon()
+wow
+
+such test_jaaroverzicht_jaar_buiten_bereik:
+    such s = verse_store()
+    such huidig = datum.jaar(datum.vandaag())
+    for g in [[huidig - 2, 400], [huidig + 2, 400], [huidig, 200]]:
+        such req = {"ctx": {"store": s}, "query": {"j": [str(g[0])]}}
+        amaze rapporten_h.jaaroverzicht(req)["status"] == g[1]
+        amaze rapporten_h.jaaroverzicht_csv(req)["status"] == g[1]
     schoon()
 wow
 wow

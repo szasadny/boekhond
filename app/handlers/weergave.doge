@@ -52,10 +52,12 @@ such tijdvak_fout much store, j, kw:
     return none
 wow
 
+such termijn_markering much te_laat:
+    return " <strong class=\"fout\">Termijn verstreken.</strong>" if te_laat else ""
+wow
+
 such termijn_status much status, j, kw, vandaag:
-    if status != "ingediend" and aangifte.te_laat(j, kw, vandaag):
-        return " <strong class=\"fout\">Termijn verstreken.</strong>"
-    return ""
+    return termijn_markering(status != "ingediend" and aangifte.te_laat(j, kw, vandaag))
 wow
 
 # Redirect-doel na boeken, zodat je de post ziet.
@@ -118,5 +120,12 @@ such bedrag_str much rauw:
     if rauw == "":
         return ""
     return str(geld.rond2(geld.parse(rauw)))
+wow
+
+such boek_samenvatting much geboekt, geweigerd:
+    such uit = "1 post geboekt" if geboekt == 1 else "{geboekt} posten geboekt"
+    if geweigerd > 0:
+        very uit = uit + ", {geweigerd} geweigerd"
+    return uit + "."
 wow
 wow

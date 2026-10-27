@@ -362,8 +362,8 @@ such test_doen_eerdere_tijdvakken:
     journaal.bewaar(s, verkoop21("2026-05-15"))
     such ov = aangifte.overzicht(s, 2026, 2)
     such uit = aangifte_h.doen_inhoud(s, {"mollie_key": none}, ov, "")
-    amaze "Eerder tijdvak Q2-2025 is nog niet ingediend. Termijn verstreken." in uit
-    amaze "Eerder tijdvak Q1-2026 is nog niet ingediend. Termijn verstreken." in uit
+    amaze "Eerder tijdvak Q2-2025 is nog niet ingediend. <strong class=\"fout\">Termijn verstreken.</strong>" in uit
+    amaze "Eerder tijdvak Q1-2026 is nog niet ingediend. <strong class=\"fout\">Termijn verstreken.</strong>" in uit
     amaze "Eerder tijdvak Q2-2026" not in uit
     schoon()
 wow

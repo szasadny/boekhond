@@ -8,12 +8,17 @@ so weergave
 # Rekeningschema tonen + beheren. Alle dynamische waarden ge-escaped (Hard Rule 6);
 # statische structuur is vast. Nooit verwijderen — deactiveren (Hard Rule 3).
 
-so TYPE_OPTIES = [["activa", "activa"], ["passiva", "passiva"], ["eigen_vermogen", "eigen_vermogen"], ["omzet", "omzet"], ["kosten", "kosten"]]
+such type_opties:
+    such opties = []
+    for t in rekeningen.TYPES:
+        opties.append([t, t])
+    return opties
+wow
 
 such toevoeg_formulier much invoer = {}:
     such vn = html.veld("nummer", "Nummer", "text", forms.enkel(invoer, "nummer", ""))
     such vnaam = html.veld("naam", "Naam", "text", forms.enkel(invoer, "naam", ""))
-    such stype = html.select("type", TYPE_OPTIES, forms.enkel(invoer, "type", "kosten"))
+    such stype = html.select("type", type_opties(), forms.enkel(invoer, "type", "kosten"))
     such vtype = "<label>Type {stype}</label>"
     such sbtw = html.select("btw_code", weergave.btw_opties_leeg(), forms.enkel(invoer, "btw_code", ""))
     such vbtw = "<label>Btw-code {sbtw}</label>"

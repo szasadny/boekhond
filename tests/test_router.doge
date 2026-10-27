@@ -41,4 +41,22 @@ such test_405_verkeerde_methode:
     amaze resp["status"] == 405
     amaze strings.contains(resp["headers"]["Allow"], "GET")
 wow
+such test_head_volgt_get_route:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "HEAD", "path": "/journaal/b-3", "params": {}})
+    amaze resp["status"] == 200
+    amaze resp["body"] == "b-3"
+wow
+
+such test_head_niet_op_post_route:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "HEAD", "path": "/journaal", "params": {}})
+    amaze resp["status"] == 405
+wow
+
+such test_allow_noemt_head_bij_get:
+    such r = maak_router()
+    such resp = r.verwerk({"method": "DELETE", "path": "/health", "params": {}})
+    amaze resp["headers"]["Allow"] == "GET, HEAD"
+wow
 wow

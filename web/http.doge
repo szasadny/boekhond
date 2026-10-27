@@ -7,8 +7,9 @@ so nap
 # HTTP/1.1 parse + response-build. Domeinvrij; leest de request-line + headers met
 # recv_line en het body byte-accuraat met recv_bytes (Content-Length telt bytes).
 
-so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "413": "413 Payload Too Large", "500": "500 Internal Server Error"}
+so STATUS = {"200": "200 OK", "302": "302 Found", "303": "303 See Other", "400": "400 Bad Request", "401": "401 Unauthorized", "403": "403 Forbidden", "404": "404 Not Found", "405": "405 Method Not Allowed", "411": "411 Length Required", "413": "413 Payload Too Large", "431": "431 Request Header Fields Too Large", "500": "500 Internal Server Error"}
 so MAX_BODY = 12582912
+so MAX_KOPPEN = 16384
 so HTML = "text/html; charset=utf-8"
 so PLAIN = "text/plain; charset=utf-8"
 so CSV = "text/csv; charset=utf-8"
@@ -47,10 +48,18 @@ such parse_cookies much headers:
     return cookies
 wow
 
+such afgewezen much status, tekst:
+    return {"afgewezen": tekst_response(status, tekst)}
+wow
+
 # Parse één request van conn. none als de verbinding sluit vóór een request-line.
 # caps = {pad: max-bytes} voor routes die een grotere body mogen dan MAX_BODY.
 such parse_request much conn, caps = {}:
-    such regel = howl.recv_line(conn)
+    such regel = none
+    pls
+        very regel = howl.recv_line(conn)
+    oh no err!
+        return afgewezen(400, "ongeldige request-line")
     if regel == none or regel == "":
         return none
     such delen = strings.split(regel, " ")
@@ -65,10 +74,18 @@ such parse_request much conn, caps = {}:
         very path = qdeel[0]
         very query = forms.decode(strings.join(qdeel[1:], "?"))
     such headers = {}
+    such kopbytes = 0
     while true:
-        such h = howl.recv_line(conn)
+        such h = none
+        pls
+            very h = howl.recv_line(conn)
+        oh no err!
+            return afgewezen(400, "ongeldige header")
         if h == none or h == "":
             bork
+        very kopbytes = kopbytes + len(bytes(h)) + 2
+        if kopbytes > MAX_KOPPEN:
+            return afgewezen(431, "headers te groot")
         such dp = strings.split(h, ":")
         if len(dp) < 2:
             continue
@@ -78,6 +95,8 @@ such parse_request much conn, caps = {}:
             headers[naam].append(waarde)
         else:
             headers[naam] = [waarde]
+    if headers.has("transfer-encoding"):
+        return afgewezen(411, "Content-Length vereist")
     such cookies = parse_cookies(headers)
     such body = ""
     if headers.has("content-length"):
@@ -90,7 +109,7 @@ such parse_request much conn, caps = {}:
         if caps.has(path):
             very cap = caps[path]
         if n > cap:
-            return {"oversize": true}
+            return afgewezen(413, "verzoek te groot")
         such buf = bytes("")
         while len(buf) < n:
             such chunk = howl.recv_bytes(conn, n - len(buf))
@@ -98,7 +117,10 @@ such parse_request much conn, caps = {}:
                 bork
             very buf = buf + chunk
         if is_tekst(headers):
-            very body = buf.decode()
+            pls
+                very body = buf.decode()
+            oh no err!
+                return afgewezen(400, "ongeldige tekencodering")
         else:
             very body = buf
     return {"method": method, "path": path, "query": query, "headers": headers, "body": body, "cookies": cookies, "params": {}}
@@ -110,7 +132,7 @@ such kop_veilig much v:
     return strings.replace(strings.replace(str(v), "\r", ""), "\n", "")
 wow
 
-such bouw_response much resp:
+such bouw_response much resp, zonder_body = false:
     such status = str(resp["status"])
     such statustekst = STATUS["500"]
     if STATUS.has(status):
@@ -132,6 +154,8 @@ such bouw_response much resp:
             very kop = kop + "Set-Cookie: {kop_veilig(c)}{CRLF}"
     very kop = kop + "Content-Length: {len(body_bytes)}{CRLF}"
     very kop = kop + "Connection: close{CRLF}"
+    if zonder_body:
+        return bytes(kop + CRLF)
     return bytes(kop + CRLF) + body_bytes
 wow
 

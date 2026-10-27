@@ -233,7 +233,11 @@ wow
 such bank_inhoud much store, melding, invoer = {}:
     such vd = html.veld("datum", "Datum", "date", forms.enkel(invoer, "datum", datum.vandaag()))
     such voms = html.veld("omschrijving", "Omschrijving", "text", forms.enkel(invoer, "omschrijving", ""))
-    such srek = html.select("rekening", rekening_opties(store), forms.enkel(invoer, "rekening", ""))
+    such tegen = []
+    for o in rekening_opties(store):
+        if o[0] != rekeningen.REK_PRIVE:
+            tegen.append(o)
+    such srek = html.select("rekening", tegen, forms.enkel(invoer, "rekening", ""))
     such vrek = "<label>Rekening {srek}</label>"
     such vbedrag = html.veld("bedrag", "Bedrag", "text", forms.enkel(invoer, "bedrag", ""))
     such kant_opties = [["storting", "storting (geld erin)"], ["onttrekking", "onttrekking (geld eruit)"]]
@@ -355,7 +359,8 @@ wow
 such storno_form much req:
     such store = req["ctx"]["store"]
     such id = forms.enkel(req["query"], "id", "")
-    return http.html_response(weergave.render("Storno", storno_inhoud(store, id, "")))
+    such status = 404 if journaal.zoek_post(store.laad("journaal", []), id) == none else 200
+    return http.html_response(weergave.render("Storno", storno_inhoud(store, id, "")), status)
 wow
 
 such storno much req:

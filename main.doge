@@ -163,8 +163,8 @@ wow
 # zodat een fout een schone 500 geeft en de verwerk-loop nooit sneuvelt.
 such afhandel much req, r, winkel, cfg:
     pls
-        if req.has("oversize"):
-            return http.bouw_response(http.tekst_response(413, "verzoek te groot"))
+        if req.has("afgewezen"):
+            return http.bouw_response(req["afgewezen"])
         such reden = herkomst.weiger_reden(req, cfg["toegestane_hosts"])
         if reden != none:
             return http.bouw_response(http.tekst_response(403, reden))
@@ -175,7 +175,7 @@ such afhandel much req, r, winkel, cfg:
         else:
             req["ctx"] = {"store": winkel, "config": cfg}
             very resp = r.verwerk(req)
-        return http.bouw_response(resp)
+        return http.bouw_response(resp, req["method"] == "HEAD")
     oh no err!
         bark "verzoekfout: " + err.message
         return http.bouw_response(http.tekst_response(500, "interne fout"))

@@ -28,7 +28,8 @@ such run_recurring much req:
     if cfg["mollie_key"] != none:
         pls
             such mr = mollie.sync(store, cfg["mollie_key"])
-            such mt = "mollie ok"
+            such mg = mr["geboekt"]
+            such mt = "mollie {mg} geboekt"
             if len(mr["verschoven"]) > 0:
                 very mt = mt + ", verschoven: " + strings.join(mr["verschoven"], ", ")
             if len(mr["vergrendeld"]) > 0:
@@ -53,8 +54,7 @@ such run_recurring much req:
         regels.append("terugkerend fout: {err.message}")
     pls
         such sr = bijlagen.scan_import(store)
-        such sg = sr["geimporteerd"]
-        regels.append("scan {sg} geimporteerd")
+        regels.append("scan " + bijlagen.scan_samenvatting(sr))
     oh no err!
         regels.append("scan fout: {err.message}")
     return http.tekst_response(200, strings.join(regels, "; "))

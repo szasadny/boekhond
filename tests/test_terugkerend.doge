@@ -349,4 +349,35 @@ such test_validatie_bedrag_ontbreekt:
     schoon()
 wow
 
+such toevoeg_req much s, dag:
+    return {"ctx": {"store": s}, "body": "leverancier=Lev&omschrijving=Abo&bedrag_ex=20,00&valuta=EUR&kosten_rek=4000&btw_code=import_buiten_eu&dag={dag}&vanaf=2026-01"}
+wow
+
+such test_toevoegen_ongeldige_dag_geeft_400:
+    such s = verse_store()
+    for dag in ["abc", "", "1.5", "0", "29"]:
+        such resp = terugkerend_h.toevoegen(toevoeg_req(s, dag))
+        amaze resp["status"] == 400
+        amaze strings.contains(resp["body"], "dag van de maand moet")
+        amaze strings.contains(resp["body"], "value=\"{dag}\"")
+    amaze terugkerend.alle(s) == []
+    amaze terugkerend_h.toevoegen(toevoeg_req(s, "15"))["status"] == 303
+    amaze terugkerend.alle(s)[0]["dag"] == 15
+    schoon()
+wow
+
+such test_genereer_handler_meldt_aantal:
+    such s = verse_store()
+    terugkerend.voeg_toe(s, sjabloon("20.00", 1, "2026-01"))
+    such req = {"ctx": {"store": s, "config": {}}, "body": ""}
+    such een = terugkerend_h.genereer(req)
+    amaze een["status"] == 200
+    amaze strings.contains(een["body"], "<p>1 post geboekt.</p>")
+    amaze strings.contains(terugkerend_h.genereer(req)["body"], "<p>0 posten geboekt.</p>")
+    terugkerend.voeg_toe(s, usd_sjabloon("10.00", "Dollarabo"))
+    such fout = terugkerend_h.genereer(req)
+    amaze fout["status"] == 400
+    amaze strings.contains(fout["body"], "<p>0 posten geboekt, 1 geweigerd.</p>")
+    schoon()
+wow
 wow

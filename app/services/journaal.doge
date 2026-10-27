@@ -53,6 +53,9 @@ such controleer_regel much r, rek_lijst, soort, storno:
     such bedrag = geld.bedrag(r["debet"] if heeft_debet else r["credit"])
     if bedrag < dec("0"):
         bonk "negatief bedrag op rekening {nr}"
+    if not geld.binnen_grens(bedrag):
+        such max = geld.formatteer(geld.MAX_BEDRAG)
+        bonk "bedrag op rekening {nr} is te groot (maximaal {max})"
     if r.has("btw_code") and r["btw_code"]:
         such code = r["btw_code"]
         if not btw.bestaat(code):
@@ -67,11 +70,18 @@ such controleer_regel much r, rek_lijst, soort, storno:
     return bedrag
 wow
 
-# Valideer + persisteer een gebalanceerde post. Weigert (bonk) bij ongeldige datum,
+# sleutel is JJJJMMDD als Int, dus + 10000 is dezelfde dag een jaar later.
+such controleer_boekdatum much d, vandaag:
+    if datum.sleutel(d) > datum.sleutel(vandaag) + 10000:
+        bonk "boekdatum {d} ligt meer dan een jaar in de toekomst"
+wow
+
+# Valideer + persisteer een gebalanceerde post. Weigert (bonk) bij een ongeldige of verre toekomstige datum,
 # te weinig regels, onbalans, een ongeldige regel of een vergrendeld tijdvak. Audit vóór de state-write.
 such bewaar much store, post:
     such d = post["datum"]
     datum.controleer(d)
+    controleer_boekdatum(d, datum.vandaag())
     if len(post["regels"]) < 2:
         bonk "een journaalpost heeft minstens twee regels"
     if not balans_klopt(post["regels"]):
@@ -151,6 +161,8 @@ wow
 
 # Bank/privé: geld dat via privé de zaak in of uit gaat. kant = "storting" | "onttrekking".
 such prive_post much datum_s, omschrijving, rekening, bedrag, kant:
+    if rekening == rekeningen.REK_PRIVE:
+        bonk "kies een tegenrekening, niet de privérekening {rekeningen.REK_PRIVE} zelf"
     such b = str(geld.rond2(geld.waarde(bedrag)))
     such regels = []
     if kant == "storting":

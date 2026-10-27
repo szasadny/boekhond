@@ -46,11 +46,8 @@ such openstaand_banner much lijst:
     such j = eerste["jaar"]
     such kw = eerste["kwartaal"]
     such dl = eerste["deadline"]
-    such klasse = "banner"
-    such status = ""
-    if eerste["te_laat"]:
-        very klasse = "banner te-laat"
-        very status = " Termijn verstreken."
+    such klasse = "banner te-laat" if eerste["te_laat"] else "banner"
+    such status = weergave.termijn_markering(eerste["te_laat"])
     such lb = html.link("/aangifte", "Naar aangifte")
     such overig = ""
     if len(lijst) > 1:
